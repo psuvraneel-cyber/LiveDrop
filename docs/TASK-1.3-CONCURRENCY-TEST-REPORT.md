@@ -21,6 +21,13 @@ During TASK-1.3, we executed automated concurrency and contention suites simulat
 * **Partial Collision Atomicity:** When competing for overlapping multi-item carts, the buyer who acquired the contested shared item completed their full cart; the competing buyer experienced an atomic all-or-nothing rollback with zero stranded locks.
 * **Concurrent Payment Idempotency:** Simultaneous payment confirmations for the same order resolved safely with zero duplicate writes.
 
+### 1.1 Test Environment & Concurrency Evidence Classification
+> [!IMPORTANT]
+> **Evidence Classification Boundary:**
+> * **PGlite Concurrency Simulation:** All automated concurrency tests in `rpcs.test.ts` execute within `@electric-sql/pglite` (PostgreSQL 18.3 WASM in-memory relational engine). Concurrent calls are initiated via Node.js `Promise.all`. While PGlite evaluates PostgreSQL row locking (`FOR UPDATE`), deterministic lock acquisition (`ORDER BY id ASC`), and transactional rollback semantics, it executes within an in-process single-connection runtime.
+> * **Real PostgreSQL Concurrency Validation: Not Yet Executed.** True multi-connection parallel client execution across separate backend worker processes requires a live Supabase PostgreSQL instance and is scheduled for the pre-production staging gate.
+> * **Zero False Claims:** We explicitly distinguish between in-process concurrency simulation and live distributed database stress testing.
+
 ---
 
 ## 2. Concurrency Test Scenarios & Empirical Evidence
@@ -144,14 +151,15 @@ During TASK-1.3, we executed automated concurrency and contention suites simulat
 ```
  RUN  v5.0.0 C:/LiveDrop/buyer-web
 
- ✓ src/test/smoke.test.tsx (1 test) 27ms
- ✓ src/test/rls.test.ts (35 tests) 2090ms
- ✓ src/test/schema.test.ts (33 tests) 2226ms
- ✓ src/test/rpcs.test.ts (37 tests) 2279ms
+ ✓ src/test/smoke.test.tsx (1 test) 96ms
+ ✓ src/test/rls.test.ts (35 tests) 4210ms
+ ✓ src/test/schema.test.ts (33 tests) 4367ms
+ ✓ src/test/rpcs.test.ts (45 tests) 4898ms
 
  Test Files  4 passed (4)
-      Tests  106 passed (106)
-   Duration  2.71s
+      Tests  114 passed (114)
+   Duration  5.63s
 ```
 
-All 37 dedicated RPC unit and concurrency tests passed with 100% success rate.
+All 45 dedicated RPC unit, concurrency, and hardening tests passed with 100% success rate.
+

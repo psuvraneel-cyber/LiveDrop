@@ -223,13 +223,25 @@ async function run() {
   const forbiddenAnonRpcs = ['mark_order_paid', 'force_release_hold', 'mark_product_sold_offline', 'release_expired_holds'];
   for (const row of privRes.rows) {
     if (row.grantee === 'anon' && forbiddenAnonRpcs.includes(row.routine_name)) {
-      throw new Error(`CRITICAL SECURITY FAILURE: anon has ${row.privilege_type} privilege on seller RPC ${row.routine_name}!`);
+      throw new Error(`CRITICAL SECURITY FAILURE: anon has ${row.privilege_type} privilege on seller/maintenance RPC ${row.routine_name}!`);
+    }
+    if (row.grantee === 'authenticated' && row.routine_name === 'release_expired_holds') {
+      throw new Error(`CRITICAL SECURITY FAILURE: authenticated has ${row.privilege_type} privilege on maintenance RPC ${row.routine_name}!`);
     }
     if (row.grantee === 'PUBLIC') {
       throw new Error(`CRITICAL SECURITY FAILURE: PUBLIC has ${row.privilege_type} privilege on RPC ${row.routine_name}!`);
     }
   }
-  console.log('  ✓ Verified: PUBLIC execution revoked; anon blocked from seller & maintenance RPCs.');
+
+  // Verify that service_role has execute privilege on release_expired_holds
+  const serviceRoleReaper = privRes.rows.find(
+    r => r.grantee === 'service_role' && r.routine_name === 'release_expired_holds' && r.privilege_type === 'EXECUTE'
+  );
+  if (!serviceRoleReaper) {
+    throw new Error('CRITICAL SECURITY FAILURE: service_role lacks EXECUTE privilege on release_expired_holds!');
+  }
+  console.log('  ✓ Verified: PUBLIC execution revoked; anon & authenticated blocked from release_expired_holds; service_role granted EXECUTE.');
+
 
   await db.close();
   console.log('✅ ALL RELATIONAL DATABASE SCHEMA, RLS POLICIES & BUSINESS RPCS VERIFIED.');

@@ -44,7 +44,7 @@ All 6 routines adhere strictly to security conventions:
   - `anon`: Granted `EXECUTE` on `create_order_with_reservation` and `get_order_by_token` ONLY.
   - `authenticated`: Granted `EXECUTE` on seller RPCs (`mark_order_paid`, `force_release_hold`, `mark_product_sold_offline`) and buyer RPCs.
   - Seller routines explicitly verify caller authentication (`auth.uid() IS NOT NULL`) and multi-tenant ownership (`drops.seller_id = auth.uid()`).
-  - `release_expired_holds`: Revoked from `anon`. Accessible to `authenticated` and `service_role`.
+  - `release_expired_holds`: Revoked from `PUBLIC`, `anon`, and `authenticated`. Accessible strictly to `service_role`.
 
 ---
 
@@ -125,8 +125,8 @@ All 6 routines adhere strictly to security conventions:
     ✓ mark_product_sold_offline (jsonb) [SECURITY DEFINER]
     ✓ release_expired_holds (void) [SECURITY DEFINER]
 🔍 Verifying RPC Routine Privileges:
-  Routine privilege grants found (20)
-  ✓ Verified: PUBLIC execution revoked; anon blocked from seller & maintenance RPCs.
+  Routine privilege grants found (19)
+  ✓ Verified: PUBLIC execution revoked; anon & authenticated blocked from release_expired_holds; service_role granted EXECUTE.
 ✅ ALL RELATIONAL DATABASE SCHEMA, RLS POLICIES & BUSINESS RPCS VERIFIED.
 ```
 
@@ -134,14 +134,14 @@ All 6 routines adhere strictly to security conventions:
 ```
  RUN  v5.0.0 C:/LiveDrop/buyer-web
 
- ✓ src/test/smoke.test.tsx (1 test) 27ms
- ✓ src/test/rls.test.ts (35 tests) 2090ms
- ✓ src/test/schema.test.ts (33 tests) 2226ms
- ✓ src/test/rpcs.test.ts (37 tests) 2279ms
+ ✓ src/test/smoke.test.tsx (1 test) 96ms
+ ✓ src/test/rls.test.ts (35 tests) 4210ms
+ ✓ src/test/schema.test.ts (33 tests) 4367ms
+ ✓ src/test/rpcs.test.ts (45 tests) 4898ms
 
  Test Files  4 passed (4)
-      Tests  106 passed (106)
-   Duration  2.71s
+      Tests  114 passed (114)
+   Duration  5.63s
 ```
 
 ### 3. Static Type Analysis (`npm --prefix buyer-web run typecheck`)

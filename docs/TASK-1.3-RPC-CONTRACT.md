@@ -26,10 +26,11 @@ In LiveDrop, direct client table mutations (`INSERT`, `UPDATE`, `DELETE`) on ord
 |---|---|---|---|---|
 | `create_order_with_reservation` | Public Buyer (`anon`) | `SECURITY DEFINER` | `anon`, `authenticated`, `service_role` | Atomic cart validation, deterministic locking, price calculation, order creation, and 15-minute inventory hold |
 | `mark_order_paid` | Boutique Seller (`authenticated`) | `SECURITY DEFINER` | `authenticated`, `service_role` | Payment confirmation, seller ownership verification, contested hold reclamation check, transition to `paid` and `sold` |
-| `release_expired_holds` | Background System / Maintenance | `SECURITY DEFINER` | `authenticated`, `service_role` | Reaper routine releasing genuine expired holds (`hold_expires_at < NOW()`) and cancelling stale pending orders |
+| `release_expired_holds` | Background System / Maintenance | `SECURITY DEFINER` | `service_role` | Reaper routine releasing genuine expired holds (`hold_expires_at < clock_timestamp()`) and cancelling stale pending orders. Execution restricted strictly to backend `service_role` |
 | `force_release_hold` | Boutique Seller (`authenticated`) | `SECURITY DEFINER` | `authenticated`, `service_role` | Seller manual cancellation of a pending buyer hold, freeing garments back to `available` |
 | `mark_product_sold_offline` | Boutique Seller (`authenticated`) | `SECURITY DEFINER` | `authenticated`, `service_role` | Manual walk-in / off-platform sale override, transitioning available item directly to `sold` |
-| `get_order_by_token` | Public Buyer (`anon`) | `SECURITY DEFINER` | `anon`, `authenticated`, `service_role` | Cryptographic secret token-gated order retrieval protecting buyer PII under India's DPDP Act 2023 |
+| `get_order_by_token` | Public Buyer (`anon`) | `SECURITY DEFINER` | `anon`, `authenticated`, `service_role` | Secret token-gated order retrieval designed to reduce unauthorized disclosure risk |
+
 
 ---
 
@@ -114,6 +115,13 @@ SET search_path = public, pg_temp
      "hold_expires_at": "ISO-TIMESTAMP"
    }
    ```
+8. **Duplicate Request & Idempotency Semantics (Model B):**
+   - **Classification:** Inventory-level duplicate protection without request-level idempotency.
+   - **Behavior:** The function does not accept an idempotency key or coalesce duplicate requests. Instead, mutual exclusion is enforced via deterministic row locking (`ORDER BY id ASC FOR UPDATE`) and stock validation (`status = 'available'`).
+   - **Concurrent Submissions:** If two identical checkout requests for the same single-piece garment arrive simultaneously, PostgreSQL serializes them across the product lock. Exactly 1 request succeeds and acquires the hold; competing concurrent requests receive `STOCK_UNAVAILABLE` with zero database modifications.
+   - **Sequential Retries:** A sequential duplicate submission for an already-reserved item is rejected with `STOCK_UNAVAILABLE`.
+   - **Independent Orders:** Submissions for distinct available inventory items succeed independently and generate separate orders.
+   - **Client Contract:** Clients must disable the submit button upon initial tap to prevent accidental multiple submissions; the database guarantees zero over-selling if duplicate requests occur.
 
 ---
 
@@ -257,6 +265,13 @@ SET search_path = public, pg_temp
    }
    ```
 
+4. **Data Protection & PII Minimization Decision:**
+   - **Returned PII:** `buyer_name` ONLY (e.g., "Sangeeta Mukherjee").
+   - **Fulfillment Justification:** Displayed on the receipt screen (`/order/[id]`) to personalize the order confirmation greeting and assure the buyer of receipt authenticity.
+   - **Protection Control:** Token-gated access requiring knowledge of both the order ID (UUIDv4) and the cryptographically random 128-bit `order_token` (UUIDv4).
+   - **Enumeration Defense:** Guessing 128-bit tokens is computationally infeasible ($> 5.3 \times 10^{36}$ keyspace). Without the exact token issued in the checkout response, querying an order ID returns `ORDER_NOT_FOUND_OR_UNAUTHORIZED`.
+   - **Deliberately Excluded Fields:** `buyer_phone`, `shipping_address`, and `pincode` are **strictly excluded** from the response payload. Although stored in `orders` for courier dispatch, they are never exposed on the public token receipt surface, mitigating unauthorized disclosure risk if a receipt URL is forwarded or opened on a shared device.
+
 ---
 
 ### 3.5 `force_release_hold`
@@ -324,7 +339,7 @@ REVOKE ALL ON FUNCTION public.get_order_by_token(UUID, UUID) FROM PUBLIC;
 | `mark_order_paid` | **REVOKED** | **REVOKED** | **EXECUTE** | **EXECUTE** | Blocked for anonymous buyers; checks `auth.uid() = drop.seller_id` |
 | `force_release_hold` | **REVOKED** | **REVOKED** | **EXECUTE** | **EXECUTE** | Blocked for anonymous buyers; checks `auth.uid() = drop.seller_id` |
 | `mark_product_sold_offline` | **REVOKED** | **REVOKED** | **EXECUTE** | **EXECUTE** | Blocked for anonymous buyers; checks `auth.uid() = drop.seller_id` |
-| `release_expired_holds` | **REVOKED** | **REVOKED** | **EXECUTE** | **EXECUTE** | Blocked for anonymous buyers; callable only by cron worker or authenticated seller maintenance |
+| `release_expired_holds` | **REVOKED** | **REVOKED** | **REVOKED** | **EXECUTE** | Blocked for anonymous buyers and authenticated sellers; executable strictly by trusted backend `service_role` worker |
 
 ---
 

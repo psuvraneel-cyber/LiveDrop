@@ -118,6 +118,14 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
     `);
   }
 
+  async function asServiceRole() {
+    await db.exec(`
+      SET ROLE service_role;
+      SELECT set_config('request.jwt.claim.sub', '', false);
+      SELECT set_config('request.headers', '', false);
+    `);
+  }
+
   // Setup PGlite Once for Entire Suite
   beforeAll(async () => {
     db = new PGlite();
@@ -758,7 +766,62 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       expect(finalProd.rows[0].status).toBe('reserved');
       expect(finalProd.rows[0].reserved_by_order_id).toBe(result3.order_id);
     });
+
+    it('reaper preserves paid orders and non-expired holds while cancelling expired holds across multiple sellers', async () => {
+      // Step 1: Create Order A1 (Paid)
+      await asAnon();
+      const resA1 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Paid Buyer', '9830123451', 'Address A 12345', '700001') AS r
+      `, [dropALiveId, prodA1Id]);
+      const orderA1Id = resA1.rows[0].r!.order_id!;
+
+      await asSeller(sellerAId);
+      await db.query(`SELECT mark_order_paid($1)`, [orderA1Id]);
+
+      // Step 2: Create Order A2 (Expired)
+      await asAnon();
+      const resA2 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Expired A Buyer', '9830123452', 'Address A 67890', '700001') AS r
+      `, [dropALiveId, prodA2Id]);
+      const orderA2Id = resA2.rows[0].r!.order_id!;
+
+      // Step 3: Create Order B1 (Expired, Seller B)
+      const resB1 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Expired B Buyer', '9830123453', 'Address B 12345', '600001') AS r
+      `, [dropBLiveId, prodBLiveId]);
+      const orderB1Id = resB1.rows[0].r!.order_id!;
+
+      // Mark A2 and B1 expired
+      await asSuperuser();
+      await db.query(`UPDATE orders SET hold_expires_at = NOW() - INTERVAL '10 minutes' WHERE id IN ($1, $2)`, [orderA2Id, orderB1Id]);
+
+      // Step 4: Execute reaper as service_role
+      await asServiceRole();
+      await db.query(`SELECT release_expired_holds();`);
+
+      // Verify states as superuser
+      await asSuperuser();
+      const oA1 = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1`, [orderA1Id]);
+      expect(oA1.rows[0].status).toBe('paid');
+      const pA1 = await db.query<ProductRow>(`SELECT status FROM products WHERE id = $1`, [prodA1Id]);
+      expect(pA1.rows[0].status).toBe('sold');
+
+      // Verify A2 is cancelled and prodA2 is available
+      const oA2 = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1`, [orderA2Id]);
+      expect(oA2.rows[0].status).toBe('cancelled');
+      const pA2 = await db.query<ProductRow>(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [prodA2Id]);
+      expect(pA2.rows[0].status).toBe('available');
+      expect(pA2.rows[0].reserved_by_order_id).toBeNull();
+
+      // Verify B1 is cancelled and prodBLive is available
+      const oB1 = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1`, [orderB1Id]);
+      expect(oB1.rows[0].status).toBe('cancelled');
+      const pB1 = await db.query<ProductRow>(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [prodBLiveId]);
+      expect(pB1.rows[0].status).toBe('available');
+      expect(pB1.rows[0].reserved_by_order_id).toBeNull();
+    });
   });
+
 
   // ==========================================================================
   // 6. TOKEN-GATED RECEIPT RETRIEVAL (get_order_by_token)
@@ -807,7 +870,53 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       expect(fetchResult.success).toBe(false);
       expect(fetchResult.error).toBe('ORDER_NOT_FOUND_OR_UNAUTHORIZED');
     });
+
+    it('verifies that sensitive PII (phone, address, pincode) is strictly excluded from receipt response', async () => {
+      await asAnon();
+      const checkoutRes = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation(
+          $1, ARRAY[$2]::uuid[], 'Priya Mukherjee', '9830123456', 'Confidential Home Address 12345', '700001'
+        ) AS r
+      `, [dropALiveId, prodA1Id]);
+      const { order_id, order_token } = checkoutRes.rows[0].r!;
+
+      const fetchRes = await db.query<{ r: { success: boolean; order?: Record<string, unknown> } }>(`
+        SELECT get_order_by_token($1, $2) AS r
+      `, [order_id, order_token]);
+      const orderPayload = fetchRes.rows[0].r.order!;
+
+      // Necessary receipt greeting field is present
+      expect(orderPayload.buyer_name).toBe('Priya Mukherjee');
+
+      // Sensitive fulfillment PII is strictly excluded from the returned payload
+      expect(orderPayload.buyer_phone).toBeUndefined();
+      expect(orderPayload.shipping_address).toBeUndefined();
+      expect(orderPayload.pincode).toBeUndefined();
+    });
+
+    it('cross-order token isolation: valid token from Order A cannot access Order B', async () => {
+      await asAnon();
+      // Create Order A
+      const resA = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Buyer A', '9830123451', 'Address A 123456789', '700001') AS r
+      `, [dropALiveId, prodA1Id]);
+      const { order_token: orderTokenA } = resA.rows[0].r!;
+
+      // Create Order B
+      const resB = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Buyer B', '9830123452', 'Address B 123456789', '700002') AS r
+      `, [dropALiveId, prodA2Id]);
+      const { order_id: orderIdB } = resB.rows[0].r!;
+
+      // Attempt to access Order B using Order A's secret token
+      const fetchRes = await db.query<RpcResponseRow>(`
+        SELECT get_order_by_token($1, $2) AS r
+      `, [orderIdB, orderTokenA]);
+      expect(fetchRes.rows[0].r!.success).toBe(false);
+      expect(fetchRes.rows[0].r!.error).toBe('ORDER_NOT_FOUND_OR_UNAUTHORIZED');
+    });
   });
+
 
   // ==========================================================================
   // 7. SELLER AUXILIARY RPCS (force_release_hold, mark_product_sold_offline)
@@ -1050,6 +1159,32 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       ).rejects.toThrow(/permission denied for function release_expired_holds/i);
     });
 
+    it('authenticated seller role is strictly denied execution on release_expired_holds (SQLSTATE 42501)', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`SELECT release_expired_holds();`)
+      ).rejects.toThrow(/permission denied for function release_expired_holds/i);
+    });
+
+    it('service_role is permitted execution on release_expired_holds', async () => {
+      await asServiceRole();
+      await expect(
+        db.query(`SELECT release_expired_holds();`)
+      ).resolves.toBeDefined();
+    });
+
+    it('anon role is permitted execution on create_order_with_reservation and get_order_by_token', async () => {
+      await asAnon();
+      const checkoutRes = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Anon Buyer', '9830123456', 'Address 1234567890', '700001') AS r
+      `, [dropALiveId, prodA1Id]);
+      expect(checkoutRes.rows[0].r!.success).toBe(true);
+
+      const { order_id, order_token } = checkoutRes.rows[0].r!;
+      const fetchRes = await db.query<RpcResponseRow>(`SELECT get_order_by_token($1, $2) AS r;`, [order_id, order_token]);
+      expect(fetchRes.rows[0].r!.success).toBe(true);
+    });
+
     it('authenticated role can execute get_order_by_token with valid credentials', async () => {
       await asAnon();
       const checkoutRes = await db.query<RpcResponseRow>(`
@@ -1083,4 +1218,59 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       expect(p.rows[0].reserved_by_order_id).toBe(orderId);
     });
   });
+
+  // ==========================================================================
+  // 10. DUPLICATE CHECKOUT & IDEMPOTENCY SEMANTICS (MODEL B)
+  // ==========================================================================
+  describe('10. Duplicate Checkout & Idempotency Semantics (Model B)', () => {
+    it('Model B: sequential duplicate checkout for 1-of-1 item fails on second attempt with STOCK_UNAVAILABLE', async () => {
+      await asAnon();
+      // First checkout attempt succeeds
+      const res1 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation(
+          $1, ARRAY[$2]::uuid[], 'Ankita Bose', '9830123456', 'Lake Gardens Kolkata', '700045'
+        ) AS r
+      `, [dropALiveId, prodA1Id]);
+      expect(res1.rows[0].r!.success).toBe(true);
+      const firstOrderId = res1.rows[0].r!.order_id!;
+
+      // Identical sequential checkout attempt with identical payload
+      const res2 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation(
+          $1, ARRAY[$2]::uuid[], 'Ankita Bose', '9830123456', 'Lake Gardens Kolkata', '700045'
+        ) AS r
+      `, [dropALiveId, prodA1Id]);
+
+      // Because the item is 1-of-1 and already reserved, the duplicate request is rejected at the inventory level
+      expect(res2.rows[0].r!.success).toBe(false);
+      expect(res2.rows[0].r!.error).toBe('STOCK_UNAVAILABLE');
+      expect(res2.rows[0].r!.unavailable_product_ids).toContain(prodA1Id);
+
+      // Verify the first order remains unchanged and product is still held by Order 1
+      await asSuperuser();
+      const p = await db.query<ProductRow>(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [prodA1Id]);
+      expect(p.rows[0].status).toBe('reserved');
+      expect(p.rows[0].reserved_by_order_id).toBe(firstOrderId);
+
+      const o = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1`, [firstOrderId]);
+      expect(o.rows[0].status).toBe('pending');
+    });
+
+    it('Model B: distinct checkouts for different available items succeed independently', async () => {
+      await asAnon();
+      // Buyer places order for Product 1
+      const res1 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Buyer One', '9830123451', 'Address One 12345', '700001') AS r
+      `, [dropALiveId, prodA1Id]);
+      expect(res1.rows[0].r!.success).toBe(true);
+
+      // Same buyer places order for Product 2 (independent item)
+      const res2 = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation($1, ARRAY[$2]::uuid[], 'Buyer One', '9830123451', 'Address One 12345', '700001') AS r
+      `, [dropALiveId, prodA2Id]);
+      expect(res2.rows[0].r!.success).toBe(true);
+      expect(res2.rows[0].r!.order_id).not.toBe(res1.rows[0].r!.order_id);
+    });
+  });
 });
+

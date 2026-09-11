@@ -217,6 +217,42 @@ This document serves as the permanent, immutable engineering audit trail for all
 * **Verdict:**
   * **PASS — READY FOR TASK-1.4**
 
+---
+
+### `TASK-1.3.1: Transactional Business RPC Hardening Pass`
+* **Phase:** Phase 1 — Database & Security Foundation
+* **Date:** 2026-09-11
+* **Requirement IDs:** `REQ-FR-B4.1`, `REQ-FR-S3.2`, `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. **Global Reaper Privilege Hardening:** In `supabase/migrations/009_create_core_business_rpcs.sql`, revoked `EXECUTE` on `release_expired_holds()` from `authenticated` as well as `anon` and `PUBLIC`. Restricted routine execution strictly to `service_role`. Maintained `SECURITY DEFINER` and pinned `search_path = public, pg_temp;`.
+  2. **Schema Privilege Verification:** Updated `scripts/verify-schema.mjs` with strict assertions ensuring `authenticated` and `anon` are blocked from `release_expired_holds` and `service_role` possesses explicit `EXECUTE` privileges.
+  3. **Automated Negative & Positive Privilege Tests:** Added tests in `buyer-web/src/test/rpcs.test.ts` verifying that `authenticated` sellers and `anon` callers receive SQLSTATE 42501 (`permission denied`) when invoking `release_expired_holds`, while `service_role` execution succeeds. Verified that anonymous callers retain access to public buyer RPCs (`create_order_with_reservation`, `get_order_by_token`).
+  4. **Buyer PII Exposure Decision Documented:** Documented that `get_order_by_token` returns only `buyer_name` (for greeting on the `/order/[id]` receipt screen), gated by 128-bit secret `order_token` (UUIDv4) and order ID, and strictly excludes sensitive fulfillment PII (`buyer_phone`, `shipping_address`, `pincode`). Added automated test asserting exclusion of sensitive PII and cross-order token isolation.
+  5. **Idempotency & Retry Semantics Formalized (Model B):** Formalized and documented the checkout retry model as **Model B: Inventory-level duplicate protection without request-level idempotency**. Verified via automated tests that sequential duplicate submissions for a 1-of-1 product fail on the second attempt with `STOCK_UNAVAILABLE`, leaving the first reservation and order untouched.
+  6. **Reaper State Regression Suite:** Added tests verifying that trusted `service_role` reaper execution cancels only genuine expired holds (`hold_expires_at < clock_timestamp()`), while leaving paid, cancelled, and unexpired orders across multiple sellers completely intact.
+  7. **Evidence Classification:** Updated `docs/TASK-1.3-CONCURRENCY-TEST-REPORT.md` to explicitly classify PGlite as an in-process WASM simulation and state that real multi-connection PostgreSQL validation is scheduled for the pre-production staging gate.
+  8. **Comprehensive Hardening Report:** Authored formal report [`docs/TASK-1.3.1-HARDENING-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.3.1-HARDENING-REPORT.md).
+
+* **Files Created / Modified:**
+  * Created: `docs/TASK-1.3.1-HARDENING-REPORT.md`
+  * Modified: `supabase/migrations/009_create_core_business_rpcs.sql`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `buyer-web/src/test/rpcs.test.ts`
+  * Modified: `docs/TASK-1.3-RPC-CONTRACT.md`
+  * Modified: `docs/TASK-1.3-COMPLETION-REPORT.md`
+  * Modified: `docs/TASK-1.3-CONCURRENCY-TEST-REPORT.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ 9 migrations applied, 5 tables, 8 indexes, 9 Paisa columns, 5 triggers, 13 RLS policies, 6 RPCs verified; `release_expired_holds` revoked from anon and authenticated, granted to service_role (Exit code 0).
+  2. `npm --prefix buyer-web test -- --run` ➔ 114/114 tests passed across 4 test suites: `smoke.test.tsx` (1), `schema.test.ts` (33), `rls.test.ts` (35), `rpcs.test.ts` (45) (Exit code 0).
+  3. `npm --prefix buyer-web run typecheck` ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm --prefix buyer-web run lint` ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+
+* **Verdict:**
+  * **PASS — TASK-1.3 CLOSED; READY FOR TASK-1.4**
+
 
 
 

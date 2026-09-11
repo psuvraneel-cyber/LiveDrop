@@ -20,6 +20,8 @@ BEGIN
 END
 $$;
 
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+
 -- ============================================================================
 -- 1. RPC: release_expired_holds()
 -- ============================================================================
@@ -543,6 +545,7 @@ GRANT EXECUTE ON FUNCTION force_release_hold(UUID) TO authenticated, service_rol
 REVOKE ALL ON FUNCTION mark_product_sold_offline(UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION mark_product_sold_offline(UUID) TO authenticated, service_role;
 
--- System / Cron maintenance operation
-REVOKE ALL ON FUNCTION release_expired_holds() FROM anon;
-GRANT EXECUTE ON FUNCTION release_expired_holds() TO service_role, authenticated;
+-- System / Cron maintenance operation (strictly restricted to backend service_role)
+REVOKE ALL ON FUNCTION release_expired_holds() FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION release_expired_holds() TO service_role;
+
