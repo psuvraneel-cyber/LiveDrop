@@ -29,7 +29,7 @@ To guarantee security, data integrity, and excellent user experience, all busine
 | **RULE-PRD-01** | Flash Code must start with `#` followed by 1–6 uppercase alphanumeric chars (e.g., `#A01`, `#12`). | Regex mask on keypad: `^#[A-Z0-9]{1,6}$` | Verified in ingestion endpoint | `CHECK (code ~ '^#[A-Z0-9]{1,6}$')` |
 | **RULE-PRD-02** | Flash Code must be strictly unique within the same Drop. | Suggested code checks local drop list | Verified before insert | `UNIQUE(drop_id, code)` |
 | **RULE-PRD-03** | Product Price must be a positive integer in Paisa (`> 0`). | Numeric keypad only; rejects `0` or negative | Verified in RPC | `CHECK (price_paisa > 0)` |
-| **RULE-PRD-04** | Product Image must be a 1:1 square WebP format `< 250 KB`. | Client-side auto-crop & compression | Storage bucket MIME filter | Storage policy / CDN headers |
+| **RULE-PRD-04** | Product Image must be a 1:1 square WebP format `< 250 KB`. | Client-side auto-crop & compression | Storage bucket MIME filter | Storage policy / CDN headers & `CHECK (char_length(image_url) BETWEEN 1 AND 2048)` |
 | **RULE-PRD-05** | Product Status must strictly belong to permitted lifecycle set. | UI only permits valid state actions | Verified in state machine RPC | `CHECK (status IN ('available', 'reserved', 'sold'))` |
 | **RULE-PRD-06** | A sold product cannot be deleted if referenced in an order. | UI hides delete for sold items | Verified before DELETE | `order_items.product_id ON DELETE RESTRICT` |
 
@@ -39,9 +39,9 @@ To guarantee security, data integrity, and excellent user experience, all busine
 
 | Rule ID | Domain Rule Description | Tier 1: Client UI | Tier 2: Server RPC | Tier 3: Database Constraint |
 |---|---|---|---|---|
-| **RULE-DRP-01** | Drop Slug must be lowercase alphanumeric with hyphens, min 3, max 60 chars. | Auto-generated from title | Sanitized on API | `CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')` |
+| **RULE-DRP-01** | Drop Slug must be lowercase alphanumeric with hyphens, min 3, max 60 chars. | Auto-generated from title | Sanitized on API | `CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND char_length(slug) BETWEEN 3 AND 60)` |
 | **RULE-DRP-02** | Drop Slug must be globally unique across all boutiques. | Pre-check on typing | Unique validation | `slug TEXT UNIQUE NOT NULL` |
-| **RULE-DRP-03** | A seller may have at most **ONE** drop in `live` status at any time. | UI disables "Go Live" if another drop is active | RPC checks active drops for seller | Trigger / Partial Unique Index |
+| **RULE-DRP-03** | A seller may have at most **ONE** drop in `live` status at any time. | UI disables "Go Live" if another drop is active | RPC checks active drops for seller | Partial Unique Index: `idx_drops_one_live_per_seller ON drops(seller_id) WHERE status = 'live'` |
 | **RULE-DRP-04** | A closed drop cannot be reopened to `live`. | UI hides "Reopen" button | Status transition check | RPC checks `old.status != 'closed'` |
 | **RULE-DRP-05** | Closing a drop leaves existing active reservations intact until their 15-minute expiry. | UI shows "Closing drop" notice | Only stops new checkouts | Orders maintain independent expiry timestamps |
 
@@ -63,7 +63,7 @@ To guarantee security, data integrity, and excellent user experience, all busine
 
 | Rule ID | Domain Rule Description | Tier 1: Client UI | Tier 2: Server RPC | Tier 3: Database Constraint |
 |---|---|---|---|---|
-| **RULE-ORD-01** | Subtotal must equal the exact sum of purchase prices in Paisa of bundled garments. | Client displays preview | Server computes `SUM(price_paisa)` | `CHECK (subtotal_paisa >= 0)` |
+| **RULE-ORD-01** | Subtotal must equal the exact sum of purchase prices in Paisa of bundled garments. | Client displays preview | Server computes `SUM(price_paisa)` | `CHECK (subtotal_paisa > 0)` |
 | **RULE-ORD-02** | Shipping fee is determined authoritatively by drop policy (with fallback to seller profile). | Client estimates shipping | Server calculates from `drops`/`profiles` | Server inserts `shipping_paisa` |
 | **RULE-ORD-03** | Total Amount must exactly equal Subtotal + Shipping. | Client displays total | Server computes `subtotal_paisa + shipping_paisa` | `CHECK (total_paisa = subtotal_paisa + shipping_paisa)` |
 | **RULE-ORD-04** | Order must contain at least 1 item and at most 10 items per bundle. | Cart limits addition to 10 | RPC validates array length | Checked in RPC logic |

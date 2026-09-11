@@ -11,7 +11,7 @@ CREATE TABLE orders (
     buyer_phone TEXT NOT NULL CHECK (buyer_phone ~ '^[6-9]\d{9}$' OR buyer_phone ~ '^91[6-9]\d{9}$'),
     shipping_address TEXT NOT NULL CHECK (char_length(trim(shipping_address)) BETWEEN 10 AND 500),
     pincode TEXT NOT NULL CHECK (pincode ~ '^\d{6}$'),
-    subtotal_paisa INT NOT NULL CHECK (subtotal_paisa >= 0),
+    subtotal_paisa INT NOT NULL CHECK (subtotal_paisa > 0),
     shipping_paisa INT NOT NULL DEFAULT 0 CHECK (shipping_paisa >= 0),
     total_paisa INT NOT NULL CHECK (total_paisa = subtotal_paisa + shipping_paisa),
     status TEXT NOT NULL CHECK (status IN ('pending', 'paid', 'shipped', 'cancelled')) DEFAULT 'pending',
@@ -27,4 +27,4 @@ CREATE TABLE orders (
 -- Establish foreign key from products to orders for reservation tracking
 ALTER TABLE products 
 ADD CONSTRAINT fk_products_reserved_by_order 
-FOREIGN KEY (reserved_by_order_id) REFERENCES orders(id) ON DELETE SET NULL;
+FOREIGN KEY (reserved_by_order_id) REFERENCES orders(id) ON DELETE RESTRICT;

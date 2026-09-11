@@ -1,5 +1,5 @@
 -- LiveDrop Migration: 006_create_indexes.sql
--- Description: Deploys the 8 justified query performance and constraint indexes.
+-- Description: Deploys justified query performance, constraint, and business-rule indexes.
 -- Parent Documentation: docs/12-database-design.md, Section 2 & Section 8
 
 -- 1. Buyer catalog grid query: filtering active garments by drop
@@ -11,8 +11,7 @@ CREATE INDEX idx_products_active_hold ON products(reserved_at) WHERE status = 'r
 -- 3. Seller dashboard kanban pipeline: querying orders by drop and lifecycle status
 CREATE INDEX idx_orders_drop_status ON orders(drop_id, status);
 
--- 4. Receipt token verification: looking up orders by unguessable cryptographic token
-CREATE INDEX idx_orders_order_token ON orders(order_token);
+-- 4. (REMOVED) idx_orders_order_token: order_token UNIQUE constraint already creates an implicit B-tree index.
 
 -- 5. Order hold expiration: partial index for background cancellation of unpaid orders
 CREATE INDEX idx_orders_hold_expiry ON orders(hold_expires_at) WHERE status = 'pending';
@@ -25,3 +24,8 @@ CREATE INDEX idx_order_items_order ON order_items(order_id);
 
 -- 8. Reverse integrity lookup & cascade protection: checking if garment is in orders
 CREATE INDEX idx_order_items_product ON order_items(product_id);
+
+-- 9. RULE-DRP-03: A seller may have at most ONE drop in 'live' status at any time.
+-- Prevents TOCTOU race conditions that RPC-only enforcement cannot catch.
+CREATE UNIQUE INDEX idx_drops_one_live_per_seller ON drops(seller_id) WHERE status = 'live';
+

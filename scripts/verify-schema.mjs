@@ -35,6 +35,7 @@ async function run() {
     '004_create_orders.sql',
     '005_create_order_items.sql',
     '006_create_indexes.sql',
+    '007_create_triggers.sql',
   ];
 
   console.log('📦 Applying migrations sequentially:');
@@ -84,6 +85,27 @@ async function run() {
     console.log(`  ✓ ${col.table_name}.${col.column_name}: integer (Paisa)`);
   }
   if (paisaRes.rows.length !== 9) throw new Error(`Expected 9 paisa columns, found ${paisaRes.rows.length}`);
+
+  console.log('🔍 Verifying 5 triggers:');
+  const triggerRes = await db.query(`
+    SELECT trigger_name, event_manipulation, event_object_table
+    FROM information_schema.triggers
+    WHERE trigger_schema = 'public'
+    ORDER BY trigger_name;
+  `);
+  const triggers = triggerRes.rows.map(r => `${r.trigger_name} on ${r.event_object_table} (${r.event_manipulation})`);
+  console.log(`  Triggers found (${triggers.length}):\n    ${triggers.join('\n    ')}`);
+  const expectedTriggers = [
+    'trg_profiles_updated_at',
+    'trg_drops_updated_at',
+    'trg_products_updated_at',
+    'trg_orders_updated_at',
+    'trg_orders_no_delete_finalized',
+  ];
+  const foundNames = triggerRes.rows.map(r => r.trigger_name);
+  for (const exp of expectedTriggers) {
+    if (!foundNames.includes(exp)) throw new Error(`Missing expected trigger: ${exp}`);
+  }
 
   await db.close();
   console.log('✅ ALL RELATIONAL DATABASE SCHEMA CHECKS PASSED.');

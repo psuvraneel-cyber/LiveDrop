@@ -29,7 +29,7 @@ Stores boutique seller operational credentials and default fulfillment rules.
 | `id` | `UUID` | No | None | `PRIMARY KEY, REFERENCES auth.users(id) ON DELETE CASCADE` | Matches authenticated Supabase seller user ID. |
 | `store_name` | `TEXT` | No | None | `CHECK (char_length(store_name) BETWEEN 2 AND 100)` | Public boutique brand name (e.g., "Mother's Boutique"). |
 | `phone_number` | `TEXT` | No | None | `CHECK (phone_number ~ '^[6-9]\d{9}$' OR phone_number ~ '^91[6-9]\d{9}$')` | Business WhatsApp phone number normalized without `+`. |
-| `upi_id` | `TEXT` | No | None | `CHECK (upi_id ~ '^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$')` | Seller's Virtual Payment Address (e.g., `store@okaxis`). |
+| `upi_id` | `TEXT` | No | None | `CHECK (upi_id ~ '^[a-zA-Z0-9.\-_]{2,255}@[a-zA-Z]{2,64}$')` | Seller's Virtual Payment Address (e.g., `store@okaxis`). Note: PostgreSQL REG_MAX_REPEAT caps at 255. |
 | `upi_qr_url` | `TEXT` | Yes | `NULL` | None | Public URL to seller's static UPI QR code image. |
 | `return_address`| `TEXT` | No | None | `CHECK (char_length(return_address) BETWEEN 10 AND 500)` | Physical return address printed on 4×6 courier labels. |
 | `default_shipping_fee_paisa` | `INT` | No | `8000` | `CHECK (default_shipping_fee_paisa >= 0)` | Standard flat shipping rate in Paisa (8000 = ₹80.00). |
@@ -45,9 +45,9 @@ Represents an individual Facebook Live session.
 | Column | Type | Nullable | Default | Constraints | Description |
 |---|---|---|---|---|---|
 | `id` | `UUID` | No | `gen_random_uuid()` | `PRIMARY KEY` | Unique internal drop identifier. |
-| `seller_id` | `UUID` | No | None | `REFERENCES profiles(id) ON DELETE CASCADE` | Owning boutique seller reference. |
+| `seller_id` | `UUID` | No | None | `REFERENCES profiles(id) ON DELETE RESTRICT` | Owning boutique seller reference. |
 | `title` | `TEXT` | No | None | `CHECK (char_length(title) BETWEEN 3 AND 150)` | Public session title (e.g., "Friday Silk Special"). |
-| `slug` | `TEXT` | No | None | `UNIQUE, CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')` | URL-safe slug for web catalog: `/drop/[slug]`. |
+| `slug` | `TEXT` | No | None | `UNIQUE, CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND char_length(slug) BETWEEN 3 AND 60)` | URL-safe slug for web catalog: `/drop/[slug]`. |
 | `status` | `TEXT` | No | `'draft'` | `CHECK (status IN ('draft', 'live', 'closed'))` | Lifecycle state of the live broadcast session. |
 | `shipping_fee_paisa` | `INT` | No | `8000` | `CHECK (shipping_fee_paisa >= 0)` | Authoritative shipping fee in Paisa for orders in this drop. |
 | `free_shipping_threshold_paisa` | `INT` | Yes | `200000` | `CHECK (free_shipping_threshold_paisa >= 0)` | Subtotal threshold in Paisa for free shipping in this drop. |
@@ -64,15 +64,15 @@ Individual garment items displayed during a live drop.
 | Column | Type | Nullable | Default | Constraints | Description |
 |---|---|---|---|---|---|
 | `id` | `UUID` | No | `gen_random_uuid()` | `PRIMARY KEY` | Unique internal product identifier. |
-| `drop_id` | `UUID` | No | None | `REFERENCES drops(id) ON DELETE CASCADE` | Associated drop session. |
+| `drop_id` | `UUID` | No | None | `REFERENCES drops(id) ON DELETE RESTRICT` | Associated drop session. |
 | `code` | `TEXT` | No | None | `CHECK (code ~ '^#[A-Z0-9]{1,6}$')` | Bold flash code shown on stream (e.g., `#A01`). |
 | `title` | `TEXT` | Yes | `NULL` | `CHECK (char_length(title) <= 100)` | Optional fabric / garment descriptor (e.g., "Tussar Silk"). |
 | `price_paisa` | `INT` | No | None | `CHECK (price_paisa > 0)` | Garment price in Paisa (185000 = ₹1,850.00). |
 | `size` | `TEXT` | Yes | `NULL` | `CHECK (char_length(size) <= 30)` | Garment size descriptor (e.g., "Free Size", "XL"). |
-| `image_url` | `TEXT` | No | None | None | Public CDN URL to 1:1 square WebP thumbnail. |
+| `image_url` | `TEXT` | No | None | `CHECK (char_length(image_url) BETWEEN 1 AND 2048)` | Public CDN URL to 1:1 square WebP thumbnail. |
 | `status` | `TEXT` | No | `'available'` | `CHECK (status IN ('available', 'reserved', 'sold'))` | Real-time inventory reservation state. |
 | `reserved_at` | `TIMESTAMPTZ` | Yes | `NULL` | None | Timestamp when item was locked by checkout RPC. |
-| `reserved_by_order_id` | `UUID` | Yes | `NULL` | `REFERENCES orders(id) ON DELETE SET NULL` | ID of the order holding the 15-minute reservation. |
+| `reserved_by_order_id` | `UUID` | Yes | `NULL` | `REFERENCES orders(id) ON DELETE RESTRICT` | ID of the order holding the 15-minute reservation. |
 | `version` | `INT` | No | `1` | `CHECK (version >= 1)` | Optimistic concurrency and realtime ordering sequence. |
 | `created_at` | `TIMESTAMPTZ` | No | `NOW()` | None | Record creation timestamp. |
 | `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | None | Last modification timestamp. |
@@ -94,7 +94,7 @@ Customer orders created during checkout.
 | `buyer_phone` | `TEXT` | No | None | `CHECK (buyer_phone ~ '^[6-9]\d{9}$' OR buyer_phone ~ '^91[6-9]\d{9}$')` | Buyer WhatsApp contact number. |
 | `shipping_address`| `TEXT`| No | None | `CHECK (char_length(trim(shipping_address)) BETWEEN 10 AND 500)` | Full multiline delivery address. |
 | `pincode` | `TEXT` | No | None | `CHECK (pincode ~ '^\d{6}$')` | 6-digit Indian postal code. |
-| `subtotal_paisa`| `INT` | No | `0` | `CHECK (subtotal_paisa >= 0)` | Authoritative sum of product prices in Paisa. |
+| `subtotal_paisa`| `INT` | No | None | `CHECK (subtotal_paisa > 0)` | Authoritative sum of product prices in Paisa. |
 | `shipping_paisa`| `INT` | No | `0` | `CHECK (shipping_paisa >= 0)` | Authoritative shipping fee applied in Paisa. |
 | `total_paisa` | `INT` | No | None | `CHECK (total_paisa = subtotal_paisa + shipping_paisa)` | Authoritative total payable in Paisa. |
 | `status` | `TEXT` | No | `'pending'` | `CHECK (status IN ('pending', 'paid', 'shipped', 'cancelled'))` | Fulfillment lifecycle status. |
@@ -120,3 +120,31 @@ Junction table linking orders to specific garments.
 | `created_at` | `TIMESTAMPTZ` | No | `NOW()` | None | Line item creation timestamp. |
 
 *Table Invariant:* `UNIQUE(order_id, product_id)` prevents the same product from being included twice in one order.
+
+---
+
+## 3. Database Indexes
+
+| Index Name | Table | Type / Condition | Target Columns | Primary Query Supported |
+|---|---|---|---|---|
+| `idx_products_drop_status` | `products` | B-tree | `(drop_id, status)` | Public buyer catalog browsing & available filter |
+| `idx_products_active_hold` | `products` | Partial B-tree | `(reserved_at) WHERE status = 'reserved'` | Background expired reservation cleanup cron |
+| `idx_orders_drop_status` | `orders` | B-tree | `(drop_id, status)` | Seller dashboard Kanban pipeline by drop and status |
+| `idx_orders_hold_expiry` | `orders` | Partial B-tree | `(hold_expires_at) WHERE status = 'pending'` | Background expired orders cancellation cron |
+| `idx_orders_buyer_phone` | `orders` | B-tree | `(buyer_phone)` | Buyer customer support and WhatsApp order lookups |
+| `idx_order_items_order` | `order_items` | B-tree | `(order_id)` | Receipt rendering and packing slip queries |
+| `idx_order_items_product` | `order_items` | B-tree | `(product_id)` | Reverse integrity lookup & product deletion checks |
+| `idx_drops_one_live_per_seller` | `drops` | Partial Unique B-tree | `(seller_id) WHERE status = 'live'` | Database-level enforcement of RULE-DRP-03 (one live drop per seller) |
+
+---
+
+## 4. Database Triggers
+
+| Trigger Name | Target Table | Timing / Event | Function | Behavior |
+|---|---|---|---|---|
+| `trg_profiles_updated_at` | `profiles` | `BEFORE UPDATE` | `set_updated_at()` | Overwrites `updated_at = NOW()`, preserves `created_at` |
+| `trg_drops_updated_at` | `drops` | `BEFORE UPDATE` | `set_updated_at()` | Overwrites `updated_at = NOW()`, preserves `created_at` |
+| `trg_products_updated_at` | `products` | `BEFORE UPDATE` | `set_updated_at()` | Overwrites `updated_at = NOW()`, preserves `created_at` |
+| `trg_orders_updated_at` | `orders` | `BEFORE UPDATE` | `set_updated_at()` | Overwrites `updated_at = NOW()`, preserves `created_at` |
+| `trg_orders_no_delete_finalized` | `orders` | `BEFORE DELETE` | `prevent_finalized_order_deletion()` | Aborts deletion if `OLD.status IN ('paid', 'shipped')` for legal/GST retention |
+

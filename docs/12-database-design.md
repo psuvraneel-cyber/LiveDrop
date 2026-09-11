@@ -114,7 +114,7 @@ CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     store_name TEXT NOT NULL CHECK (char_length(store_name) BETWEEN 2 AND 100),
     phone_number TEXT NOT NULL CHECK (phone_number ~ '^[6-9]\d{9}$' OR phone_number ~ '^91[6-9]\d{9}$'),
-    upi_id TEXT NOT NULL CHECK (upi_id ~ '^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$'),
+    upi_id TEXT NOT NULL CHECK (upi_id ~ '^[a-zA-Z0-9.\-_]{2,255}@[a-zA-Z]{2,64}$'), -- Note: PostgreSQL REG_MAX_REPEAT caps repetition at 255
     upi_qr_url TEXT,
     return_address TEXT NOT NULL CHECK (char_length(return_address) BETWEEN 10 AND 500),
     default_shipping_fee_paisa INT NOT NULL DEFAULT 8000 CHECK (default_shipping_fee_paisa >= 0),
@@ -128,9 +128,9 @@ CREATE TABLE profiles (
 -- ============================================================================
 CREATE TABLE drops (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    seller_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    seller_id UUID NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
     title TEXT NOT NULL CHECK (char_length(title) BETWEEN 3 AND 150),
-    slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
+    slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND char_length(slug) BETWEEN 3 AND 60),
     status TEXT NOT NULL CHECK (status IN ('draft', 'live', 'closed')) DEFAULT 'draft',
     shipping_fee_paisa INT NOT NULL DEFAULT 8000 CHECK (shipping_fee_paisa >= 0),
     free_shipping_threshold_paisa INT DEFAULT 200000 CHECK (free_shipping_threshold_paisa >= 0),
@@ -145,12 +145,12 @@ CREATE TABLE drops (
 -- ============================================================================
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE CASCADE,
+    drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE RESTRICT,
     code TEXT NOT NULL CHECK (code ~ '^#[A-Z0-9]{1,6}$'),
     title TEXT CHECK (char_length(title) <= 100),
     price_paisa INT NOT NULL CHECK (price_paisa > 0),
     size TEXT CHECK (char_length(size) <= 30),
-    image_url TEXT NOT NULL,
+    image_url TEXT NOT NULL CHECK (char_length(image_url) BETWEEN 1 AND 2048),
     status TEXT NOT NULL CHECK (status IN ('available', 'reserved', 'sold')) DEFAULT 'available',
     reserved_at TIMESTAMPTZ,
     reserved_by_order_id UUID, -- Foreign key established below
@@ -172,7 +172,7 @@ CREATE TABLE orders (
     buyer_phone TEXT NOT NULL CHECK (buyer_phone ~ '^[6-9]\d{9}$' OR buyer_phone ~ '^91[6-9]\d{9}$'),
     shipping_address TEXT NOT NULL CHECK (char_length(trim(shipping_address)) BETWEEN 10 AND 500),
     pincode TEXT NOT NULL CHECK (pincode ~ '^\d{6}$'),
-    subtotal_paisa INT NOT NULL CHECK (subtotal_paisa >= 0),
+    subtotal_paisa INT NOT NULL CHECK (subtotal_paisa > 0),
     shipping_paisa INT NOT NULL DEFAULT 0 CHECK (shipping_paisa >= 0),
     total_paisa INT NOT NULL CHECK (total_paisa = subtotal_paisa + shipping_paisa),
     status TEXT NOT NULL CHECK (status IN ('pending', 'paid', 'shipped', 'cancelled')) DEFAULT 'pending',
@@ -188,7 +188,7 @@ CREATE TABLE orders (
 -- Establish foreign key from products to orders for reservation tracking
 ALTER TABLE products 
 ADD CONSTRAINT fk_products_reserved_by_order 
-FOREIGN KEY (reserved_by_order_id) REFERENCES orders(id) ON DELETE SET NULL;
+FOREIGN KEY (reserved_by_order_id) REFERENCES orders(id) ON DELETE RESTRICT;
 
 -- ============================================================================
 -- 5. TABLE: order_items
@@ -208,11 +208,43 @@ CREATE TABLE order_items (
 CREATE INDEX idx_products_drop_status ON products(drop_id, status);
 CREATE INDEX idx_products_active_hold ON products(reserved_at) WHERE status = 'reserved';
 CREATE INDEX idx_orders_drop_status ON orders(drop_id, status);
-CREATE INDEX idx_orders_order_token ON orders(order_token);
+-- order_token UNIQUE constraint already creates an implicit B-tree index; no explicit index needed.
 CREATE INDEX idx_orders_hold_expiry ON orders(hold_expires_at) WHERE status = 'pending';
 CREATE INDEX idx_orders_buyer_phone ON orders(buyer_phone);
 CREATE INDEX idx_order_items_order ON order_items(order_id);
 CREATE INDEX idx_order_items_product ON order_items(product_id);
+-- RULE-DRP-03: A seller may have at most ONE drop in 'live' status at any time.
+CREATE UNIQUE INDEX idx_drops_one_live_per_seller ON drops(seller_id) WHERE status = 'live';
+
+-- ============================================================================
+-- 7. TRIGGERS
+-- ============================================================================
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_drops_updated_at    BEFORE UPDATE ON drops    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_products_updated_at BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_orders_updated_at   BEFORE UPDATE ON orders   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Prevent deletion of finalized (paid/shipped) orders for GST/financial record retention
+CREATE OR REPLACE FUNCTION prevent_finalized_order_deletion()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.status IN ('paid', 'shipped') THEN
+        RAISE EXCEPTION 'Cannot delete finalized order % with status "%"', OLD.id, OLD.status;
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_orders_no_delete_finalized
+    BEFORE DELETE ON orders FOR EACH ROW EXECUTE FUNCTION prevent_finalized_order_deletion();
 
 COMMIT;
 ```
@@ -251,6 +283,11 @@ This enables the client UI to highlight the exact contested dress and allow the 
 
 ## 4. Lifecycle & Ownership Boundary Rules
 
-1. **Drop Deletion Cascade:** Deleting a seller profile cascades to drops, products, and order records.
-2. **Order Integrity Protection (`ON DELETE RESTRICT`):** A product that was ordered and sold cannot be hard-deleted from `products` (`order_items.product_id REFERENCES products(id) ON DELETE RESTRICT`). This preserves legal accounting and fulfillment records.
-3. **Automatic Timestamps:** Triggers update `updated_at = NOW()` across all tables on every modification.
+1. **Profile Deletion Guard (`ON DELETE RESTRICT`):** Deleting a seller profile is blocked if any drops exist. Profile cleanup must be handled via a SECURITY DEFINER RPC that verifies no active or historical orders exist before proceeding, or implements soft-delete.
+2. **Drop Deletion Guard (`ON DELETE RESTRICT`):** Deleting a drop is blocked if any products exist. A drop can only be deleted when empty (no products). This is enforced both at the FK level and by RPC validation.
+3. **Order Integrity Protection (`ON DELETE RESTRICT`):** A product that was ordered and sold cannot be hard-deleted from `products` (`order_items.product_id REFERENCES products(id) ON DELETE RESTRICT`). This preserves legal accounting and fulfillment records.
+4. **Finalized Order Protection:** A trigger prevents deletion of orders in `paid` or `shipped` status, ensuring GST-compliant retention of completed financial transactions.
+5. **Reservation Integrity (`ON DELETE RESTRICT`):** An order cannot be deleted while any product references it via `reserved_by_order_id`. Reservation cleanup must occur before order deletion.
+6. **Automatic Timestamps:** Triggers update `updated_at = NOW()` across `profiles`, `drops`, `products`, and `orders` on every modification.
+7. **Cross-Seller Isolation Invariant (RPC-enforced):** The schema does not carry a `seller_id` on `orders` directly; seller ownership is derived via `orders.drop_id → drops.seller_id`. All RPCs that create orders MUST enforce `products.drop_id = p_drop_id` in the locking query to prevent cross-seller product inclusion.
+

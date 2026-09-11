@@ -4,12 +4,12 @@
 
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE CASCADE,
+    drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE RESTRICT,
     code TEXT NOT NULL CHECK (code ~ '^#[A-Z0-9]{1,6}$'),
     title TEXT CHECK (char_length(title) <= 100),
     price_paisa INT NOT NULL CHECK (price_paisa > 0),
     size TEXT CHECK (char_length(size) <= 30),
-    image_url TEXT NOT NULL,
+    image_url TEXT NOT NULL CHECK (char_length(image_url) BETWEEN 1 AND 2048),
     status TEXT NOT NULL CHECK (status IN ('available', 'reserved', 'sold')) DEFAULT 'available',
     reserved_at TIMESTAMPTZ,
     reserved_by_order_id UUID,

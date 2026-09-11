@@ -85,3 +85,49 @@ This document serves as the permanent, immutable engineering audit trail for all
 * **Deviations:**
   * None. Schema strictly complies with `docs/12-database-design.md`, `docs/11-data-dictionary.md`, and ADR-009.
 
+---
+
+### `TASK-1.1-VERIFY: Post-Remediation Database Foundation Verification`
+* **Phase:** Phase 1 — Database & Security Foundation
+* **Date:** 2026-09-11
+* **Requirement IDs:** `REQ-DB-01..05`, `RULE-DRP-03`, `RULE-ORD-01`, `ADR-009`
+* **Status:** **VERIFIED & SIGNED OFF**
+* **Event Summary:**
+  1. Completed rigorous post-remediation verification following principal-level PostgreSQL review.
+  2. Verified all 12 remediation items:
+     - F1: `drops.seller_id` changed to `ON DELETE RESTRICT` (protects seller history).
+     - F2: `products.drop_id` changed to `ON DELETE RESTRICT` (protects catalog).
+     - F3: Added `set_updated_at()` trigger function & triggers on `profiles`, `drops`, `products`, and `orders`.
+     - F4: `fk_products_reserved_by_order` changed to `ON DELETE RESTRICT` (protects order reservation holds).
+     - F5: `upi_id` repetition quantifier bounded to `{2,255}` matching PostgreSQL `REG_MAX_REPEAT`.
+     - F6: `slug` length constraint bounded to `BETWEEN 3 AND 60`.
+     - F7: Added `prevent_finalized_order_deletion()` trigger preventing deletion of `paid` or `shipped` orders.
+     - F8: `image_url` length constraint bounded to `BETWEEN 1 AND 2048`.
+     - F9: Derived seller ownership path reconciled (`orders.drop_id → drops.seller_id`) and documented mandatory RPC lock constraint.
+     - F10: `subtotal_paisa` constrained to `> 0` and default removed.
+     - F11: Partial unique index `idx_drops_one_live_per_seller` deployed on `drops(seller_id) WHERE status = 'live'`.
+     - F12: Redundant B-tree index on `orders(order_token)` removed.
+  3. Expanded automated test suite in `buyer-web/src/test/schema.test.ts` to 34 tests (33 schema tests + 1 smoke test) covering one-live-drop invariant across sellers and status transitions, deletion restrictions, updated_at triggers, finalized order deletion guards, monetary integrity, and string bounds.
+  4. Updated standalone migration verification script `scripts/verify-schema.mjs` to execute all 7 migrations and assert triggers.
+  5. Reconciled and synchronized all documentation (`12-database-design.md`, `11-data-dictionary.md`, `19-validation-and-business-rules.md`, `04-technical-design.md`).
+  6. Generated formal sign-off report: `docs/TASK-1.1-POST-REMEDIATION-SIGNOFF.md`.
+
+* **Files Created / Modified:**
+  * Created: `docs/TASK-1.1-POST-REMEDIATION-SIGNOFF.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+  * Modified: `docs/11-data-dictionary.md`
+  * Modified: `docs/19-validation-and-business-rules.md`
+  * Modified: `docs/04-technical-design.md`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `buyer-web/src/test/schema.test.ts`
+
+* **Commands Executed & Validation Results:**
+  1. `npx vitest run --reporter verbose` ➔ 34/34 tests passed (Exit code 0).
+  2. `node scripts/verify-schema.mjs` ➔ 7 migrations applied, 5 tables, 8 indexes, 9 Paisa columns, 5 triggers verified (Exit code 0).
+  3. `npm --prefix buyer-web run typecheck` ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm --prefix buyer-web run lint` ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+
+* **Verdict:**
+  * **READY FOR RLS** (Authorized to proceed to TASK-1.2).
+
+

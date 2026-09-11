@@ -78,7 +78,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       );
     `);
 
-    // 2. Read and apply all 6 migration files in deterministic sequential order
+    // 2. Read and apply all 7 migration files in deterministic sequential order
     const migrationFiles = [
       '001_create_profiles.sql',
       '002_create_drops.sql',
@@ -86,6 +86,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       '004_create_orders.sql',
       '005_create_order_items.sql',
       '006_create_indexes.sql',
+      '007_create_triggers.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -473,7 +474,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     `, [fakeId, 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33'])).rejects.toThrow();
   });
 
-  it('23. should set reserved_by_order_id to NULL on products when reservation order is deleted (ON DELETE SET NULL)', async () => {
+  it('23. should enforce ON DELETE RESTRICT on orders referenced by products (reserved_by_order_id)', async () => {
     const dropId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
 
     // Create a product
@@ -504,12 +505,12 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const checkBefore = await db.query<ProductRow>(`SELECT id, drop_id, code, price_paisa, status, version, reserved_by_order_id FROM products WHERE id = $1;`, [productId]);
     expect(checkBefore.rows[0].reserved_by_order_id).toBe(orderId);
 
-    // Delete the order
-    await db.query(`DELETE FROM orders WHERE id = $1;`, [orderId]);
+    // Attempting to delete the order should be BLOCKED by RESTRICT
+    await expect(db.query(`DELETE FROM orders WHERE id = $1;`, [orderId])).rejects.toThrow();
 
-    // Verify product still exists and reserved_by_order_id is now NULL
+    // Verify product and order both still exist
     const checkAfter = await db.query<ProductRow>(`SELECT id, drop_id, code, price_paisa, status, version, reserved_by_order_id FROM products WHERE id = $1;`, [productId]);
-    expect(checkAfter.rows[0].reserved_by_order_id).toBeNull();
+    expect(checkAfter.rows[0].reserved_by_order_id).toBe(orderId);
   });
 
   it('24. should strictly verify all monetary columns are typed integer (Paisa)', async () => {
@@ -527,7 +528,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     }
   });
 
-  it('25. should verify all 8 indexes exist in pg_indexes', async () => {
+  it('25. should verify all indexes exist in pg_indexes', async () => {
     const res = await db.query<IndexMetaRow>(`
       SELECT indexname, tablename
       FROM pg_indexes
@@ -540,16 +541,339 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       'idx_products_drop_status',
       'idx_products_active_hold',
       'idx_orders_drop_status',
-      'idx_orders_order_token',
+      // idx_orders_order_token removed: UNIQUE constraint creates implicit index
       'idx_orders_hold_expiry',
       'idx_orders_buyer_phone',
       'idx_order_items_order',
       'idx_order_items_product',
+      'idx_drops_one_live_per_seller',
     ];
 
     for (const exp of expectedIndexes) {
       expect(indexNames, `Expected index ${exp} to be present in pg_indexes`).toContain(exp);
     }
     expect(indexNames.length).toBe(8);
+  });
+
+  // ==========================================================================
+  // SECTION 3: POST-REMEDIATION VERIFICATION TESTS
+  // ==========================================================================
+
+  it('26. should enforce one-live-drop-per-seller invariant at the database level', async () => {
+    // Setup Seller 1 and Seller 2
+    const seller1Id = 'a1eebc99-9c0b-4ef8-bb6d-6bb9bd380a01';
+    const seller2Id = 'a2eebc99-9c0b-4ef8-bb6d-6bb9bd380a02';
+    await db.query(`INSERT INTO auth.users (id, email) VALUES ($1, 's1@live.in'), ($2, 's2@live.in');`, [seller1Id, seller2Id]);
+    await db.query(`
+      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address)
+      VALUES 
+        ($1, 'Seller One Store', '9811111111', 's1@okhdfc', '100 Road, Bengaluru 560001'),
+        ($2, 'Seller Two Store', '9822222222', 's2@okhdfc', '200 Road, Bengaluru 560002');
+    `, [seller1Id, seller2Id]);
+
+    // 1. Seller 1 creates their first live drop -> SUCCESS
+    const drop1Res = await db.query<DropRow>(`
+      INSERT INTO drops (seller_id, title, slug, status)
+      VALUES ($1, 'Seller 1 Live Drop 1', 's1-live-drop-1', 'live')
+      RETURNING *;
+    `, [seller1Id]);
+    expect(drop1Res.rows.length).toBe(1);
+    const drop1Id = drop1Res.rows[0].id;
+
+    // 2. Seller 1 attempts to create a second live drop -> BLOCKED by partial unique index
+    await expect(db.query(`
+      INSERT INTO drops (seller_id, title, slug, status)
+      VALUES ($1, 'Seller 1 Live Drop 2', 's1-live-drop-2', 'live');
+    `, [seller1Id])).rejects.toThrow();
+
+    // 3. Seller 1 CAN create a draft drop while having a live drop -> SUCCESS
+    const draftRes = await db.query<DropRow>(`
+      INSERT INTO drops (seller_id, title, slug, status)
+      VALUES ($1, 'Seller 1 Draft Drop', 's1-draft-drop', 'draft')
+      RETURNING *;
+    `, [seller1Id]);
+    expect(draftRes.rows.length).toBe(1);
+    const draftDropId = draftRes.rows[0].id;
+
+    // 4. Seller 2 CAN have their own live drop simultaneously -> SUCCESS
+    const s2DropRes = await db.query<DropRow>(`
+      INSERT INTO drops (seller_id, title, slug, status)
+      VALUES ($1, 'Seller 2 Live Drop', 's2-live-drop', 'live')
+      RETURNING *;
+    `, [seller2Id]);
+    expect(s2DropRes.rows.length).toBe(1);
+
+    // 5. Seller 1 attempts to transition their draft drop to 'live' while drop 1 is still 'live' -> BLOCKED
+    await expect(db.query(`
+      UPDATE drops SET status = 'live' WHERE id = $1;
+    `, [draftDropId])).rejects.toThrow();
+
+    // 6. Seller 1 closes their first live drop -> SUCCESS
+    await db.query(`UPDATE drops SET status = 'closed', closed_at = NOW() WHERE id = $1;`, [drop1Id]);
+
+    // 7. Now Seller 1 CAN transition their draft drop to 'live' -> SUCCESS
+    const activatedRes = await db.query<DropRow>(`
+      UPDATE drops SET status = 'live' WHERE id = $1 RETURNING *;
+    `, [draftDropId]);
+    expect(activatedRes.rows[0].status).toBe('live');
+
+    // 8. Reopening closed drop 1 while draftDrop is live -> BLOCKED deterministically
+    await expect(db.query(`
+      UPDATE drops SET status = 'live' WHERE id = $1;
+    `, [drop1Id])).rejects.toThrow();
+  });
+
+  it('27. should enforce ON DELETE RESTRICT on profiles referenced by drops', async () => {
+    // Seller 1 has drops created above; attempting to delete seller profile must be blocked
+    const seller1Id = 'a1eebc99-9c0b-4ef8-bb6d-6bb9bd380a01';
+    await expect(db.query(`DELETE FROM profiles WHERE id = $1;`, [seller1Id])).rejects.toThrow();
+
+    // Verify profile still exists
+    const checkRes = await db.query(`SELECT id FROM profiles WHERE id = $1;`, [seller1Id]);
+    expect(checkRes.rows.length).toBe(1);
+  });
+
+  it('28. should enforce ON DELETE RESTRICT on drops referenced by products', async () => {
+    // Drop b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22 has products from earlier tests
+    const dropId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+    await expect(db.query(`DELETE FROM drops WHERE id = $1;`, [dropId])).rejects.toThrow();
+
+    // Verify drop still exists
+    const checkRes = await db.query(`SELECT id FROM drops WHERE id = $1;`, [dropId]);
+    expect(checkRes.rows.length).toBe(1);
+  });
+
+  it('29. should enforce finalized-order deletion guard trigger (cannot delete paid or shipped orders)', async () => {
+    const dropId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+
+    // 1. Create paid order
+    const paidRes = await db.query<OrderRow>(`
+      INSERT INTO orders (
+        drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+        subtotal_paisa, shipping_paisa, total_paisa, status, paid_at
+      ) VALUES (
+        $1, 'LD-PDTEST', 'Paid Buyer', '9876543210', '123 Address Lane', '560001',
+        100000, 0, 100000, 'paid', NOW()
+      ) RETURNING id;
+    `, [dropId]);
+    const paidOrderId = paidRes.rows[0].id;
+
+    // Deleting paid order must be aborted by trigger
+    await expect(db.query(`DELETE FROM orders WHERE id = $1;`, [paidOrderId])).rejects.toThrow(/Cannot delete finalized order/);
+
+    // 2. Create shipped order
+    const shippedRes = await db.query<OrderRow>(`
+      INSERT INTO orders (
+        drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+        subtotal_paisa, shipping_paisa, total_paisa, status, paid_at, shipped_at
+      ) VALUES (
+        $1, 'LD-SHPTST', 'Shipped Buyer', '9876543210', '123 Address Lane', '560001',
+        100000, 0, 100000, 'shipped', NOW(), NOW()
+      ) RETURNING id;
+    `, [dropId]);
+    const shippedOrderId = shippedRes.rows[0].id;
+
+    // Deleting shipped order must be aborted by trigger
+    await expect(db.query(`DELETE FROM orders WHERE id = $1;`, [shippedOrderId])).rejects.toThrow(/Cannot delete finalized order/);
+
+    // 3. Create and delete cancelled order -> Allowed (if no foreign key restriction)
+    const cancelledRes = await db.query<OrderRow>(`
+      INSERT INTO orders (
+        drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+        subtotal_paisa, shipping_paisa, total_paisa, status
+      ) VALUES (
+        $1, 'LD-CNLTST', 'Cancelled Buyer', '9876543210', '123 Address Lane', '560001',
+        100000, 0, 100000, 'cancelled'
+      ) RETURNING id;
+    `, [dropId]);
+    const cancelledOrderId = cancelledRes.rows[0].id;
+
+    await expect(db.query(`DELETE FROM orders WHERE id = $1;`, [cancelledOrderId])).resolves.toBeDefined();
+  });
+
+  it('30. should verify updated_at trigger updates timestamp, preserves created_at, and overrides application values', async () => {
+    // 1. Check profile updated_at trigger
+    const profileId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const beforeProfile = (await db.query<{ created_at: string; updated_at: string }>(
+      `SELECT created_at, updated_at FROM profiles WHERE id = $1;`, [profileId]
+    )).rows[0];
+
+    // Wait a tiny moment to ensure timestamp ticks forward
+    await new Promise((r) => setTimeout(r, 20));
+
+    // Even if application explicitly passes an old timestamp, trigger MUST overwrite with NOW()
+    const pastTimestamp = '2020-01-01T00:00:00Z';
+    const afterProfile = (await db.query<{ created_at: string; updated_at: string }>(`
+      UPDATE profiles 
+      SET store_name = 'Priya Luxury Boutique', updated_at = $2 
+      WHERE id = $1 
+      RETURNING created_at, updated_at;
+    `, [profileId, pastTimestamp])).rows[0];
+
+    expect(new Date(afterProfile.updated_at).getTime()).toBeGreaterThan(new Date(beforeProfile.updated_at).getTime());
+    expect(afterProfile.updated_at).not.toBe(pastTimestamp);
+    expect(new Date(afterProfile.created_at).getTime()).toBe(new Date(beforeProfile.created_at).getTime());
+
+    // 2. Check drops updated_at trigger
+    const dropId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+    const beforeDrop = (await db.query<{ created_at: string; updated_at: string }>(
+      `SELECT created_at, updated_at FROM drops WHERE id = $1;`, [dropId]
+    )).rows[0];
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    const afterDrop = (await db.query<{ created_at: string; updated_at: string }>(`
+      UPDATE drops SET title = 'Friday Silk Gala Updated' WHERE id = $1 RETURNING created_at, updated_at;
+    `, [dropId])).rows[0];
+
+    expect(new Date(afterDrop.updated_at).getTime()).toBeGreaterThan(new Date(beforeDrop.updated_at).getTime());
+    expect(new Date(afterDrop.created_at).getTime()).toBe(new Date(beforeDrop.created_at).getTime());
+
+    // 3. Check products updated_at trigger
+    const productId = 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33';
+    const beforeProduct = (await db.query<{ created_at: string; updated_at: string }>(
+      `SELECT created_at, updated_at FROM products WHERE id = $1;`, [productId]
+    )).rows[0];
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    const afterProduct = (await db.query<{ created_at: string; updated_at: string }>(`
+      UPDATE products SET title = 'Updated Title' WHERE id = $1 RETURNING created_at, updated_at;
+    `, [productId])).rows[0];
+
+    expect(new Date(afterProduct.updated_at).getTime()).toBeGreaterThan(new Date(beforeProduct.updated_at).getTime());
+    expect(new Date(afterProduct.created_at).getTime()).toBe(new Date(beforeProduct.created_at).getTime());
+
+    // 4. Check orders updated_at trigger
+    const orderId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+    const beforeOrder = (await db.query<{ created_at: string; updated_at: string }>(
+      `SELECT created_at, updated_at FROM orders WHERE id = $1;`, [orderId]
+    )).rows[0];
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    const afterOrder = (await db.query<{ created_at: string; updated_at: string }>(`
+      UPDATE orders SET buyer_name = 'Ananya Sharma Updated' WHERE id = $1 RETURNING created_at, updated_at;
+    `, [orderId])).rows[0];
+
+    expect(new Date(afterOrder.updated_at).getTime()).toBeGreaterThan(new Date(beforeOrder.updated_at).getTime());
+    expect(new Date(afterOrder.created_at).getTime()).toBe(new Date(beforeOrder.created_at).getTime());
+  });
+
+  it('31. should strictly enforce subtotal positivity and monetary constraints', async () => {
+    const dropId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+
+    // 1. subtotal_paisa = 0 must be REJECTED (F10 remediation: subtotal_paisa > 0)
+    await expect(db.query(`
+      INSERT INTO orders (
+        drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+        subtotal_paisa, shipping_paisa, total_paisa
+      ) VALUES (
+        $1, 'LD-ZERO01', 'Zero Buyer', '9876543210', '123 Address Lane', '560001',
+        0, 8000, 8000
+      );
+    `, [dropId])).rejects.toThrow();
+
+    // 2. price_at_purchase_paisa <= 0 in order_items must be REJECTED
+    const validOrderId = 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44';
+    // Create new product
+    const pRes = await db.query<ProductRow>(`
+      INSERT INTO products (drop_id, code, price_paisa, image_url)
+      VALUES ($1, '#MON01', 50000, 'https://cdn.livedrop.in/mon.webp')
+      RETURNING id;
+    `, [dropId]);
+    const pId = pRes.rows[0].id;
+
+    await expect(db.query(`
+      INSERT INTO order_items (order_id, product_id, price_at_purchase_paisa)
+      VALUES ($1, $2, 0);
+    `, [validOrderId, pId])).rejects.toThrow();
+
+    await expect(db.query(`
+      INSERT INTO order_items (order_id, product_id, price_at_purchase_paisa)
+      VALUES ($1, $2, -5000);
+    `, [validOrderId, pId])).rejects.toThrow();
+  });
+
+  it('32. should enforce string length and regex validations (UPI, slug, image_url)', async () => {
+    const sellerId = 'a2eebc99-9c0b-4ef8-bb6d-6bb9bd380a02';
+
+    // 1. UPI validation: rejects invalid format or length
+    const badUserId = 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99';
+    await db.query(`INSERT INTO auth.users (id, email) VALUES ($1, 'badupi@test.com');`, [badUserId]);
+
+    // Invalid UPI (no @)
+    await expect(db.query(`
+      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address)
+      VALUES ($1, 'Store Name', '9876543210', 'invalidvpa', '123 Address Lane 560001');
+    `, [badUserId])).rejects.toThrow();
+
+    // Invalid UPI (username exceeds 255 chars)
+    const longUpi = 'a'.repeat(256) + '@okhdfc';
+    await expect(db.query(`
+      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address)
+      VALUES ($1, 'Store Name', '9876543210', $2, '123 Address Lane 560001');
+    `, [badUserId, longUpi])).rejects.toThrow();
+
+    // 2. Slug length validation: rejects slug < 3 chars or > 60 chars (F6 remediation)
+    // Slug too short (< 3 chars)
+    await expect(db.query(`
+      INSERT INTO drops (seller_id, title, slug)
+      VALUES ($1, 'Short Slug Drop', 'ab');
+    `, [sellerId])).rejects.toThrow();
+
+    // Slug too long (> 60 chars)
+    const longSlug = 'a'.repeat(61);
+    await expect(db.query(`
+      INSERT INTO drops (seller_id, title, slug)
+      VALUES ($1, 'Long Slug Drop', $2);
+    `, [sellerId, longSlug])).rejects.toThrow();
+
+    // Valid slug of length 60
+    const validSlug60 = 'a'.repeat(60);
+    const validDrop = await db.query<DropRow>(`
+      INSERT INTO drops (seller_id, title, slug)
+      VALUES ($1, 'Valid 60 Char Slug Drop', $2)
+      RETURNING id, slug;
+    `, [sellerId, validSlug60]);
+    expect(validDrop.rows.length).toBe(1);
+    const validDropId = validDrop.rows[0].id;
+
+    // 3. image_url length validation: rejects empty or > 2048 chars (F8 remediation)
+    // Empty image_url
+    await expect(db.query(`
+      INSERT INTO products (drop_id, code, price_paisa, image_url)
+      VALUES ($1, '#IMG01', 50000, '');
+    `, [validDropId])).rejects.toThrow();
+
+    // image_url > 2048 chars
+    const longUrl = 'https://cdn.livedrop.in/' + 'x'.repeat(2048);
+    await expect(db.query(`
+      INSERT INTO products (drop_id, code, price_paisa, image_url)
+      VALUES ($1, '#IMG02', 50000, $2);
+    `, [validDropId, longUrl])).rejects.toThrow();
+  });
+
+  it('33. should verify all 5 database triggers exist in information_schema.triggers', async () => {
+    const res = await db.query<{ trigger_name: string; event_object_table: string }>(`
+      SELECT trigger_name, event_object_table
+      FROM information_schema.triggers
+      WHERE trigger_schema = 'public'
+      ORDER BY trigger_name;
+    `);
+
+    const expectedTriggers = [
+      'trg_drops_updated_at',
+      'trg_orders_no_delete_finalized',
+      'trg_orders_updated_at',
+      'trg_products_updated_at',
+      'trg_profiles_updated_at',
+    ];
+
+    const foundNames = res.rows.map((r) => r.trigger_name);
+    for (const exp of expectedTriggers) {
+      expect(foundNames, `Trigger ${exp} must exist`).toContain(exp);
+    }
+    expect(res.rows.length).toBe(5);
   });
 });

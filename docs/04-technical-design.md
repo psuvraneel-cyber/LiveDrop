@@ -97,9 +97,9 @@ CREATE TABLE profiles (
 -- 2. DROPS (Live Stream Sessions)
 CREATE TABLE drops (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    seller_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    slug TEXT UNIQUE NOT NULL,          -- e.g., 'friday-silk-special'
+    seller_id UUID NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
+    title TEXT NOT NULL CHECK (char_length(title) BETWEEN 3 AND 150),
+    slug TEXT UNIQUE NOT NULL CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND char_length(slug) BETWEEN 3 AND 60),
     status TEXT NOT NULL CHECK (status IN ('draft', 'live', 'closed')) DEFAULT 'draft',
     shipping_fee_paisa INTEGER NOT NULL DEFAULT 8000 CHECK (shipping_fee_paisa >= 0),
     free_shipping_threshold_paisa INTEGER DEFAULT 200000 CHECK (free_shipping_threshold_paisa IS NULL OR free_shipping_threshold_paisa >= 0),
@@ -112,16 +112,16 @@ CREATE TABLE drops (
 -- 3. PRODUCTS (Garment Catalog)
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE CASCADE,
+    drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE RESTRICT,
     code TEXT NOT NULL CHECK (code ~ '^#[A-Z0-9]{1,6}$'), -- e.g., '#A01', uppercase alphanumeric
-    title TEXT,
+    title TEXT CHECK (char_length(title) <= 100),
     price_paisa INTEGER NOT NULL CHECK (price_paisa > 0),
-    size TEXT,
-    image_url TEXT NOT NULL,
+    size TEXT CHECK (char_length(size) <= 30),
+    image_url TEXT NOT NULL CHECK (char_length(image_url) BETWEEN 1 AND 2048),
     status TEXT NOT NULL CHECK (status IN ('available', 'reserved', 'sold')) DEFAULT 'available',
     reserved_at TIMESTAMPTZ,
     reserved_by_order_id UUID,          -- FK added after orders table creation
-    version INT NOT NULL DEFAULT 1,     -- Optimistic concurrency counter
+    version INT NOT NULL DEFAULT 1 CHECK (version >= 1), -- Optimistic concurrency counter
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(drop_id, code)
@@ -132,12 +132,12 @@ CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     drop_id UUID NOT NULL REFERENCES drops(id) ON DELETE RESTRICT,
     order_code TEXT UNIQUE NOT NULL CHECK (order_code ~ '^LD-[A-Z0-9]{6}$'), -- Randomized 6-char (e.g., 'LD-8F429B')
-    order_token UUID NOT NULL DEFAULT gen_random_uuid(), -- Unauthenticated receipt access key
+    order_token UUID UNIQUE NOT NULL DEFAULT gen_random_uuid(), -- Unauthenticated receipt access key
     buyer_name TEXT NOT NULL CHECK (char_length(trim(buyer_name)) BETWEEN 3 AND 100),
     buyer_phone TEXT NOT NULL CHECK (buyer_phone ~ '^[6-9]\d{9}$' OR buyer_phone ~ '^91[6-9]\d{9}$'), -- E.164 / Indian mobile
     shipping_address TEXT NOT NULL CHECK (char_length(trim(shipping_address)) BETWEEN 10 AND 500),
     pincode TEXT NOT NULL CHECK (pincode ~ '^\d{6}$'),
-    subtotal_paisa INTEGER NOT NULL CHECK (subtotal_paisa >= 0),
+    subtotal_paisa INTEGER NOT NULL CHECK (subtotal_paisa > 0),
     shipping_paisa INTEGER NOT NULL DEFAULT 0 CHECK (shipping_paisa >= 0),
     total_paisa INTEGER NOT NULL CHECK (total_paisa = subtotal_paisa + shipping_paisa),
     status TEXT NOT NULL CHECK (status IN ('pending', 'paid', 'shipped', 'cancelled')) DEFAULT 'pending',
@@ -153,7 +153,7 @@ CREATE TABLE orders (
 -- Link products.reserved_by_order_id to orders(id)
 ALTER TABLE products 
 ADD CONSTRAINT fk_products_reserved_by_order 
-FOREIGN KEY (reserved_by_order_id) REFERENCES orders(id) ON DELETE SET NULL;
+FOREIGN KEY (reserved_by_order_id) REFERENCES orders(id) ON DELETE RESTRICT;
 
 -- 5. ORDER ITEMS (Junction Table)
 CREATE TABLE order_items (
@@ -167,10 +167,13 @@ CREATE TABLE order_items (
 
 -- 6. INDEXES FOR HIGH-VELOCITY QUERYING
 CREATE INDEX idx_products_drop_status ON products(drop_id, status);
-CREATE INDEX idx_products_hold_active ON products(reserved_at) WHERE status = 'reserved';
+CREATE INDEX idx_products_active_hold ON products(reserved_at) WHERE status = 'reserved';
 CREATE INDEX idx_orders_drop_status ON orders(drop_id, status);
-CREATE INDEX idx_orders_order_token ON orders(order_token);
 CREATE INDEX idx_orders_hold_expiry ON orders(hold_expires_at) WHERE status = 'pending';
+CREATE INDEX idx_orders_buyer_phone ON orders(buyer_phone);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_order_items_product ON order_items(product_id);
+CREATE UNIQUE INDEX idx_drops_one_live_per_seller ON drops(seller_id) WHERE status = 'live';
 ```
 
 ---
