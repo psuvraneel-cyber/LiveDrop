@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { PublicProductView } from '../types/domain';
 import { formatPaisaToINR } from '../lib/utils/currency';
+import { useOptionalCart } from '../lib/cart/cart-context';
 
 export interface ProductCardProps {
   product: PublicProductView;
+  dropId?: string;
+  onAddToCart?: (product: PublicProductView) => void;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
+  const cart = useOptionalCart();
+
   const isAvailable = product.status === 'available';
   const isReserved = product.status === 'reserved';
   const isSold = product.status === 'sold';
+
+  const inCart = cart ? cart.isInCart(product.id) : false;
 
   // Status badge label and class
   let statusText = 'AVAILABLE';
@@ -23,6 +30,18 @@ export function ProductCard({ product }: ProductCardProps) {
     statusText = 'SOLD OUT';
     statusClass = 'sold';
   }
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddToCart) {
+      onAddToCart(product);
+      return;
+    }
+    if (cart && isAvailable) {
+      const targetDropId = dropId || (product as unknown as { drop_id?: string }).drop_id || cart.dropId || '';
+      cart.addItem(product, targetDropId);
+    }
+  };
 
   return (
     <article
@@ -96,6 +115,50 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="ld-product-size" title={`Size: ${product.size}`}>
               {product.size}
             </span>
+          )}
+        </div>
+
+        {/* Add to Cart / In Cart / Status Button */}
+        <div className="ld-card-action">
+          {isAvailable ? (
+            inCart ? (
+              <button
+                type="button"
+                className="ld-btn-in-cart"
+                onClick={handleAddToCart}
+                data-testid={`cart-btn-${product.id}`}
+                aria-label={`${product.code} is in your cart`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>In Cart</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ld-btn-add-cart"
+                onClick={handleAddToCart}
+                data-testid={`cart-btn-${product.id}`}
+                aria-label={`Add ${product.code}: ${product.title} to cart`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Add to Bag</span>
+              </button>
+            )
+          ) : (
+            <button
+              type="button"
+              className="ld-btn-disabled-status"
+              disabled
+              data-testid={`cart-btn-${product.id}`}
+              aria-label={`${product.code} is ${statusText}`}
+            >
+              <span>{isReserved ? 'Reserved' : 'Sold Out'}</span>
+            </button>
           )}
         </div>
       </div>

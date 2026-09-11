@@ -15,6 +15,9 @@ import { CatalogEmptyState } from './states/CatalogEmptyState';
 import { CatalogSearchEmptyState } from './states/CatalogSearchEmptyState';
 import { CatalogErrorState } from './states/CatalogErrorState';
 import { LiveDropError } from '../lib/errors';
+import { useCart, useOptionalCart, CartProvider } from '../lib/cart/cart-context';
+import { StickyCartBar } from './cart/StickyCartBar';
+import { CartDrawer } from './cart/CartDrawer';
 
 export type DropViewState = 'loading' | 'live' | 'closed' | 'not_found' | 'error';
 
@@ -31,7 +34,7 @@ function sortProducts(items: PublicProductView[]): PublicProductView[] {
   return [...items].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
 }
 
-export function PublicDropView({
+function PublicDropContent({
   slug,
   initialDrop = null,
   initialProducts = [],
@@ -54,6 +57,9 @@ export function PublicDropView({
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<AvailabilityFilter>('all');
+
+  // Cart drawer control
+  const { isDrawerOpen, openDrawer, closeDrawer } = useCart();
 
   // Realtime connection status
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
@@ -286,7 +292,7 @@ export function PublicDropView({
   return (
     <div>
       {/* Sticky Drop Header */}
-      <DropHeader drop={drop} realtimeStatus={realtimeStatus} />
+      <DropHeader drop={drop} realtimeStatus={realtimeStatus} onOpenCart={openDrawer} />
 
       {/* Main Catalog View Container */}
       <main className="ld-container" role="main">
@@ -312,9 +318,33 @@ export function PublicDropView({
             }}
           />
         ) : (
-          <ProductGrid products={filteredProducts} />
+          <ProductGrid products={filteredProducts} dropId={drop.id} />
         )}
       </main>
+
+      {/* Sticky Bottom Cart Bar */}
+      <StickyCartBar onOpenCart={openDrawer} />
+
+      {/* Slide-over Cart Drawer */}
+      <CartDrawer
+        isOpen={isDrawerOpen}
+        onClose={closeDrawer}
+        catalogProducts={products}
+        drop={drop}
+      />
     </div>
+  );
+}
+
+export function PublicDropView(props: PublicDropViewProps) {
+  const existingCart = useOptionalCart();
+  if (existingCart) {
+    return <PublicDropContent {...props} />;
+  }
+
+  return (
+    <CartProvider>
+      <PublicDropContent {...props} />
+    </CartProvider>
   );
 }

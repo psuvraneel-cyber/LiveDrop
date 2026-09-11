@@ -23,14 +23,14 @@ PRD Requirement ──► UX Location ──► Domain Rule ──► DB Entity 
 
 | Req ID | PRD Source | UX Location | Domain Rule | DB Entity | API / RPC | UI Component | Test Case ID | Implementation Task | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| **REQ-FR-B1.1** | `02-prd.md` §3.2 | Catalog Grid | RULE-PRD-01 | `products`, `drops` | `GET /rest/v1/products?drop_id=...` | `ProductGrid.tsx` | `TC-BUY-01` | `TASK-2.1` | **Mapped** |
-| **REQ-FR-B1.2** | `02-prd.md` §3.2 | Product Card | RULE-PRD-02 | `products` | PostgREST SELECT | `ProductCard.tsx` | `TC-BUY-01` | `TASK-2.2` | **Mapped** |
-| **REQ-FR-B1.3** | `02-prd.md` §3.2 | Sticky Filter Bar | RULE-PRD-03 | N/A (Client Filter) | N/A | `SearchBar.tsx` | `TC-BUY-02`, `TC-BUY-03` | `TASK-2.2` | **Mapped** |
-| **REQ-FR-B1.4** | `02-prd.md` §3.2 | Cart Trigger | RULE-PRD-04 | N/A (Client State) | N/A | `ProductCard.tsx` | `TC-BUY-04` | `TASK-3.1` | **Mapped** |
-| **REQ-FR-B2.1** | `02-prd.md` §3.2 | Bottom Cart Bar | RULE-ORD-01 | N/A (Client State) | N/A | `StickyCartBar.tsx` | `TC-BUY-04` | `TASK-3.1` | **Mapped** |
-| **REQ-FR-B2.2** | `02-prd.md` §3.2 | Cart Drawer | RULE-ORD-02 | N/A (Client State) | N/A | `CartDrawer.tsx` | `TC-BUY-04` | `TASK-3.1` | **Mapped** |
-| **REQ-FR-B3.1** | `02-prd.md` §3.2 | Delivery Form | RULE-BYR-01..04 | `orders` | N/A (Form Input) | `CartDrawer.tsx` | `TC-BUY-05`, `TC-BUY-06` | `TASK-3.2` | **Mapped** |
-| **REQ-FR-B3.2** | `02-prd.md` §3.2 | Local Persistence | RULE-BYR-05 | `localStorage` | N/A | `useCart.ts` | `TC-BUY-05` | `TASK-3.2` | **Mapped** |
+| **REQ-FR-B1.1** | `02-prd.md` §3.2 | Catalog Grid | RULE-PRD-01 | `products`, `drops` | `GET /rest/v1/products?drop_id=...` | `ProductGrid.tsx` | `TC-BUY-01` | `TASK-2.1` | **Implemented** |
+| **REQ-FR-B1.2** | `02-prd.md` §3.2 | Product Card | RULE-PRD-02 | `products` | PostgREST SELECT | `ProductCard.tsx` | `TC-BUY-01` | `TASK-2.1` | **Implemented** |
+| **REQ-FR-B1.3** | `02-prd.md` §3.2 | Sticky Filter Bar | RULE-PRD-03 | N/A (Client Filter) | N/A | `CatalogToolbar.tsx` | `TC-BUY-02`, `TC-BUY-03` | `TASK-2.1` | **Implemented** |
+| **REQ-FR-B1.4** | `02-prd.md` §3.2 | Cart Trigger | RULE-PRD-04 | N/A (Client State) | N/A | `ProductCard.tsx` | `TC-BUY-04` | `TASK-2.2` | **Implemented** |
+| **REQ-FR-B2.1** | `02-prd.md` §3.2 | Bottom Cart Bar | RULE-ORD-01 | N/A (Client State) | N/A | `StickyCartBar.tsx` | `TC-BUY-04` | `TASK-2.2` | **Implemented** |
+| **REQ-FR-B2.2** | `02-prd.md` §3.2 | Cart Drawer | RULE-ORD-02 | N/A (Client State) | N/A | `CartDrawer.tsx` | `TC-BUY-04` | `TASK-2.2` | **Implemented** |
+| **REQ-FR-B3.1** | `02-prd.md` §3.2 | Delivery Form | RULE-BYR-01..04 | `orders` | N/A (Form Input) | `CartDrawer.tsx` | `TC-BUY-05`, `TC-BUY-06` | `TASK-2.3` | **Mapped** |
+| **REQ-FR-B3.2** | `02-prd.md` §3.2 | Local Persistence | RULE-BYR-05 | `localStorage` | N/A | `cart-storage.ts`, `cart-context.tsx` | `TC-BUY-05` | `TASK-2.2` | **Implemented** |
 | **REQ-FR-B4.1** | `02-prd.md` §3.2 | WhatsApp Checkout | RULE-ORD-01..06 | `orders`, `order_items`, `products` | `rpc/create_order_with_reservation` | `WhatsAppCheckout.tsx` | `TC-BUY-07`, `TC-CON-01..06` | `TASK-3.3` | **Mapped** |
 | **REQ-FR-B4.2** | `02-prd.md` §3.2 | WhatsApp Redirect | RULE-INT-01 | N/A (Deep Link) | N/A | `WhatsAppCheckout.tsx` | `TC-BUY-09` | `TASK-3.3` | **Mapped** |
 | **REQ-FR-B4.3** | `02-prd.md` §3.2 | Confirmation Screen | RULE-ORD-07 | `orders`, `profiles` | `rpc/get_order_by_token` | `UpiConfirmation.tsx` | `TC-BUY-10` | `TASK-3.3` | **Mapped** |
