@@ -115,6 +115,35 @@ Phase 0: Workspace & Repo Foundation
 * **Tests:** 37/37 automated RPC and concurrency assertions pass in `buyer-web/src/test/rpcs.test.ts` (106/106 total repository tests pass). Concurrency stress-tested across 2, 5, and 20 simultaneous competing clients with 0 over-reservations and 0 deadlocks.
 * **Security:** `REVOKE ALL ON FUNCTION ... FROM PUBLIC;` enforced across all 6 routines. Seller ownership verification (`auth.uid() = drop.seller_id`) enforced. Uncontested/contested expired hold resolution (`PRODUCT_ALREADY_RECLAIMED`) verified.
 
+#### `[COMPLETED] TASK-1.4: Supabase Integration, Realtime Foundation & Development Data/Environment Gate`
+* **Requirement IDs:** `NFR-SYS-01`, `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md))
+* **Dependencies:** `TASK-1.3`, `TASK-1.3.1`
+* **Files Created / Modified:**
+  * `buyer-web/.env.example`
+  * `buyer-web/src/lib/supabase/env.ts`
+  * `buyer-web/src/lib/supabase/client.ts`
+  * `buyer-web/src/types/domain.ts`
+  * `buyer-web/src/lib/errors.ts`
+  * `buyer-web/src/lib/data/buyer-catalog.ts`
+  * `buyer-web/src/lib/realtime/catalog-realtime.ts`
+  * `buyer-web/src/test/data-layer.test.ts`
+  * `buyer-web/src/test/realtime.test.ts`
+  * `seller-app/.env.example`
+  * `seller-app/lib/core/config/env_config.dart`
+  * `seller-app/lib/core/errors/exceptions.dart`
+  * `seller-app/lib/core/services/supabase_service.dart`
+  * `seller-app/lib/domain/models/models.dart`
+  * `seller-app/lib/data/repositories/seller_repository.dart`
+  * `seller-app/lib/data/realtime/seller_order_realtime.dart`
+  * `seller-app/test/seller_repository_test.dart`
+  * `seller-app/test/realtime_test.dart`
+  * `supabase/seed.sql`
+  * `docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md`
+* **Inputs:** [`docs/04-technical-design.md`](file:///c:/LiveDrop/docs/04-technical-design.md), [`docs/13-api-contract.md`](file:///c:/LiveDrop/docs/13-api-contract.md), [`docs/14-realtime-contract.md`](file:///c:/LiveDrop/docs/14-realtime-contract.md), [`docs/TASK-1.3-RPC-CONTRACT.md`](file:///c:/LiveDrop/docs/TASK-1.3-RPC-CONTRACT.md), [`docs/TASK-1.3.1-HARDENING-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.3.1-HARDENING-REPORT.md).
+* **Outputs:** Browser-safe public Supabase client for buyer web; authenticated Supabase service for seller app; domain and error types; typed data access operations; Realtime subscription and cleanup abstraction; deterministic development seed data; integration and contract test suites.
+* **Acceptance Criteria:** Strict credential isolation (zero `service_role` exposure to clients); `release_expired_holds` withheld from client APIs; server-authoritative integer Paisa pricing preserved; realtime monotonic version filtering; clean typecheck, lint, and tests across web and mobile.
+* **Tests:** 18 new automated integration/contract tests (132/132 total in buyer-web, 10/10 in seller-app). Production Next.js build passes. Flutter analyze and tests pass. Deterministic seed data verified.
 
 ---
 

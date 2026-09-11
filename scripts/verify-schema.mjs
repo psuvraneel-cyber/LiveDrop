@@ -242,12 +242,22 @@ async function run() {
   }
   console.log('  ✓ Verified: PUBLIC execution revoked; anon & authenticated blocked from release_expired_holds; service_role granted EXECUTE.');
 
+  console.log('🌱 Testing Development Seed Fixture (seed.sql):');
+  const seedPath = path.resolve(__dirname, '../supabase/seed.sql');
+  const seedSql = fs.readFileSync(seedPath, 'utf-8');
+  await db.exec(seedSql);
+
+  const seedProfiles = await db.query('SELECT count(*) as count FROM profiles');
+  const seedDrops = await db.query('SELECT count(*) as count FROM drops');
+  const seedProducts = await db.query('SELECT count(*) as count FROM products');
+  const seedOrders = await db.query('SELECT count(*) as count FROM orders');
+  console.log(`  ✓ Seed data executed cleanly: ${seedProfiles.rows[0].count} profile(s), ${seedDrops.rows[0].count} drop(s), ${seedProducts.rows[0].count} product(s), ${seedOrders.rows[0].count} order(s).`);
 
   await db.close();
-  console.log('✅ ALL RELATIONAL DATABASE SCHEMA, RLS POLICIES & BUSINESS RPCS VERIFIED.');
+  console.log('✅ ALL RELATIONAL DATABASE SCHEMA, RLS POLICIES, BUSINESS RPCS & SEED DATA VERIFIED.');
 }
 
 run().catch((err) => {
-  console.error('❌ Verification failed:', err);
+  console.error('❌ Verification failed:', err.message, err.detail, err.hint, err);
   process.exit(1);
 });

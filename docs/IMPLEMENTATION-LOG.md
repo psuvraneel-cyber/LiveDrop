@@ -253,6 +253,62 @@ This document serves as the permanent, immutable engineering audit trail for all
 * **Verdict:**
   * **PASS — TASK-1.3 CLOSED; READY FOR TASK-1.4**
 
+---
+
+### `TASK-1.4: Supabase Integration, Realtime Foundation & Development Data/Environment Gate`
+* **Phase:** Phase 1 — Database & Security Foundation
+* **Date:** 2026-09-11
+* **Requirement IDs:** `NFR-SYS-01`, `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. **Roadmap Reconciliation:** Reconciled roadmap numbering in `docs/32-implementation-plan.md` to formally record TASK-1.4 as the architectural bridge connecting the database core to the buyer/seller application vertical slices.
+  2. **Buyer Web Supabase Client & Strict Environment Validation:** Installed `@supabase/supabase-js`. Implemented `buyer-web/src/lib/supabase/env.ts` validating public environment variables and rejecting any presence of service-role keys with fatal errors. Implemented `buyer-web/src/lib/supabase/client.ts` configuring a browser-safe anonymous Supabase client with session persistence disabled.
+  3. **Seller Mobile Supabase Service & Config:** Added `supabase_flutter: ^2.17.2` to `seller-app`. Implemented `seller-app/lib/core/config/env_config.dart` with validation and service-role protection. Implemented `seller-app/lib/core/services/supabase_service.dart` managing client lifecycle and authentication session state.
+  4. **Strongly Typed Domain Contracts & Paisa Enforcement:** Created `buyer-web/src/types/domain.ts` and `seller-app/lib/domain/models/models.dart` representing all database entities, relations, and RPC payloads with strict integer Paisa monetary typing (`number` / `int`).
+  5. **Typed Error Classification Hierarchy:** Created `buyer-web/src/lib/errors.ts` and `seller-app/lib/core/errors/exceptions.dart` mapping database/RPC errors (`STOCK_UNAVAILABLE`, `EMPTY_CART`, `EXCEEDS_CART_LIMIT`, `MIXED_DROP_PRODUCTS`, `INVALID_DROP`, `PRODUCT_ALREADY_RECLAIMED`, `INVALID_ORDER_TOKEN`, `UNAUTHORIZED`, `NETWORK_ERROR`) into structured application error classes without leaking raw stack traces.
+  6. **Application Data Access Layers:** Created `buyer-web/src/lib/data/buyer-catalog.ts` for typed public drop fetching, product grid retrieval, atomic checkout RPC invocation, and token-gated receipt retrieval with PII minimization. Created `seller-app/lib/data/repositories/seller_repository.dart` for authenticated seller operations. Prohibited `release_expired_holds()` from both client surfaces.
+  7. **Realtime Foundation:** Implemented `buyer-web/src/lib/realtime/catalog-realtime.ts` with drop-scoped channel subscription (`drop:{dropId}:products`), monotonic entity version defense against out-of-order network events, and explicit unsubscription cleanup. Implemented `seller-app/lib/data/realtime/seller_order_realtime.dart` for seller order events.
+  8. **Deterministic Development Seed Fixtures:** Created `supabase/seed.sql` containing synthetic test fixtures for seller profiles, drops (draft, live, closed), products across states, and representative orders. Integrated seed validation into `scripts/verify-schema.mjs`.
+  9. **Comprehensive Verification:** Wrote 18 new automated integration and contract tests across web and mobile. Verified that all 132 tests in `buyer-web` and 10 tests in `seller-app` pass with exit code 0. Passed TypeScript strict typecheck, ESLint, Next.js production build, Flutter analyze, and schema verification.
+
+* **Files Created / Modified:**
+  * Created: `buyer-web/src/lib/supabase/env.ts`
+  * Created: `buyer-web/src/lib/supabase/client.ts`
+  * Created: `buyer-web/src/types/domain.ts`
+  * Created: `buyer-web/src/lib/errors.ts`
+  * Created: `buyer-web/src/lib/data/buyer-catalog.ts`
+  * Created: `buyer-web/src/lib/realtime/catalog-realtime.ts`
+  * Created: `buyer-web/src/test/data-layer.test.ts`
+  * Created: `buyer-web/src/test/realtime.test.ts`
+  * Created: `seller-app/lib/core/config/env_config.dart`
+  * Created: `seller-app/lib/core/errors/exceptions.dart`
+  * Created: `seller-app/lib/core/services/supabase_service.dart`
+  * Created: `seller-app/lib/domain/models/models.dart`
+  * Created: `seller-app/lib/data/repositories/seller_repository.dart`
+  * Created: `seller-app/lib/data/realtime/seller_order_realtime.dart`
+  * Created: `seller-app/test/seller_repository_test.dart`
+  * Created: `seller-app/test/realtime_test.dart`
+  * Created: `supabase/seed.sql`
+  * Created: `docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md`
+  * Modified: `buyer-web/package.json` & `buyer-web/package-lock.json`
+  * Modified: `seller-app/pubspec.yaml` & `seller-app/pubspec.lock`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `docs/32-implementation-plan.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ All 9 migrations, 5 tables, 8 indexes, 9 Paisa columns, 5 triggers, 13 RLS policies, 6 RPCs, 19 routine privileges, and seed data verified (Exit code 0).
+  2. `npm --prefix buyer-web test -- --run` ➔ 132/132 tests passed across 6 test suites (Exit code 0).
+  3. `npm --prefix buyer-web run typecheck` ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm --prefix buyer-web run lint` ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+  5. `npm --prefix buyer-web run build` ➔ Next.js optimized production build generated cleanly (Exit code 0).
+  6. `& "C:\flutter\bin\flutter.bat" analyze` ➔ No issues found (Exit code 0).
+  7. `& "C:\flutter\bin\flutter.bat" test` ➔ 10/10 tests passed (Exit code 0).
+
+* **Verdict:**
+  * **PASS — TASK-1.4 COMPLETE; READY FOR BUYER/SELLER VERTICAL SLICE**
+
+
 
 
 
