@@ -1,0 +1,50 @@
+name: Seller App CI
+
+on:
+  push:
+    branches: [main, master, "feat/**", "fix/**"]
+    paths:
+      - "seller-app/**"
+      - ".github/workflows/seller-app-ci.yml"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "seller-app/**"
+      - ".github/workflows/seller-app-ci.yml"
+
+jobs:
+  validate-flutter:
+    name: Analyze, Test & Android Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: seller-app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.x"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter static analysis
+        run: flutter analyze
+
+      - name: Run Flutter unit & widget tests
+        run: flutter test
+
+      - name: Build Android Debug APK
+        run: flutter build apk --debug

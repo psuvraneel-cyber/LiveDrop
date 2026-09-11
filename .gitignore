@@ -1,0 +1,79 @@
+# LiveDrop — Root Git Ignore Configuration
+
+# Dependencies & Package Managers
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Next.js & Web Build Outputs
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment Variables & Secrets (CRITICAL: NEVER COMMIT)
+.env
+.env*.local
+*.env
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# Flutter & Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.iml
+seller-app/build/
+build/
+ephemeral/
+
+# Android Local & Signing
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/android/app/src/main/assets/
+*.keystore
+*.jks
+google-services.json
+
+# Supabase Local
+supabase/.temp/
+supabase/.branches/
+
+# IDE & Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

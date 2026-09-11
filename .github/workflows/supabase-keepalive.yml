@@ -1,0 +1,25 @@
+name: Supabase Dormancy Keepalive
+
+on:
+  schedule:
+    # Runs daily at 04:00 UTC (09:30 IST) to prevent 7-day inactivity project pause (ADR-008)
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive-ping:
+    name: Supabase Health Check Ping
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Execute keepalive probe
+        run: node scripts/keepalive-ping.js
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
