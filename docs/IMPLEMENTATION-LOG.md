@@ -130,4 +130,93 @@ This document serves as the permanent, immutable engineering audit trail for all
 * **Verdict:**
   * **READY FOR RLS** (Authorized to proceed to TASK-1.2).
 
+---
+
+### `TASK-1.2: Row-Level Security & Database Access Control`
+* **Phase:** Phase 1 — Database & Security Foundation
+* **Date:** 2026-09-11
+* **Requirement IDs:** `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. Built comprehensive access control matrix in `docs/RLS-ACCESS-MATRIX.md` defining permissions for `anon`, `authenticated`, and `service_role` across all 5 tables and CRUD actions.
+  2. Built detailed policy verification matrix in `docs/TASK-1.2-RLS-SECURITY-MATRIX.md` specifying exact `USING` and `WITH CHECK` expressions and test mappings.
+  3. Created migration `supabase/migrations/008_enable_rls_and_policies.sql` which:
+     - Enables RLS on all 5 core tables (`profiles`, `drops`, `products`, `orders`, `order_items`).
+     - Revokes all default public schema permissions on tables (`REVOKE ALL ON ... FROM PUBLIC;`).
+     - Grants least-privilege table permissions: `anon` receives `SELECT` only; `authenticated` receives permissions on seller-owned tables, with `INSERT` strictly revoked on `orders` and `order_items`.
+     - Implements 13 hardened RLS policies enforcing seller multi-tenant isolation, public live catalog visibility, and secret token-gated order receipt access.
+  4. Created comprehensive test suite in `buyer-web/src/test/rls.test.ts` (35 test assertions) verifying catalog RLS enforcement, seller isolation across all tables, public buyer catalog boundary, DPDP Act 2023 order privacy, and defense-in-depth negative write rejections.
+  5. Updated `scripts/verify-schema.mjs` to assert `rowsecurity = true` across all 5 tables and assert that all 13 policies are registered in PostgreSQL.
+  6. Updated `buyer-web/src/test/schema.test.ts` to include migration 008 in the baseline schema suite.
+  7. Updated `docs/16-security-architecture.md` with final RLS policies and table grants.
+  8. Authored `docs/TASK-1.2-RLS-TEST-REPORT.md` and `docs/TASK-1.2-COMPLETION-REPORT.md`.
+
+* **Files Created / Modified:**
+  * Created: `supabase/migrations/008_enable_rls_and_policies.sql`
+  * Created: `buyer-web/src/test/rls.test.ts`
+  * Created: `docs/RLS-ACCESS-MATRIX.md`
+  * Created: `docs/TASK-1.2-RLS-SECURITY-MATRIX.md`
+  * Created: `docs/TASK-1.2-RLS-TEST-REPORT.md`
+  * Created: `docs/TASK-1.2-COMPLETION-REPORT.md`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `buyer-web/src/test/schema.test.ts`
+  * Modified: `docs/16-security-architecture.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+  * Modified: `docs/32-implementation-plan.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ 8 migrations applied, 5 tables with `rowsecurity = true`, 13 policies verified (Exit code 0).
+  2. `npm --prefix buyer-web test` ➔ 69/69 tests passed across 3 test suites: `smoke.test.tsx` (1), `schema.test.ts` (33), `rls.test.ts` (35) (Exit code 0).
+  3. `npm --prefix buyer-web run typecheck` ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm --prefix buyer-web run lint` ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+
+* **Verdict:**
+  * **READY FOR TASK-1.3**
+
+---
+
+### `TASK-1.3: Atomic Order Creation, Reservation & Payment Transition RPCs`
+* **Phase:** Phase 1 — Database & Security Foundation
+* **Date:** 2026-09-11
+* **Requirement IDs:** `REQ-FR-B4.1`, `REQ-FR-S3.2`, `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. Created migration `supabase/migrations/009_create_core_business_rpcs.sql` implementing 6 hardened business RPCs:
+     - `create_order_with_reservation`: Atomic multi-item cart validation, canonicalization, live drop check, deterministic row locking (`ORDER BY id ASC`), integer Paisa subtotal/shipping calculation, order + order_items insertion, 15-minute hold reservation.
+     - `mark_order_paid`: Authenticated seller payment confirmation, seller ownership verification (`drops.seller_id = auth.uid()`), idempotency, contested hold detection (`PRODUCT_ALREADY_RECLAIMED`), uncontested hold reclamation, atomic transition to `paid` and `sold`.
+     - `release_expired_holds`: Reaper routine identifying genuine expired holds (`hold_expires_at < NOW()`), releasing products back to `available`, clearing `reserved_by_order_id`, and setting order status to `cancelled`.
+     - `force_release_hold`: Seller manual override to release active holds and cancel pending orders.
+     - `mark_product_sold_offline`: Seller manual walk-in sale override transitioning available garments directly to `sold`.
+     - `get_order_by_token`: Token-gated order receipt retrieval protecting buyer PII under India's DPDP Act 2023.
+  2. Applied `SECURITY DEFINER SET search_path = public, pg_temp;` across all routines to prevent search-path hijacking.
+  3. Revoked default `PUBLIC` execute privileges on all routines and granted permissions on a strict role boundary: `anon` can only execute public buyer routines (`create_order_with_reservation`, `get_order_by_token`); seller/maintenance routines require authenticated seller context or service role.
+  4. Created comprehensive test suite in `buyer-web/src/test/rpcs.test.ts` (37 tests) covering single-item checkout, multi-item checkout, free shipping threshold, empty cart, cart limit (10 items), duplicate ID canonicalization, closed/draft drop rejection, cross-drop cart rejection, sold/reserved product rejection, input format validation (phone, pincode, name, address), multi-item all-or-nothing rollback atomicity, seller payment confirmation, cross-seller rejection, payment idempotency, uncontested reclamation, contested rejection (`PRODUCT_ALREADY_RECLAIMED`), hold reaper expiration, token-gated retrieval, seller manual overrides, and routine privilege boundaries.
+  5. Tested actual multi-client concurrency and race conditions: 2, 5, and 20 concurrent buyers competing for a single item (exactly 1 winner, zero over-reservations), overlapping multi-item cart collision (uncontested item preserved), reverse-order deadlock prevention (`[P1, P2]` vs `[P2, P1]`), and concurrent payment confirmations.
+  6. Updated `scripts/verify-schema.mjs` to assert routine existence, definer security type, and routine privilege revocation for `anon` and `PUBLIC`.
+  7. Updated `buyer-web/src/test/schema.test.ts` and `buyer-web/src/test/rls.test.ts` to include migration 009 in baseline setup.
+  8. Authored `docs/TASK-1.3-RPC-CONTRACT.md`, `docs/TASK-1.3-CONCURRENCY-TEST-REPORT.md`, and `docs/TASK-1.3-COMPLETION-REPORT.md`.
+
+* **Files Created / Modified:**
+  * Created: `supabase/migrations/009_create_core_business_rpcs.sql`
+  * Created: `buyer-web/src/test/rpcs.test.ts`
+  * Created: `docs/TASK-1.3-RPC-CONTRACT.md`
+  * Created: `docs/TASK-1.3-CONCURRENCY-TEST-REPORT.md`
+  * Created: `docs/TASK-1.3-COMPLETION-REPORT.md`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `buyer-web/src/test/schema.test.ts`
+  * Modified: `buyer-web/src/test/rls.test.ts`
+  * Modified: `docs/32-implementation-plan.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ 9 migrations applied, 5 tables, 8 indexes, 9 Paisa columns, 5 triggers, 13 RLS policies, 6 RPCs verified with SECURITY DEFINER and revoked PUBLIC execution (Exit code 0).
+  2. `npm --prefix buyer-web test -- --run` ➔ 106/106 tests passed across 4 test suites: `smoke.test.tsx` (1), `schema.test.ts` (33), `rls.test.ts` (35), `rpcs.test.ts` (37) (Exit code 0).
+  3. `npm --prefix buyer-web run typecheck` ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm --prefix buyer-web run lint` ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+
+* **Verdict:**
+  * **PASS — READY FOR TASK-1.4**
+
+
+
 

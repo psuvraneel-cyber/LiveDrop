@@ -76,25 +76,45 @@ Phase 0: Workspace & Repo Foundation
 * **Tests:** 25/25 automated schema assertions pass in Vitest (`buyer-web/src/test/schema.test.ts`) and standalone migration verification (`scripts/verify-schema.mjs`).
 * **Security:** Non-nullable seller ownership references validated across all entities. RLS isolated for TASK-1.3 per plan.
 
-#### `TASK-1.2: Implement Core Database RPC Functions`
-* **Requirement IDs:** `REQ-FR-B4.1`, `REQ-FR-S3.2`
+#### `[COMPLETED] TASK-1.2: Row-Level Security & Database Access Control`
+* **Requirement IDs:** `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.2-COMPLETION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.2-COMPLETION-REPORT.md))
 * **Dependencies:** `TASK-1.1`
-* **Files Expected:** `supabase/migrations/002_create_rpcs.sql`
-* **Inputs:** RPC definitions from [`docs/04-technical-design.md`](file:///c:/LiveDrop/docs/04-technical-design.md).
-* **Outputs:** `create_order_with_reservation`, `release_expired_holds`, `mark_order_paid`.
-* **Acceptance Criteria:** Functions enforce `SECURITY DEFINER SET search_path = public, pg_temp;`. Deadlock-free row locking (`ORDER BY id`).
-* **Tests:** pgTAP unit tests for atomic checkout, stock collision, and expired reclaim.
-* **Security:** `REVOKE EXECUTE` on `mark_order_paid` from `anon`.
+* **Files Created / Modified:**
+  * `supabase/migrations/008_enable_rls_and_policies.sql`
+  * `buyer-web/src/test/rls.test.ts`
+  * `docs/RLS-ACCESS-MATRIX.md`
+  * `docs/TASK-1.2-RLS-SECURITY-MATRIX.md`
+  * `docs/TASK-1.2-RLS-TEST-REPORT.md`
+  * `docs/TASK-1.2-COMPLETION-REPORT.md`
+  * `scripts/verify-schema.mjs`
+  * `buyer-web/src/test/schema.test.ts`
+  * `docs/16-security-architecture.md`
+* **Inputs:** [`docs/RLS-ACCESS-MATRIX.md`](file:///c:/LiveDrop/docs/RLS-ACCESS-MATRIX.md), [`docs/16-security-architecture.md`](file:///c:/LiveDrop/docs/16-security-architecture.md), ADR-003.
+* **Outputs:** Hardened RLS enabled on all 5 core tables (`profiles`, `drops`, `products`, `orders`, `order_items`), least-privilege table grants, 13 security policies.
+* **Acceptance Criteria:** Seller multi-tenancy isolation strictly enforced (`auth.uid()`). Public anonymous buyers can read only live drops and products. Orders and order items are strictly token-gated by secret `order_token` (header `x-order-token`). Direct REST `INSERT` on `orders` and `order_items` blocked for all roles.
+* **Tests:** 35/35 automated security test assertions pass under distinct role contexts (`anon`, `authenticated` Seller A, `authenticated` Seller B) in `buyer-web/src/test/rls.test.ts`, plus schema and standalone verifications (69/69 total tests pass).
+* **Security:** India DPDP Act 2023 order privacy verified, zero open enumeration, zero cross-seller data leakage.
 
-#### `TASK-1.3: Deploy Hardened Row-Level Security Policies`
-* **Requirement IDs:** `SEC-RLS-01..06`
-* **Dependencies:** `TASK-1.1`
-* **Files Expected:** `supabase/migrations/003_create_rls.sql`
-* **Inputs:** [`docs/16-security-architecture.md`](file:///c:/LiveDrop/docs/16-security-architecture.md).
-* **Outputs:** RLS policies isolating sellers and token-gating buyer orders.
-* **Acceptance Criteria:** Anonymous users cannot read orders without `order_token`. Direct INSERT on `orders` blocked.
-* **Tests:** pgTAP tests under `SET ROLE anon` and `SET ROLE authenticated`.
-* **Security:** Complete PII isolation verified.
+#### `[COMPLETED] TASK-1.3: Implement Core Database RPC Functions`
+* **Requirement IDs:** `REQ-FR-B4.1`, `REQ-FR-S3.2`, `REQ-SEC-01..04`, `ADR-003`, `ADR-009`
+* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.3-COMPLETION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.3-COMPLETION-REPORT.md))
+* **Dependencies:** `TASK-1.2`
+* **Files Created / Modified:**
+  * `supabase/migrations/009_create_core_business_rpcs.sql`
+  * `buyer-web/src/test/rpcs.test.ts`
+  * `docs/TASK-1.3-RPC-CONTRACT.md`
+  * `docs/TASK-1.3-CONCURRENCY-TEST-REPORT.md`
+  * `docs/TASK-1.3-COMPLETION-REPORT.md`
+  * `scripts/verify-schema.mjs`
+  * `buyer-web/src/test/schema.test.ts`
+  * `buyer-web/src/test/rls.test.ts`
+* **Inputs:** RPC definitions from [`docs/04-technical-design.md`](file:///c:/LiveDrop/docs/04-technical-design.md), [`docs/13-api-contract.md`](file:///c:/LiveDrop/docs/13-api-contract.md), [`docs/15-concurrency-and-reservation-spec.md`](file:///c:/LiveDrop/docs/15-concurrency-and-reservation-spec.md).
+* **Outputs:** 6 hardened RPCs: `create_order_with_reservation`, `mark_order_paid`, `release_expired_holds`, `get_order_by_token`, `force_release_hold`, `mark_product_sold_offline`.
+* **Acceptance Criteria:** Functions enforce `SECURITY DEFINER SET search_path = public, pg_temp;`. Mathematical deadlock-free row locking (`ORDER BY id ASC`). Multi-item all-or-nothing atomicity. Integer Paisa monetary integrity. Default `PUBLIC` execution revoked; seller routines restricted to authenticated seller sessions.
+* **Tests:** 37/37 automated RPC and concurrency assertions pass in `buyer-web/src/test/rpcs.test.ts` (106/106 total repository tests pass). Concurrency stress-tested across 2, 5, and 20 simultaneous competing clients with 0 over-reservations and 0 deadlocks.
+* **Security:** `REVOKE ALL ON FUNCTION ... FROM PUBLIC;` enforced across all 6 routines. Seller ownership verification (`auth.uid() = drop.seller_id`) enforced. Uncontested/contested expired hold resolution (`PRODUCT_ALREADY_RECLAIMED`) verified.
+
 
 ---
 

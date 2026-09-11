@@ -25,6 +25,14 @@ async function run() {
       email TEXT UNIQUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+    LANGUAGE sql STABLE
+    AS $$
+      SELECT coalesce(
+        nullif(current_setting('request.jwt.claim.sub', true), ''),
+        (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+      )::uuid
+    $$;
   `);
 
   const migrationsDir = path.resolve(__dirname, '../supabase/migrations');
@@ -36,6 +44,8 @@ async function run() {
     '005_create_order_items.sql',
     '006_create_indexes.sql',
     '007_create_triggers.sql',
+    '008_enable_rls_and_policies.sql',
+    '009_create_core_business_rpcs.sql',
   ];
 
   console.log('📦 Applying migrations sequentially:');
@@ -107,8 +117,122 @@ async function run() {
     if (!foundNames.includes(exp)) throw new Error(`Missing expected trigger: ${exp}`);
   }
 
+  console.log('🔍 Verifying Row-Level Security (RLS) enforcement:');
+  const rlsRes = await db.query(`
+    SELECT tablename, rowsecurity
+    FROM pg_tables
+    WHERE schemaname = 'public' AND tablename IN ('profiles', 'drops', 'products', 'orders', 'order_items')
+    ORDER BY tablename;
+  `);
+  for (const row of rlsRes.rows) {
+    if (!row.rowsecurity) {
+      throw new Error(`RLS NOT enabled on table ${row.tablename}!`);
+    }
+    console.log(`  ✓ RLS enabled on ${row.tablename} (rowsecurity = true)`);
+  }
+  if (rlsRes.rows.length !== 5) {
+    throw new Error(`Expected 5 tables with RLS enabled, found ${rlsRes.rows.length}`);
+  }
+
+  console.log('🔍 Verifying RLS Policies:');
+  const policyRes = await db.query(`
+    SELECT tablename, policyname, roles, cmd
+    FROM pg_policies
+    WHERE schemaname = 'public'
+    ORDER BY tablename, policyname;
+  `);
+  console.log(`  Policies found (${policyRes.rows.length}):`);
+  for (const p of policyRes.rows) {
+    console.log(`    - ${p.tablename}: ${p.policyname} (${p.cmd}) for ${p.roles}`);
+  }
+  const expectedPolicies = [
+    'profiles_public_read',
+    'profiles_seller_insert',
+    'profiles_seller_update',
+    'drops_public_read_live',
+    'drops_seller_manage',
+    'products_public_read_live',
+    'products_seller_manage',
+    'orders_buyer_read_with_token',
+    'orders_seller_select',
+    'orders_seller_update',
+    'orders_seller_delete',
+    'order_items_buyer_read_with_token',
+    'order_items_seller_select',
+  ];
+  const registeredPolicyNames = policyRes.rows.map(r => r.policyname);
+  for (const exp of expectedPolicies) {
+    if (!registeredPolicyNames.includes(exp)) {
+      throw new Error(`Missing expected RLS policy: ${exp}`);
+    }
+  }
+
+  console.log('🔍 Verifying Core Business RPCs (TASK-1.3):');
+  const rpcRes = await db.query(`
+    SELECT routine_name, security_type, data_type
+    FROM information_schema.routines
+    WHERE routine_schema = 'public' AND routine_name IN (
+      'create_order_with_reservation',
+      'mark_order_paid',
+      'release_expired_holds',
+      'get_order_by_token',
+      'force_release_hold',
+      'mark_product_sold_offline'
+    )
+    ORDER BY routine_name;
+  `);
+  console.log(`  RPCs found (${rpcRes.rows.length}):`);
+  for (const rpc of rpcRes.rows) {
+    console.log(`    ✓ ${rpc.routine_name} (${rpc.data_type}) [SECURITY ${rpc.security_type}]`);
+    if (rpc.security_type !== 'DEFINER') {
+      throw new Error(`RPC ${rpc.routine_name} must be SECURITY DEFINER, found ${rpc.security_type}`);
+    }
+  }
+  const expectedRpcs = [
+    'create_order_with_reservation',
+    'force_release_hold',
+    'get_order_by_token',
+    'mark_order_paid',
+    'mark_product_sold_offline',
+    'release_expired_holds',
+  ];
+  const foundRpcs = rpcRes.rows.map(r => r.routine_name);
+  for (const exp of expectedRpcs) {
+    if (!foundRpcs.includes(exp)) {
+      throw new Error(`Missing expected RPC: ${exp}`);
+    }
+  }
+
+  console.log('🔍 Verifying RPC Routine Privileges:');
+  const privRes = await db.query(`
+    SELECT routine_name, grantee, privilege_type
+    FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public' AND routine_name IN (
+      'create_order_with_reservation',
+      'mark_order_paid',
+      'release_expired_holds',
+      'get_order_by_token',
+      'force_release_hold',
+      'mark_product_sold_offline'
+    )
+    ORDER BY routine_name, grantee;
+  `);
+  console.log(`  Routine privilege grants found (${privRes.rows.length})`);
+
+  // Verify that anon cannot execute seller-only or maintenance RPCs
+  const forbiddenAnonRpcs = ['mark_order_paid', 'force_release_hold', 'mark_product_sold_offline', 'release_expired_holds'];
+  for (const row of privRes.rows) {
+    if (row.grantee === 'anon' && forbiddenAnonRpcs.includes(row.routine_name)) {
+      throw new Error(`CRITICAL SECURITY FAILURE: anon has ${row.privilege_type} privilege on seller RPC ${row.routine_name}!`);
+    }
+    if (row.grantee === 'PUBLIC') {
+      throw new Error(`CRITICAL SECURITY FAILURE: PUBLIC has ${row.privilege_type} privilege on RPC ${row.routine_name}!`);
+    }
+  }
+  console.log('  ✓ Verified: PUBLIC execution revoked; anon blocked from seller & maintenance RPCs.');
+
   await db.close();
-  console.log('✅ ALL RELATIONAL DATABASE SCHEMA CHECKS PASSED.');
+  console.log('✅ ALL RELATIONAL DATABASE SCHEMA, RLS POLICIES & BUSINESS RPCS VERIFIED.');
 }
 
 run().catch((err) => {

@@ -68,7 +68,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
   beforeAll(async () => {
     db = new PGlite();
 
-    // 1. Setup prerequisite auth schema and table (standard Supabase environment)
+    // 1. Setup prerequisite auth schema, table, and auth.uid() function
     await db.exec(`
       CREATE SCHEMA IF NOT EXISTS auth;
       CREATE TABLE IF NOT EXISTS auth.users (
@@ -76,9 +76,17 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
         email TEXT UNIQUE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+      LANGUAGE sql STABLE
+      AS $$
+        SELECT coalesce(
+          nullif(current_setting('request.jwt.claim.sub', true), ''),
+          (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+        )::uuid
+      $$;
     `);
 
-    // 2. Read and apply all 7 migration files in deterministic sequential order
+    // 2. Read and apply all 8 migration files in deterministic sequential order
     const migrationFiles = [
       '001_create_profiles.sql',
       '002_create_drops.sql',
@@ -87,6 +95,8 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       '005_create_order_items.sql',
       '006_create_indexes.sql',
       '007_create_triggers.sql',
+      '008_enable_rls_and_policies.sql',
+      '009_create_core_business_rpcs.sql',
     ];
 
     for (const file of migrationFiles) {
