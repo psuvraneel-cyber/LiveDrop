@@ -6,20 +6,44 @@
  */
 
 export type ProductStatus = 'available' | 'reserved' | 'sold';
-export type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'shipped';
+export type OrderStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled' | 'shipped' | 'expired';
 export type DropStatus = 'draft' | 'live' | 'closed';
+
+export type OrderConfirmationMode = 'advance' | 'full_payment';
+export type OrderPaymentStatus = 'unpaid' | 'advance_paid' | 'paid';
+export type OrderFulfilmentStatus = 'not_ready' | 'ready_to_ship' | 'shipped';
+
+export type PaymentRecordType = 'advance' | 'balance' | 'full';
+export type PaymentRecordStatus = 'pending' | 'verified' | 'failed' | 'refunded';
 
 export interface Profile {
   id: string; // UUID references auth.users(id)
   store_name: string;
+  store_slug: string; // URL-safe unique storefront identifier (e.g. 'mothers-boutique')
   phone_number: string; // E.164 without leading '+' (e.g., '919830012345')
   upi_id: string;
   upi_qr_url: string | null;
   return_address: string;
   default_shipping_fee_paisa: number; // Integer Paisa
   free_shipping_threshold_paisa: number | null; // Integer Paisa
+  advance_confirmation_enabled: boolean;
+  advance_amount_paisa: number; // Integer Paisa (e.g. 25000 = ₹250.00)
+  hold_duration_days: number; // 1 to 30 days
   created_at: string;
   updated_at: string;
+}
+
+export interface PublicSellerStorefront {
+  id: string;
+  store_name: string;
+  store_slug: string;
+  upi_id: string;
+  upi_qr_url: string | null;
+  default_shipping_fee_paisa: number;
+  free_shipping_threshold_paisa: number | null;
+  advance_confirmation_enabled: boolean;
+  advance_amount_paisa: number;
+  hold_duration_days: number;
 }
 
 export interface Drop {
@@ -30,6 +54,9 @@ export interface Drop {
   status: DropStatus;
   shipping_fee_paisa: number; // Integer Paisa
   free_shipping_threshold_paisa: number | null; // Integer Paisa
+  advance_confirmation_enabled?: boolean | null;
+  advance_amount_paisa?: number | null;
+  hold_duration_days?: number | null;
   live_started_at: string | null;
   closed_at: string | null;
   created_at: string;
@@ -39,7 +66,16 @@ export interface Drop {
 export interface PublicDropCatalog extends Drop {
   profiles: Pick<
     Profile,
-    'store_name' | 'phone_number' | 'upi_id' | 'upi_qr_url' | 'default_shipping_fee_paisa' | 'free_shipping_threshold_paisa'
+    | 'store_name'
+    | 'store_slug'
+    | 'phone_number'
+    | 'upi_id'
+    | 'upi_qr_url'
+    | 'default_shipping_fee_paisa'
+    | 'free_shipping_threshold_paisa'
+    | 'advance_confirmation_enabled'
+    | 'advance_amount_paisa'
+    | 'hold_duration_days'
   >;
 }
 
@@ -83,6 +119,14 @@ export interface Order {
   subtotal_paisa: number; // Integer Paisa
   shipping_paisa: number; // Integer Paisa
   total_paisa: number; // Integer Paisa
+  confirmation_mode: OrderConfirmationMode;
+  advance_required_paisa: number;
+  advance_paid_paisa: number;
+  total_paid_paisa: number;
+  balance_due_paisa: number;
+  advance_paid_at: string | null;
+  payment_status: OrderPaymentStatus;
+  fulfilment_status: OrderFulfilmentStatus;
   status: OrderStatus;
   hold_expires_at: string | null;
   paid_at: string | null;
@@ -101,6 +145,20 @@ export interface OrderItem {
   created_at: string;
 }
 
+export interface OrderPayment {
+  id: string; // UUID
+  order_id: string; // UUID references orders(id)
+  payment_type: PaymentRecordType;
+  amount_paisa: number; // Integer Paisa
+  status: PaymentRecordStatus;
+  reference_id: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 // -----------------------------------------------------------------------------
 // RPC Contracts
 // -----------------------------------------------------------------------------
@@ -112,6 +170,7 @@ export interface CreateOrderRequest {
   p_buyer_phone: string;
   p_shipping_address: string;
   p_pincode: string;
+  p_confirmation_mode?: OrderConfirmationMode;
 }
 
 export interface CreateOrderSuccessResponse {
@@ -122,6 +181,13 @@ export interface CreateOrderSuccessResponse {
   subtotal_paisa: number;
   shipping_paisa: number;
   total_paisa: number;
+  confirmation_mode: OrderConfirmationMode;
+  advance_required_paisa: number;
+  advance_paid_paisa: number;
+  balance_due_paisa: number;
+  total_paid_paisa: number;
+  payment_status: OrderPaymentStatus;
+  fulfilment_status: OrderFulfilmentStatus;
   hold_expires_at: string;
 }
 
@@ -154,9 +220,17 @@ export interface OrderReceipt {
   subtotal_paisa: number;
   shipping_paisa: number;
   total_paisa: number;
+  confirmation_mode: OrderConfirmationMode;
+  advance_required_paisa: number;
+  advance_paid_paisa: number;
+  total_paid_paisa: number;
+  balance_due_paisa: number;
+  payment_status: OrderPaymentStatus;
+  fulfilment_status: OrderFulfilmentStatus;
   status: OrderStatus;
   hold_expires_at: string | null;
   store_name: string;
+  store_slug?: string;
   upi_id: string;
   upi_qr_url: string | null;
   items: OrderReceiptItem[];
@@ -174,3 +248,29 @@ export interface GetOrderByTokenErrorResponse {
 }
 
 export type GetOrderByTokenResponse = GetOrderByTokenSuccessResponse | GetOrderByTokenErrorResponse;
+
+// -----------------------------------------------------------------------------
+// Checkout Form & UI Contracts (TASK-2.3)
+// -----------------------------------------------------------------------------
+
+export interface CheckoutFormState {
+  buyer_name: string;
+  buyer_phone: string;
+  shipping_address: string;
+  pincode: string;
+}
+
+export interface CheckoutFormErrors {
+  buyer_name?: string;
+  buyer_phone?: string;
+  shipping_address?: string;
+  pincode?: string;
+}
+
+export type CheckoutSubmissionStatus =
+  | 'idle'
+  | 'validating'
+  | 'submitting'
+  | 'success'
+  | 'failure'
+  | 'network_ambiguous';

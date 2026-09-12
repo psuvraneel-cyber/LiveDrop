@@ -12,12 +12,17 @@ const PORT = 54321;
 
 // Seed data
 const mockProfile = {
+  id: '8a329e71-4b10-4055-90d2-df8029d5b512',
   store_name: "Mother's Boutique",
+  store_slug: 'mothers-boutique',
   phone_number: '919830012345',
   upi_id: 'mothersboutique@okaxis',
   upi_qr_url: 'https://storage.livedrop.store/qrs/mb.webp',
   default_shipping_fee_paisa: 8000,
   free_shipping_threshold_paisa: 200000,
+  advance_confirmation_enabled: true,
+  advance_amount_paisa: 25000,
+  hold_duration_days: 30,
 };
 
 const mockLiveDrop = {
@@ -28,6 +33,9 @@ const mockLiveDrop = {
   status: 'live',
   shipping_fee_paisa: 8000,
   free_shipping_threshold_paisa: 200000,
+  advance_confirmation_enabled: null,
+  advance_amount_paisa: null,
+  hold_duration_days: null,
   live_started_at: '2026-09-11T13:00:00Z',
   closed_at: null,
   created_at: '2026-09-11T12:00:00Z',
@@ -43,17 +51,25 @@ const mockEmptyDrop = {
   status: 'live',
   shipping_fee_paisa: 5000,
   free_shipping_threshold_paisa: null,
+  advance_confirmation_enabled: null,
+  advance_amount_paisa: null,
+  hold_duration_days: null,
   live_started_at: '2026-09-11T14:00:00Z',
   closed_at: null,
   created_at: '2026-09-11T14:00:00Z',
   updated_at: '2026-09-11T14:00:00Z',
   profiles: {
+    id: '7b218d60-3a09-4044-80c1-ce7018c4a401',
     store_name: "Artisan Silks",
+    store_slug: 'artisan-silks',
     phone_number: '919830099999',
     upi_id: 'artisansilks@upi',
     upi_qr_url: null,
     default_shipping_fee_paisa: 5000,
     free_shipping_threshold_paisa: null,
+    advance_confirmation_enabled: true,
+    advance_amount_paisa: 50000,
+    hold_duration_days: 14,
   },
 };
 
@@ -119,6 +135,7 @@ let products = [
   },
 ];
 
+const mockOrders = [];
 const connectedClients = new Set();
 
 function buildWebSocketFrame(payloadStr) {
@@ -280,6 +297,214 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify([]));
     }
+    return;
+  }
+
+  // POST /rest/v1/rpc/create_order_with_reservation
+  if (req.method === 'POST' && pathname === '/rest/v1/rpc/create_order_with_reservation') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const {
+          p_drop_id,
+          p_product_ids,
+          p_buyer_name,
+          p_buyer_phone,
+          p_shipping_address,
+          p_pincode,
+          p_confirmation_mode,
+        } = payload;
+
+        const cleanName = (p_buyer_name || '').trim();
+        const cleanPhone = (p_buyer_phone || '').trim();
+        const cleanAddress = (p_shipping_address || '').trim();
+        const cleanPincode = (p_pincode || '').trim();
+        const confirmationMode = (p_confirmation_mode || 'advance').toLowerCase().trim();
+
+        if (cleanName.length < 3 || cleanName.length > 100) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'INVALID_BUYER_NAME', message: 'Buyer name must be between 3 and 100 characters.' }));
+          return;
+        }
+
+        if (!(/^[6-9]\d{9}$/.test(cleanPhone) || /^91[6-9]\d{9}$/.test(cleanPhone))) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'INVALID_BUYER_PHONE', message: 'Valid 10-digit Indian mobile number required.' }));
+          return;
+        }
+
+        if (cleanAddress.length < 10 || cleanAddress.length > 500) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'INVALID_SHIPPING_ADDRESS', message: 'Shipping address must be between 10 and 500 characters.' }));
+          return;
+        }
+
+        if (!/^\d{6}$/.test(cleanPincode)) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'INVALID_PINCODE', message: 'Valid 6-digit Indian pincode required.' }));
+          return;
+        }
+
+        const cleanIds = Array.from(new Set((p_product_ids || []).filter(Boolean)));
+        if (cleanIds.length === 0) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'EMPTY_CART' }));
+          return;
+        }
+
+        // Check product availability
+        const unavailableIds = [];
+        const matchedProducts = [];
+
+        for (const id of cleanIds) {
+          const prod = products.find(p => p.id === id);
+          if (!prod || prod.status !== 'available') {
+            unavailableIds.push(id);
+          } else {
+            matchedProducts.push(prod);
+          }
+        }
+
+        if (unavailableIds.length > 0) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: 'STOCK_UNAVAILABLE',
+            unavailable_product_ids: unavailableIds,
+            message: 'One or more items in your cart have already been reserved or sold.',
+          }));
+          return;
+        }
+
+        // Authoritative Subtotal & Shipping calculation
+        const subtotalPaisa = matchedProducts.reduce((sum, p) => sum + p.price_paisa, 0);
+        const shippingPaisa = subtotalPaisa >= 200000 ? 0 : 8000;
+        const totalPaisa = subtotalPaisa + shippingPaisa;
+
+        let advanceRequiredPaisa = 0;
+        let holdExpiresAt;
+        if (confirmationMode === 'advance') {
+          advanceRequiredPaisa = 25000;
+          holdExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        } else {
+          advanceRequiredPaisa = 0;
+          holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        }
+
+        const orderCode = 'LD-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+        const orderId = crypto.randomUUID();
+        const orderToken = crypto.randomUUID();
+
+        // Mark products reserved and broadcast realtime update
+        for (const prod of matchedProducts) {
+          prod.status = 'reserved';
+          prod.reserved_at = new Date().toISOString();
+          prod.version = (prod.version || 1) + 1;
+
+          const topic = `realtime:drop:${p_drop_id}:products`;
+          const msg = JSON.stringify({
+            topic,
+            event: 'postgres_changes',
+            payload: {
+              data: {
+                schema: 'public',
+                table: 'products',
+                commit_timestamp: new Date().toISOString(),
+                eventType: 'UPDATE',
+                new: prod,
+                old: { id: prod.id },
+              },
+            },
+            ref: null,
+          });
+          const frame = buildWebSocketFrame(msg);
+          for (const client of connectedClients) {
+            client.write(frame);
+          }
+        }
+
+        const newOrder = {
+          id: orderId,
+          order_code: orderCode,
+          order_token: orderToken,
+          buyer_name: cleanName,
+          subtotal_paisa: subtotalPaisa,
+          shipping_paisa: shippingPaisa,
+          total_paisa: totalPaisa,
+          confirmation_mode: confirmationMode,
+          advance_required_paisa: advanceRequiredPaisa,
+          advance_paid_paisa: 0,
+          total_paid_paisa: 0,
+          balance_due_paisa: totalPaisa,
+          payment_status: 'unpaid',
+          fulfilment_status: 'not_ready',
+          status: 'pending',
+          hold_expires_at: holdExpiresAt,
+          store_name: mockProfile.store_name,
+          store_slug: mockProfile.store_slug,
+          upi_id: mockProfile.upi_id,
+          upi_qr_url: mockProfile.upi_qr_url,
+          items: matchedProducts.map(p => ({
+            product_id: p.id,
+            code: p.code,
+            title: p.title,
+            image_url: p.image_url,
+            price_at_purchase_paisa: p.price_paisa,
+          })),
+        };
+        mockOrders.push(newOrder);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          order_id: orderId,
+          order_code: orderCode,
+          order_token: orderToken,
+          subtotal_paisa: subtotalPaisa,
+          shipping_paisa: shippingPaisa,
+          total_paisa: totalPaisa,
+          confirmation_mode: confirmationMode,
+          advance_required_paisa: advanceRequiredPaisa,
+          advance_paid_paisa: 0,
+          balance_due_paisa: totalPaisa,
+          total_paid_paisa: 0,
+          payment_status: 'unpaid',
+          fulfilment_status: 'not_ready',
+          hold_expires_at: holdExpiresAt,
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /rest/v1/rpc/get_order_by_token
+  if (req.method === 'POST' && pathname === '/rest/v1/rpc/get_order_by_token') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const { p_order_id, p_order_token } = payload;
+        const matched = mockOrders.find(o => o.id === p_order_id && o.order_token === p_order_token);
+
+        if (!matched) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ORDER_NOT_FOUND_OR_UNAUTHORIZED' }));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, order: matched }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
     return;
   }
 

@@ -35,18 +35,24 @@ enum ProductStatus {
 
 enum OrderStatus {
   pending,
+  confirmed,
   paid,
   cancelled,
-  shipped;
+  shipped,
+  expired;
 
   static OrderStatus fromString(String value) {
     switch (value) {
+      case 'confirmed':
+        return OrderStatus.confirmed;
       case 'paid':
         return OrderStatus.paid;
       case 'cancelled':
         return OrderStatus.cancelled;
       case 'shipped':
         return OrderStatus.shipped;
+      case 'expired':
+        return OrderStatus.expired;
       case 'pending':
       default:
         return OrderStatus.pending;
@@ -54,6 +60,88 @@ enum OrderStatus {
   }
 
   String toDbValue() => name;
+}
+
+enum OrderConfirmationMode {
+  advance,
+  fullPayment;
+
+  static OrderConfirmationMode fromString(String value) {
+    switch (value) {
+      case 'full_payment':
+        return OrderConfirmationMode.fullPayment;
+      case 'advance':
+      default:
+        return OrderConfirmationMode.advance;
+    }
+  }
+
+  String toDbValue() {
+    switch (this) {
+      case OrderConfirmationMode.fullPayment:
+        return 'full_payment';
+      case OrderConfirmationMode.advance:
+        return 'advance';
+    }
+  }
+}
+
+enum OrderPaymentStatus {
+  unpaid,
+  advancePaid,
+  paid;
+
+  static OrderPaymentStatus fromString(String value) {
+    switch (value) {
+      case 'advance_paid':
+        return OrderPaymentStatus.advancePaid;
+      case 'paid':
+        return OrderPaymentStatus.paid;
+      case 'unpaid':
+      default:
+        return OrderPaymentStatus.unpaid;
+    }
+  }
+
+  String toDbValue() {
+    switch (this) {
+      case OrderPaymentStatus.advancePaid:
+        return 'advance_paid';
+      case OrderPaymentStatus.paid:
+        return 'paid';
+      case OrderPaymentStatus.unpaid:
+        return 'unpaid';
+    }
+  }
+}
+
+enum OrderFulfilmentStatus {
+  notReady,
+  readyToShip,
+  shipped;
+
+  static OrderFulfilmentStatus fromString(String value) {
+    switch (value) {
+      case 'ready_to_ship':
+        return OrderFulfilmentStatus.readyToShip;
+      case 'shipped':
+        return OrderFulfilmentStatus.shipped;
+      case 'not_ready':
+      default:
+        return OrderFulfilmentStatus.notReady;
+    }
+  }
+
+  String toDbValue() {
+    switch (this) {
+      case OrderFulfilmentStatus.readyToShip:
+        return 'ready_to_ship';
+      case OrderFulfilmentStatus.shipped:
+        return 'shipped';
+      case OrderFulfilmentStatus.notReady:
+        return 'not_ready';
+    }
+  }
 }
 
 enum DropStatus {
@@ -79,34 +167,46 @@ enum DropStatus {
 class SellerProfile {
   final String id;
   final String storeName;
+  final String storeSlug;
   final String phoneNumber;
   final String upiId;
   final String? upiQrUrl;
   final String returnAddress;
   final int defaultShippingFeePaisa;
   final int? freeShippingThresholdPaisa;
+  final bool advanceConfirmationEnabled;
+  final int advanceAmountPaisa;
+  final int holdDurationDays;
 
   const SellerProfile({
     required this.id,
     required this.storeName,
+    required this.storeSlug,
     required this.phoneNumber,
     required this.upiId,
     this.upiQrUrl,
     required this.returnAddress,
     required this.defaultShippingFeePaisa,
     this.freeShippingThresholdPaisa,
+    required this.advanceConfirmationEnabled,
+    required this.advanceAmountPaisa,
+    required this.holdDurationDays,
   });
 
   factory SellerProfile.fromJson(Map<String, dynamic> json) {
     return SellerProfile(
       id: json['id'] as String,
       storeName: json['store_name'] as String,
+      storeSlug: json['store_slug'] as String? ?? 'store',
       phoneNumber: json['phone_number'] as String,
       upiId: json['upi_id'] as String,
       upiQrUrl: json['upi_qr_url'] as String?,
       returnAddress: json['return_address'] as String,
       defaultShippingFeePaisa: json['default_shipping_fee_paisa'] as int,
       freeShippingThresholdPaisa: json['free_shipping_threshold_paisa'] as int?,
+      advanceConfirmationEnabled: json['advance_confirmation_enabled'] as bool? ?? true,
+      advanceAmountPaisa: json['advance_amount_paisa'] as int? ?? 25000,
+      holdDurationDays: json['hold_duration_days'] as int? ?? 30,
     );
   }
 }
@@ -248,6 +348,14 @@ class SellerOrder {
   final int shippingPaisa;
   final int totalPaisa;
   final OrderStatus status;
+  final OrderConfirmationMode confirmationMode;
+  final int advanceRequiredPaisa;
+  final int advancePaidPaisa;
+  final int totalPaidPaisa;
+  final int balanceDuePaisa;
+  final OrderPaymentStatus paymentStatus;
+  final OrderFulfilmentStatus fulfilmentStatus;
+  final DateTime? advancePaidAt;
   final DateTime? holdExpiresAt;
   final DateTime? paidAt;
   final DateTime? shippedAt;
@@ -268,6 +376,14 @@ class SellerOrder {
     required this.shippingPaisa,
     required this.totalPaisa,
     required this.status,
+    required this.confirmationMode,
+    required this.advanceRequiredPaisa,
+    required this.advancePaidPaisa,
+    required this.totalPaidPaisa,
+    required this.balanceDuePaisa,
+    required this.paymentStatus,
+    required this.fulfilmentStatus,
+    this.advancePaidAt,
     this.holdExpiresAt,
     this.paidAt,
     this.shippedAt,
@@ -283,6 +399,10 @@ class SellerOrder {
             .toList() ??
         const [];
 
+    final total = json['total_paisa'] as int;
+    final totalPaid = json['total_paid_paisa'] as int? ?? 0;
+    final balanceDue = json['balance_due_paisa'] as int? ?? (total - totalPaid);
+
     return SellerOrder(
       id: json['id'] as String,
       dropId: json['drop_id'] as String,
@@ -293,8 +413,21 @@ class SellerOrder {
       pincode: json['pincode'] as String,
       subtotalPaisa: json['subtotal_paisa'] as int,
       shippingPaisa: json['shipping_paisa'] as int,
-      totalPaisa: json['total_paisa'] as int,
+      totalPaisa: total,
       status: OrderStatus.fromString(json['status'] as String),
+      confirmationMode: OrderConfirmationMode.fromString(
+          json['confirmation_mode'] as String? ?? 'advance'),
+      advanceRequiredPaisa: json['advance_required_paisa'] as int? ?? 0,
+      advancePaidPaisa: json['advance_paid_paisa'] as int? ?? 0,
+      totalPaidPaisa: totalPaid,
+      balanceDuePaisa: balanceDue,
+      paymentStatus: OrderPaymentStatus.fromString(
+          json['payment_status'] as String? ?? 'unpaid'),
+      fulfilmentStatus: OrderFulfilmentStatus.fromString(
+          json['fulfilment_status'] as String? ?? 'not_ready'),
+      advancePaidAt: json['advance_paid_at'] != null
+          ? DateTime.parse(json['advance_paid_at'] as String)
+          : null,
       holdExpiresAt: json['hold_expires_at'] != null
           ? DateTime.parse(json['hold_expires_at'] as String)
           : null,

@@ -18,6 +18,7 @@ import {
   getPublicProductsForDrop,
   createOrderWithReservation,
   getOrderByToken,
+  getStorefrontBySlug,
 } from '../lib/data/buyer-catalog';
 import {
   classifyRpcError,
@@ -163,6 +164,33 @@ describe('TASK-1.4: Catalog Data Access Operations', () => {
     expect(products[0].code).toBe('#A01');
     expect(products[0].price_paisa).toBe(185000);
   });
+
+  it('queries public storefront by store slug with live drops', async () => {
+    const mockMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: 'prof-1',
+        store_name: "Mother's Boutique",
+        store_slug: 'mothers-boutique',
+        advance_confirmation_enabled: true,
+        advance_amount_paisa: 25000,
+        hold_duration_days: 30,
+      },
+      error: null,
+    });
+
+    const mockEqSlug = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSlug });
+    const mockFrom = vi.fn().mockReturnValue({ select: mockSelect });
+    const mockClient = { from: mockFrom } as unknown as SupabaseClient;
+
+    const storefront = await getStorefrontBySlug(mockClient, 'mothers-boutique');
+
+    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(mockEqSlug).toHaveBeenCalledWith('store_slug', 'mothers-boutique');
+    expect(storefront?.store_name).toBe("Mother's Boutique");
+    expect(storefront?.store_slug).toBe('mothers-boutique');
+    expect(storefront?.advance_amount_paisa).toBe(25000);
+  });
 });
 
 describe('TASK-1.4: Atomic Order RPC & Price Authority', () => {
@@ -208,7 +236,10 @@ describe('TASK-1.4: Atomic Order RPC & Price Authority', () => {
 
     const res = await createOrderWithReservation(mockClient, req);
 
-    expect(mockRpc).toHaveBeenCalledWith('create_order_with_reservation', req);
+    expect(mockRpc).toHaveBeenCalledWith('create_order_with_reservation', {
+      ...req,
+      p_confirmation_mode: 'advance',
+    });
     expect(res.success).toBe(true);
     expect(res.order_code).toBe('LD-8F429B');
     expect(res.total_paisa).toBe(268000);

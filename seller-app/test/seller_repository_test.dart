@@ -18,19 +18,27 @@ void main() {
       final json = {
         'id': '8a329e71-4b10-4055-90d2-df8029d5b512',
         'store_name': "Mother's Boutique",
+        'store_slug': 'mothers-boutique',
         'phone_number': '919830012345',
         'upi_id': 'mothersboutique@okaxis',
         'upi_qr_url': 'https://storage.livedrop.store/qrs/mb.webp',
         'return_address': '12A Ballygunge Place, Kolkata - 700019',
         'default_shipping_fee_paisa': 8000,
         'free_shipping_threshold_paisa': 200000,
+        'advance_confirmation_enabled': true,
+        'advance_amount_paisa': 25000,
+        'hold_duration_days': 30,
       };
 
       final profile = SellerProfile.fromJson(json);
       expect(profile.id, '8a329e71-4b10-4055-90d2-df8029d5b512');
       expect(profile.storeName, "Mother's Boutique");
+      expect(profile.storeSlug, 'mothers-boutique');
       expect(profile.defaultShippingFeePaisa, 8000);
       expect(profile.freeShippingThresholdPaisa, 200000);
+      expect(profile.advanceConfirmationEnabled, true);
+      expect(profile.advanceAmountPaisa, 25000);
+      expect(profile.holdDurationDays, 30);
     });
 
     test('SellerDrop parses status enum and integer Paisa shipping', () {
@@ -87,8 +95,15 @@ void main() {
         'subtotal_paisa': 75000,
         'shipping_paisa': 8000,
         'total_paisa': 83000,
-        'status': 'pending',
-        'hold_expires_at': '2026-09-11T15:00:00Z',
+        'status': 'confirmed',
+        'confirmation_mode': 'advance',
+        'advance_required_paisa': 25000,
+        'advance_paid_paisa': 25000,
+        'total_paid_paisa': 25000,
+        'balance_due_paisa': 58000,
+        'payment_status': 'advance_paid',
+        'fulfilment_status': 'not_ready',
+        'hold_expires_at': '2026-10-11T15:00:00Z',
         'paid_at': null,
         'shipped_at': null,
         'tracking_number': null,
@@ -113,7 +128,14 @@ void main() {
       expect(order.orderCode, 'LD-8F429B');
       expect(order.buyerName, 'Sangeeta Mukherjee');
       expect(order.totalPaisa, 83000);
-      expect(order.status, OrderStatus.pending);
+      expect(order.status, OrderStatus.confirmed);
+      expect(order.confirmationMode, OrderConfirmationMode.advance);
+      expect(order.advanceRequiredPaisa, 25000);
+      expect(order.advancePaidPaisa, 25000);
+      expect(order.totalPaidPaisa, 25000);
+      expect(order.balanceDuePaisa, 58000);
+      expect(order.paymentStatus, OrderPaymentStatus.advancePaid);
+      expect(order.fulfilmentStatus, OrderFulfilmentStatus.notReady);
       expect(order.items.length, 1);
       expect(order.items.first.productCode, '#A02');
       expect(order.items.first.priceAtPurchasePaisa, 75000);

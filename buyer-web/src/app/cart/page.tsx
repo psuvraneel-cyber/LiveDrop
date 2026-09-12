@@ -9,6 +9,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart, CartProvider, useOptionalCart } from '../../lib/cart/cart-context';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 import { CartEmptyState } from '../../components/cart/CartEmptyState';
@@ -17,6 +18,7 @@ import { getPublicProductsForDrop } from '../../lib/data/buyer-catalog';
 import { PublicProductView } from '../../types/domain';
 
 function CartPageContent() {
+  const router = useRouter();
   const { items, itemCount, subtotalPaisa, dropId, isHydrated, removeItem, clearCart, getReconciledItems } = useCart();
   const [catalogProducts, setCatalogProducts] = useState<PublicProductView[]>([]);
 
@@ -207,6 +209,11 @@ function CartPageContent() {
                 type="button"
                 className="ld-btn-checkout"
                 disabled={hasUnavailableItems}
+                onClick={() => {
+                  if (!hasUnavailableItems) {
+                    router.push('/checkout');
+                  }
+                }}
                 data-testid="cart-page-checkout-btn"
               >
                 {hasUnavailableItems ? 'Remove Unavailable Items' : 'Proceed to Checkout'}

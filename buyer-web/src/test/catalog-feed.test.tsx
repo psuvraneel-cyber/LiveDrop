@@ -34,11 +34,15 @@ const mockLiveDrop: PublicDropCatalog = {
   updated_at: '2026-09-11T12:00:00Z',
   profiles: {
     store_name: "Mother's Boutique",
+    store_slug: 'mothers-boutique',
     phone_number: '919830012345',
     upi_id: 'mothersboutique@okaxis',
     upi_qr_url: 'https://storage.livedrop.store/qrs/mb.webp',
     default_shipping_fee_paisa: 8000,
     free_shipping_threshold_paisa: 200000,
+    advance_confirmation_enabled: true,
+    advance_amount_paisa: 25000,
+    hold_duration_days: 30,
   },
 };
 

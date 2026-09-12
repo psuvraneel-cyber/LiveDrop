@@ -29,11 +29,12 @@ PRD Requirement ──► UX Location ──► Domain Rule ──► DB Entity 
 | **REQ-FR-B1.4** | `02-prd.md` §3.2 | Cart Trigger | RULE-PRD-04 | N/A (Client State) | N/A | `ProductCard.tsx` | `TC-BUY-04` | `TASK-2.2` | **Implemented** |
 | **REQ-FR-B2.1** | `02-prd.md` §3.2 | Bottom Cart Bar | RULE-ORD-01 | N/A (Client State) | N/A | `StickyCartBar.tsx` | `TC-BUY-04` | `TASK-2.2` | **Implemented** |
 | **REQ-FR-B2.2** | `02-prd.md` §3.2 | Cart Drawer | RULE-ORD-02 | N/A (Client State) | N/A | `CartDrawer.tsx` | `TC-BUY-04` | `TASK-2.2` | **Implemented** |
-| **REQ-FR-B3.1** | `02-prd.md` §3.2 | Delivery Form | RULE-BYR-01..04 | `orders` | N/A (Form Input) | `CartDrawer.tsx` | `TC-BUY-05`, `TC-BUY-06` | `TASK-2.3` | **Mapped** |
+| **REQ-FR-B3.1** | `02-prd.md` §3.2 | Delivery Form & Checkout | RULE-BYR-01..04 | `orders` | `rpc/create_order_with_reservation` | `CheckoutForm.tsx`, `CheckoutReview.tsx`, `checkout/page.tsx` | `TC-BUY-05`, `TC-BUY-06`, `TC-CON-01..06` | `TASK-2.3` | **Implemented** |
 | **REQ-FR-B3.2** | `02-prd.md` §3.2 | Local Persistence | RULE-BYR-05 | `localStorage` | N/A | `cart-storage.ts`, `cart-context.tsx` | `TC-BUY-05` | `TASK-2.2` | **Implemented** |
+| **REQ-FR-B3.3** | `02-prd.md` §3.2 | Storefront & Advance Confirmation Domain | RULE-ORD-01..12 | `profiles`, `drops`, `orders`, `order_payments` | `rpc/create_order_with_reservation`, `rpc/confirm_order_advance`, `rpc/release_expired_holds` | Domain Models, Storefront contracts | `TC-CON-07..15`, `storefront-and-state-machine.test.ts` | `TASK-2.4A` | **Implemented** |
 | **REQ-FR-B4.1** | `02-prd.md` §3.2 | WhatsApp Checkout | RULE-ORD-01..06 | `orders`, `order_items`, `products` | `rpc/create_order_with_reservation` | `WhatsAppCheckout.tsx` | `TC-BUY-07`, `TC-CON-01..06` | `TASK-3.3` | **Mapped** |
 | **REQ-FR-B4.2** | `02-prd.md` §3.2 | WhatsApp Redirect | RULE-INT-01 | N/A (Deep Link) | N/A | `WhatsAppCheckout.tsx` | `TC-BUY-09` | `TASK-3.3` | **Mapped** |
-| **REQ-FR-B4.3** | `02-prd.md` §3.2 | Confirmation Screen | RULE-ORD-07 | `orders`, `profiles` | `rpc/get_order_by_token` | `UpiConfirmation.tsx` | `TC-BUY-10` | `TASK-3.3` | **Mapped** |
+| **REQ-FR-B4.3** | `02-prd.md` §3.2 | Confirmation Screen | RULE-ORD-07 | `orders`, `profiles` | `rpc/get_order_by_token` | `CheckoutSuccessView.tsx` | `TC-BUY-10` | `TASK-2.3` | **Implemented** |
 | **REQ-FR-S1.1** | `02-prd.md` §4.2 | Ingestion Viewfinder | RULE-CAM-01 | N/A (Hardware) | N/A | `camera_screen.dart` | `TC-SEL-03` | `TASK-5.1` | **Mapped** |
 | **REQ-FR-S1.2** | `02-prd.md` §4.2 | Sub-30s Loop | RULE-CAM-02 | `products` | `POST /storage/v1/object/...` + INSERT | `product_form_overlay.dart` | `TC-SEL-03`, `TC-SEL-04` | `TASK-5.2` | **Mapped** |
 | **REQ-FR-S1.3** | `02-prd.md` §4.2 | Drop Publishing | RULE-DRP-01..05 | `drops` | `POST /rest/v1/drops` | `create_drop_screen.dart` | `TC-SEL-02`, `TC-SEL-05` | `TASK-4.2` | **Mapped** |

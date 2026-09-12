@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCart } from '../../lib/cart/cart-context';
 import { PublicDropCatalog, PublicProductView } from '../../types/domain';
 import { formatPaisaToINR } from '../../lib/utils/currency';
@@ -21,6 +22,7 @@ export function CartDrawer({
 }: CartDrawerProps) {
   const { items, itemCount, subtotalPaisa, removeItem, clearCart, getReconciledItems } = useCart();
   const drawerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Close on Escape key
   useEffect(() => {
@@ -250,6 +252,12 @@ export function CartDrawer({
               className="ld-btn-checkout"
               disabled={hasUnavailableItems}
               data-testid="cart-checkout-btn"
+              onClick={() => {
+                if (!hasUnavailableItems) {
+                  onClose();
+                  router.push('/checkout');
+                }
+              }}
               title={
                 hasUnavailableItems
                   ? 'Please remove unavailable items before proceeding'

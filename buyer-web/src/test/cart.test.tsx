@@ -35,11 +35,15 @@ const mockDrop: PublicDropCatalog = {
   updated_at: '2026-09-11T11:00:00Z',
   profiles: {
     store_name: "Silk Studio",
+    store_slug: 'silk-studio',
     phone_number: '919830012345',
     upi_id: 'silkstudio@okaxis',
     upi_qr_url: null,
     default_shipping_fee_paisa: 8000,
     free_shipping_threshold_paisa: 200000,
+    advance_confirmation_enabled: true,
+    advance_amount_paisa: 25000,
+    hold_duration_days: 30,
   },
 };
 

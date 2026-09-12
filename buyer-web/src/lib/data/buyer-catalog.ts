@@ -14,6 +14,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import {
   PublicDropCatalog,
   PublicProductView,
+  PublicSellerStorefront,
   CreateOrderRequest,
   CreateOrderSuccessResponse,
   CreateOrderResponse,
@@ -47,17 +48,24 @@ export async function getLiveDropBySlug(
         status,
         shipping_fee_paisa,
         free_shipping_threshold_paisa,
+        advance_confirmation_enabled,
+        advance_amount_paisa,
+        hold_duration_days,
         live_started_at,
         closed_at,
         created_at,
         updated_at,
         profiles (
           store_name,
+          store_slug,
           phone_number,
           upi_id,
           upi_qr_url,
           default_shipping_fee_paisa,
-          free_shipping_threshold_paisa
+          free_shipping_threshold_paisa,
+          advance_confirmation_enabled,
+          advance_amount_paisa,
+          hold_duration_days
         )
       `
       )
@@ -75,6 +83,48 @@ export async function getLiveDropBySlug(
 
     // Supabase returns profiles as an object when joined on foreign key
     return data as unknown as PublicDropCatalog;
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Retrieves a seller's public storefront information by store slug.
+ */
+export async function getStorefrontBySlug(
+  client: SupabaseClient,
+  storeSlug: string
+): Promise<PublicSellerStorefront | null> {
+  if (!storeSlug || storeSlug.trim() === '') {
+    return null;
+  }
+
+  try {
+    const { data, error } = await client
+      .from('profiles')
+      .select(
+        `
+        id,
+        store_name,
+        store_slug,
+        upi_id,
+        upi_qr_url,
+        default_shipping_fee_paisa,
+        free_shipping_threshold_paisa,
+        advance_confirmation_enabled,
+        advance_amount_paisa,
+        hold_duration_days
+      `
+      )
+      .eq('store_slug', storeSlug)
+      .maybeSingle();
+
+    if (error) {
+      throw new LiveDropError(`Failed to fetch seller storefront: ${error.message}`, 'UNKNOWN_ERROR');
+    }
+
+    return (data as unknown as PublicSellerStorefront) || null;
   } catch (err: unknown) {
     if (err instanceof LiveDropError) throw err;
     throw new NetworkError(err instanceof Error ? err.message : String(err));
@@ -134,6 +184,7 @@ export async function createOrderWithReservation(
       p_buyer_phone: request.p_buyer_phone,
       p_shipping_address: request.p_shipping_address,
       p_pincode: request.p_pincode,
+      p_confirmation_mode: request.p_confirmation_mode || 'advance',
     });
 
     if (error) {

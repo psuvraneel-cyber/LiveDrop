@@ -12,6 +12,10 @@ export type ErrorCode =
   | 'STOCK_UNAVAILABLE'
   | 'INVALID_DROP'
   | 'DROP_NOT_ACTIVE'
+  | 'INVALID_BUYER_NAME'
+  | 'INVALID_BUYER_PHONE'
+  | 'INVALID_SHIPPING_ADDRESS'
+  | 'INVALID_PINCODE'
   | 'PRODUCT_ALREADY_RECLAIMED'
   | 'UNAUTHORIZED'
   | 'INVALID_ORDER_TOKEN'
@@ -92,6 +96,20 @@ export class NetworkError extends LiveDropError {
   }
 }
 
+export class InvalidBuyerInputError extends LiveDropError {
+  readonly field: 'buyer_name' | 'buyer_phone' | 'shipping_address' | 'pincode';
+
+  constructor(
+    field: 'buyer_name' | 'buyer_phone' | 'shipping_address' | 'pincode',
+    code: 'INVALID_BUYER_NAME' | 'INVALID_BUYER_PHONE' | 'INVALID_SHIPPING_ADDRESS' | 'INVALID_PINCODE',
+    message: string
+  ) {
+    super(message, code);
+    this.name = 'InvalidBuyerInputError';
+    this.field = field;
+  }
+}
+
 /**
  * Classifies an RPC failure response into a typed LiveDropError instance.
  */
@@ -123,6 +141,30 @@ export function classifyRpcError(errPayload: {
     case 'INVALID_DROP':
     case 'DROP_NOT_ACTIVE':
       return new InvalidDropError(errPayload.message || 'This drop is not currently active.');
+    case 'INVALID_BUYER_NAME':
+      return new InvalidBuyerInputError(
+        'buyer_name',
+        'INVALID_BUYER_NAME',
+        errPayload.message || 'Buyer name must be between 3 and 100 characters.'
+      );
+    case 'INVALID_BUYER_PHONE':
+      return new InvalidBuyerInputError(
+        'buyer_phone',
+        'INVALID_BUYER_PHONE',
+        errPayload.message || 'Valid 10-digit Indian mobile number required.'
+      );
+    case 'INVALID_SHIPPING_ADDRESS':
+      return new InvalidBuyerInputError(
+        'shipping_address',
+        'INVALID_SHIPPING_ADDRESS',
+        errPayload.message || 'Shipping address must be between 10 and 500 characters.'
+      );
+    case 'INVALID_PINCODE':
+      return new InvalidBuyerInputError(
+        'pincode',
+        'INVALID_PINCODE',
+        errPayload.message || 'Valid 6-digit Indian pincode required.'
+      );
     case 'PRODUCT_ALREADY_RECLAIMED':
       return new ProductReclaimedError(errPayload.message);
     case 'INVALID_ORDER_TOKEN':
@@ -137,3 +179,4 @@ export function classifyRpcError(errPayload: {
       );
   }
 }
+
