@@ -429,6 +429,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 -- 5. RPC: force_release_hold()
 -- ============================================================================
 -- Authenticated seller override to cancel a pending order and return items to available.
+-- IMPORTANT (F-02 Audit): Confirmed orders (advance_paid) are INTENTIONALLY excluded.
+-- A confirmed order has already received advance payment; cancelling it would require
+-- a refund-first workflow which is out of scope until TASK-2.4B introduces payment
+-- provider integration with refund capabilities.
 CREATE OR REPLACE FUNCTION force_release_hold(
     p_order_id UUID
 ) RETURNS JSONB AS $$

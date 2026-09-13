@@ -279,6 +279,81 @@ INSERT INTO orders (
     NOW() - INTERVAL '1 hour',
     NULL,
     NULL
+  ),
+  -- 4. Shipped Order (Full payment verified, dispatched to buyer)
+  (
+    '7e057823-0144-442e-d644-9e5d324fa045'::uuid,
+    'c1f76d42-4f36-4d2b-9801-b5e1cf3e6801'::uuid,
+    'LD-SHP101',
+    '6b34a155-e814-4f44-20dd-6f17284bd367'::uuid,
+    'Ananya Roy',
+    '9830100004',
+    '12 Ballygunge Circular Rd, Kolkata',
+    '700019',
+    95000,
+    8000,
+    103000,
+    'full_payment',
+    0,
+    0,
+    103000,
+    0,
+    'paid',
+    'shipped',
+    'shipped',
+    NOW() - INTERVAL '2 days',
+    NULL,
+    NOW() - INTERVAL '2 days'
+  ),
+  -- 5. Expired Order (Advance hold expired, product reclaimed, advance retained non-refundable)
+  (
+    '8f168934-1255-453f-e755-af6e435fa056'::uuid,
+    'c1f76d42-4f36-4d2b-9801-b5e1cf3e6801'::uuid,
+    'LD-EXP202',
+    '5c45b266-f925-4a55-31ee-7a28395ce478'::uuid,
+    'Vikram Sen',
+    '9830100005',
+    '88 Southern Avenue, Kolkata',
+    '700029',
+    110000,
+    8000,
+    118000,
+    'advance',
+    25000,
+    25000,
+    25000,
+    93000,
+    'advance_paid',
+    'not_ready',
+    'expired',
+    NOW() - INTERVAL '2 days',
+    NOW() - INTERVAL '32 days',
+    NULL
+  ),
+  -- 6. Pending Advance Order (Initial checkout reservation, awaiting advance payment)
+  (
+    '9a279045-2366-464a-f866-ba7f546fa067'::uuid,
+    'c1f76d42-4f36-4d2b-9801-b5e1cf3e6801'::uuid,
+    'LD-PND303',
+    '4b56c377-a036-4b66-42ff-8b39406df589'::uuid,
+    'Debanjan Bose',
+    '9830100006',
+    '55 Lake Gardens, Kolkata',
+    '700045',
+    185000,
+    8000,
+    193000,
+    'advance',
+    25000,
+    0,
+    0,
+    193000,
+    'unpaid',
+    'not_ready',
+    'pending',
+    NOW() + INTERVAL '14 minutes',
+    NULL,
+    NULL
   )
 ON CONFLICT (id) DO NOTHING;
 
@@ -397,6 +472,12 @@ INSERT INTO order_items (
     '5c835601-8922-420c-b422-7c3b102ef023'::uuid,
     'f7105d88-3c44-4177-90aa-e221d2950da3'::uuid,
     125000
+  ),
+  (
+    '5c341f00-3366-4044-b233-0332e3061dc3'::uuid,
+    '7e057823-0144-442e-d644-9e5d324fa045'::uuid,
+    'b6415d99-2a33-4188-89bb-d110d2950dc4'::uuid,
+    95000
   )
 ON CONFLICT (id) DO NOTHING;
 
@@ -431,6 +512,28 @@ INSERT INTO order_payments (
     'verified',
     'UPI-UTR-983010333344',
     NOW() - INTERVAL '30 minutes',
+    '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
+  ),
+  -- Full payment verified for shipped order 7e057823
+  (
+    '3f45a099-1133-4455-aa00-c332a4061fe3'::uuid,
+    '7e057823-0144-442e-d644-9e5d324fa045'::uuid,
+    'full',
+    103000,
+    'verified',
+    'UPI-UTR-983010444455',
+    NOW() - INTERVAL '2 days',
+    '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
+  ),
+  -- Retained advance payment for expired order 8f168934
+  (
+    '4a56b100-2244-4566-bb11-d443b5172af4'::uuid,
+    '8f168934-1255-453f-e755-af6e435fa056'::uuid,
+    'advance',
+    25000,
+    'verified',
+    'UPI-UTR-983010555566',
+    NOW() - INTERVAL '32 days',
     '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
   )
 ON CONFLICT (id) DO NOTHING;

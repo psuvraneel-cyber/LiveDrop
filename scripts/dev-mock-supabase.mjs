@@ -384,13 +384,11 @@ const server = http.createServer((req, res) => {
         const totalPaisa = subtotalPaisa + shippingPaisa;
 
         let advanceRequiredPaisa = 0;
-        let holdExpiresAt;
+        let holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
         if (confirmationMode === 'advance') {
           advanceRequiredPaisa = 25000;
-          holdExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         } else {
           advanceRequiredPaisa = 0;
-          holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
         }
 
         const orderCode = 'LD-' + crypto.randomBytes(3).toString('hex').toUpperCase();

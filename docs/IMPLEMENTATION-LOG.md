@@ -308,6 +308,107 @@ This document serves as the permanent, immutable engineering audit trail for all
 * **Verdict:**
   * **PASS — TASK-1.4 COMPLETE; READY FOR BUYER/SELLER VERTICAL SLICE**
 
+---
+
+### `TASK-2.4A: Business Domain, Order State Machine & Storefront Architecture`
+* **Phase:** Phase 2 — Storefront & Order Domain Foundations
+* **Date:** 2026-09-12
+* **Requirement IDs:** `REQ-FR-B3.3`, `RULE-ORD-01..12`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. Deployed migration `010_seller_storefront_and_order_state_machine.sql`.
+  2. Implemented seller storefront configuration (`store_slug`, `advance_confirmation_enabled`, `advance_amount_paisa`, `hold_duration_days`).
+  3. Added drop-level shipping fee overrides and free shipping threshold.
+  4. Created `order_payments` ledger table with immutable audit trail.
+  5. Implemented `create_order_with_reservation` snapshotting seller policy onto order.
+  6. Implemented `release_expired_holds` reaper routine.
+
+---
+
+### `TASK-2.4A.1: Domain Consistency & Payment Authority Hardening`
+* **Phase:** Phase 2 — Hardening Gate
+* **Date:** 2026-09-13
+* **Requirement IDs:** `REQ-FR-B3.4`, `RULE-PAY-01..08`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. **Advance Feature Default Fixed:** Changed `profiles.advance_confirmation_enabled` default from `true` to `false` (opt-in only). Preserved ₹250 Paisa default and 30-day maximum hold duration. Added check constraint `chk_profiles_hold_duration_max`.
+  2. **Payment Authority Boundary Established:** Completely dropped `confirm_order_advance`. Created backend-only `SECURITY DEFINER` RPC `record_verified_payment(order_id, payment_type, amount_paisa, reference_id, metadata)` with pinned `search_path = public, pg_temp` and permissions granted strictly to `service_role`.
+  3. **Payment Ledger Idempotency:** Added partial unique index `uq_order_payments_reference_verified` on `order_payments(reference_id) WHERE status = 'verified' AND reference_id IS NOT NULL`. Replays return idempotent success without altering financial totals.
+  4. **Direct Write Privilege Immunization:** Revoked `INSERT`, `UPDATE`, `DELETE` on `order_payments` from `PUBLIC`, `anon`, and `authenticated`.
+  5. **State Machine & Financial Invariant Checks:** Added database check constraints blocking shipment while balance is due (`chk_orders_shipment_requires_full_payment`, `chk_orders_confirmed_lifecycle`, `chk_orders_paid_lifecycle`).
+  6. **Hold Expiry Hardening:** Guaranteed that expiring advance-confirmed orders release inventory to available while retaining the order in expired/non-shippable state with non-refundable advance accounted for.
+  7. **Comprehensive Testing:** Added 25-vector adversarial verification suite (`storefront-and-state-machine.test.ts`). Total automated tests passed: 266 across web (255) and mobile (11).
+
+* **Files Created / Modified:**
+  * Created: `supabase/migrations/011_domain_consistency_and_payment_authority_hardening.sql`
+  * Created: `docs/TASK-2.4A.1-HARDENING-REPORT.md`
+  * Modified: `buyer-web/src/test/storefront-and-state-machine.test.ts`
+  * Modified: `buyer-web/src/types/domain.ts`
+  * Modified: `scripts/dev-mock-supabase.mjs`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `seller-app/lib/domain/models/models.dart`
+  * Modified: `seller-app/test/seller_repository_test.dart`
+  * Modified: `supabase/seed.sql`
+  * Modified: `docs/00-project-status.md`
+  * Modified: `docs/06-requirements-traceability-matrix.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ All 11 migrations, 6 tables, 10 indexes, 16 Paisa columns, 6 triggers, 15 RLS policies, 7 RPCs, 21 privileges, and seed data verified (Exit code 0).
+  2. `npm --prefix buyer-web test` ➔ 255/255 tests passed across 12 test files (Exit code 0).
+  3. `npm --prefix buyer-web run typecheck` ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm --prefix buyer-web run lint` ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+  5. `npm --prefix buyer-web run build` ➔ Next.js optimized production build generated cleanly (Exit code 0).
+  6. `& "C:\flutter\bin\flutter.bat" analyze` ➔ No issues found (Exit code 0).
+  7. `& "C:\flutter\bin\flutter.bat" test` ➔ 11/11 tests passed (Exit code 0).
+
+* **Verdict:**
+  * **PASS — TASK-2.4A.1 COMPLETE; READY FOR ADVERSARIAL AUDIT**
+
+---
+
+### `TASK-2.4A.2: Payment Authority & RPC Test Harness Remediation`
+* **Phase:** Phase 2 — Hardening Gate Remediation
+* **Date:** 2026-09-14
+* **Requirement IDs:** `REQ-FR-B3.5`, `RULE-PAY-09..12`
+* **Status:** **COMPLETED**
+* **Change Summary:**
+  1. **BLOCKER-01 Remediation (RPC Test Harness Coverage):** Updated `buyer-web/src/test/rpcs.test.ts` to sequentially load and execute all 12 PostgreSQL migrations (`001` through `012`). Updated test fixtures, seed profiles, error code assertions (`DROP_NOT_LIVE`, `STOCK_UNAVAILABLE`), and service_role caller credentials. Added Suite 0 verifying migration state, function signatures, absence of `confirm_order_advance`, and immutability triggers.
+  2. **BLOCKER-02 Remediation (Direct Orders & Inventory Mutation Bypass):** Authored `supabase/migrations/012_payment_authority_direct_update_hardening.sql`. Deployed `BEFORE UPDATE` trigger function `enforce_orders_payment_immutability()` on `orders` and `enforce_products_inventory_immutability()` on `products`.
+     - Strictly prevents authenticated sellers and anonymous clients from altering financial, payment, or order lifecycle fields (`status`, `payment_status`, `fulfilment_status`, `advance_required_paisa`, `advance_paid_paisa`, `total_paid_paisa`, `balance_due_paisa`, `advance_paid_at`, `paid_at`, `shipped_at`, `hold_expires_at`, `confirmation_mode`, `subtotal_paisa`, `shipping_paisa`, `total_paisa`, `order_token`, `order_code`, `drop_id`) with SQLSTATE `42501`.
+     - Strictly prevents authenticated sellers from mutating reserved products to `sold` outside trusted RPCs.
+     - Preserves legitimate seller operational updates (`tracking_number`, `courier_partner`).
+     - Preserves trusted `service_role` and `SECURITY DEFINER` RPC operations (`mark_order_paid`, `record_verified_payment`, `force_release_hold`).
+  3. **Adversarial Regression Test Suite (A01–A13):** Implemented 13 adversarial tests in `buyer-web/src/test/storefront-and-state-machine.test.ts` proving that all direct seller mutation attacks are blocked at the database engine level with SQLSTATE 42501, while legitimate operational updates and service_role payment transitions succeed.
+  4. **Schema Verifier Hardening:** Updated `scripts/verify-schema.mjs` to assert all 12 migrations, 8 triggers, single `mark_order_paid` signature `(uuid, text, jsonb)`, prohibition of `authenticated` on `mark_order_paid`, and real DB-level seller direct mutation blocking.
+
+* **Files Created / Modified:**
+  * Created: `supabase/migrations/012_payment_authority_direct_update_hardening.sql`
+  * Modified: `buyer-web/src/test/rpcs.test.ts`
+  * Modified: `buyer-web/src/test/storefront-and-state-machine.test.ts`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `docs/00-project-status.md`
+  * Modified: `docs/06-requirements-traceability-matrix.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ All 12 migrations, 6 tables, 10 indexes, 16 Paisa columns, 8 triggers, 15 RLS policies, 7 RPCs, 20 privilege grants, seed data, and direct mutation defense verified (Exit code 0).
+  2. `npx vitest run` (`buyer-web`) ➔ 12/12 test files passed, 272/272 tests passed (Exit code 0).
+     - `rls.test.ts`: 35 passed
+     - `schema.test.ts`: 33 passed
+     - `storefront-and-state-machine.test.ts`: 69 passed (including A01–A13)
+     - `rpcs.test.ts`: 46 passed (including Suite 0)
+     - Other component/unit suites: 89 passed
+  3. `npm run typecheck` (`buyer-web`) ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm run lint` (`buyer-web`) ➔ ESLint passed with 0 warnings/errors (Exit code 0).
+  5. `npm run build` (`buyer-web`) ➔ Next.js production build succeeded in 4.8s (Exit code 0).
+  6. `flutter test` (`seller-app`) ➔ 11/11 tests passed (Exit code 0).
+  7. `flutter analyze` (`seller-app`) ➔ "No issues found!" in 35.1s (Exit code 0).
+
+* **Verdict:**
+  * **PASS — TASK-2.4A.2 COMPLETE; READY FOR FINAL ADVERSARIAL RE-AUDIT**
+
+
 
 
 

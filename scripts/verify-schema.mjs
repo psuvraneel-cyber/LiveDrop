@@ -47,9 +47,11 @@ async function run() {
     '008_enable_rls_and_policies.sql',
     '009_create_core_business_rpcs.sql',
     '010_seller_storefront_and_order_state_machine.sql',
+    '011_domain_consistency_and_payment_authority_hardening.sql',
+    '012_payment_authority_direct_update_hardening.sql',
   ];
 
-  console.log('📦 Applying migrations sequentially:');
+  console.log(`📦 Applying ${migrationFiles.length} migrations sequentially:`);
   for (const file of migrationFiles) {
     const filePath = path.join(migrationsDir, file);
     const sql = fs.readFileSync(filePath, 'utf-8');
@@ -113,7 +115,7 @@ async function run() {
     throw new Error(`Expected 16 paisa columns, found ${paisaRes.rows.length}`);
   }
 
-  console.log('🔍 Verifying 6 triggers:');
+  console.log('🔍 Verifying 8 triggers (including Migration 012 immutability enforcement):');
   const triggerRes = await db.query(`
     SELECT trigger_name, event_manipulation, event_object_table
     FROM information_schema.triggers
@@ -129,6 +131,8 @@ async function run() {
     'trg_orders_updated_at',
     'trg_orders_no_delete_finalized',
     'trg_order_payments_updated_at',
+    'trg_enforce_orders_payment_immutability',
+    'trg_enforce_products_inventory_immutability',
   ];
   const foundNames = triggerRes.rows.map(r => r.trigger_name);
   for (const exp of expectedTriggers) {
@@ -187,13 +191,13 @@ async function run() {
     }
   }
 
-  console.log('🔍 Verifying Core Business RPCs (TASK-1.3 & TASK-2.4A):');
+  console.log('🔍 Verifying Core Business RPCs (TASK-1.3, TASK-2.4A & TASK-2.4A.1):');
   const rpcRes = await db.query(`
     SELECT routine_name, security_type, data_type
     FROM information_schema.routines
     WHERE routine_schema = 'public' AND routine_name IN (
       'create_order_with_reservation',
-      'confirm_order_advance',
+      'record_verified_payment',
       'mark_order_paid',
       'release_expired_holds',
       'get_order_by_token',
@@ -210,12 +214,12 @@ async function run() {
     }
   }
   const expectedRpcs = [
-    'confirm_order_advance',
     'create_order_with_reservation',
     'force_release_hold',
     'get_order_by_token',
     'mark_order_paid',
     'mark_product_sold_offline',
+    'record_verified_payment',
     'release_expired_holds',
   ];
   const foundRpcs = rpcRes.rows.map(r => r.routine_name);
@@ -225,13 +229,37 @@ async function run() {
     }
   }
 
+  // Confirm confirm_order_advance is completely gone
+  if (foundRpcs.includes('confirm_order_advance')) {
+    throw new Error('Obsolete confirm_order_advance RPC must be dropped!');
+  }
+
+  console.log('🔍 Verifying mark_order_paid function signature and overload uniqueness:');
+  const mopOverloads = await db.query(`
+    SELECT p.proname, pg_get_function_identity_arguments(p.oid) as identity_args, p.prosecdef
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'mark_order_paid';
+  `);
+  if (mopOverloads.rows.length !== 1) {
+    throw new Error(`CRITICAL SECURITY FAILURE: Expected exactly 1 mark_order_paid function, found ${mopOverloads.rows.length}!`);
+  }
+  const mopArgs = mopOverloads.rows[0].identity_args;
+  console.log(`  ✓ mark_order_paid identity args: ${mopArgs}`);
+  if (!mopArgs.includes('uuid') || !mopArgs.includes('text') || !mopArgs.includes('jsonb')) {
+    throw new Error(`CRITICAL SECURITY FAILURE: Unexpected mark_order_paid signature: ${mopArgs}`);
+  }
+  if (!mopOverloads.rows[0].prosecdef) {
+    throw new Error('CRITICAL SECURITY FAILURE: mark_order_paid must be SECURITY DEFINER');
+  }
+
   console.log('🔍 Verifying RPC Routine Privileges:');
   const privRes = await db.query(`
     SELECT routine_name, grantee, privilege_type
     FROM information_schema.routine_privileges
     WHERE routine_schema = 'public' AND routine_name IN (
       'create_order_with_reservation',
-      'confirm_order_advance',
+      'record_verified_payment',
       'mark_order_paid',
       'release_expired_holds',
       'get_order_by_token',
@@ -242,28 +270,65 @@ async function run() {
   `);
   console.log(`  Routine privilege grants found (${privRes.rows.length})`);
 
-  // Verify that anon cannot execute seller-only or maintenance RPCs
-  const forbiddenAnonRpcs = ['confirm_order_advance', 'mark_order_paid', 'force_release_hold', 'mark_product_sold_offline', 'release_expired_holds'];
+  // Verify that anon cannot execute seller-only or maintenance or payment verification RPCs
+  const forbiddenAnonRpcs = ['record_verified_payment', 'mark_order_paid', 'force_release_hold', 'mark_product_sold_offline', 'release_expired_holds'];
+  const forbiddenAuthRpcs = ['release_expired_holds', 'record_verified_payment', 'mark_order_paid'];
   for (const row of privRes.rows) {
     if (row.grantee === 'anon' && forbiddenAnonRpcs.includes(row.routine_name)) {
       throw new Error(`CRITICAL SECURITY FAILURE: anon has ${row.privilege_type} privilege on seller/maintenance RPC ${row.routine_name}!`);
     }
-    if (row.grantee === 'authenticated' && row.routine_name === 'release_expired_holds') {
-      throw new Error(`CRITICAL SECURITY FAILURE: authenticated has ${row.privilege_type} privilege on maintenance RPC ${row.routine_name}!`);
+    if (row.grantee === 'authenticated' && forbiddenAuthRpcs.includes(row.routine_name)) {
+      throw new Error(`CRITICAL SECURITY FAILURE: authenticated has ${row.privilege_type} privilege on backend RPC ${row.routine_name}!`);
     }
     if (row.grantee === 'PUBLIC') {
       throw new Error(`CRITICAL SECURITY FAILURE: PUBLIC has ${row.privilege_type} privilege on RPC ${row.routine_name}!`);
     }
   }
 
-  // Verify that service_role has execute privilege on release_expired_holds
+  // Verify that service_role has execute privilege on release_expired_holds, record_verified_payment, and mark_order_paid
   const serviceRoleReaper = privRes.rows.find(
     r => r.grantee === 'service_role' && r.routine_name === 'release_expired_holds' && r.privilege_type === 'EXECUTE'
   );
   if (!serviceRoleReaper) {
     throw new Error('CRITICAL SECURITY FAILURE: service_role lacks EXECUTE privilege on release_expired_holds!');
   }
-  console.log('  ✓ Verified: PUBLIC execution revoked; anon blocked from seller RPCs; service_role granted EXECUTE on release_expired_holds.');
+
+  const serviceRolePayment = privRes.rows.find(
+    r => r.grantee === 'service_role' && r.routine_name === 'record_verified_payment' && r.privilege_type === 'EXECUTE'
+  );
+  if (!serviceRolePayment) {
+    throw new Error('CRITICAL SECURITY FAILURE: service_role lacks EXECUTE privilege on record_verified_payment!');
+  }
+
+  const serviceRoleMarkOrderPaid = privRes.rows.find(
+    r => r.grantee === 'service_role' && r.routine_name === 'mark_order_paid' && r.privilege_type === 'EXECUTE'
+  );
+  if (!serviceRoleMarkOrderPaid) {
+    throw new Error('CRITICAL SECURITY FAILURE: service_role lacks EXECUTE privilege on mark_order_paid!');
+  }
+  console.log('  ✓ Verified: PUBLIC execution revoked; anon/authenticated blocked from mark_order_paid & record_verified_payment; service_role granted EXECUTE.');
+
+  // Verify profiles.advance_confirmation_enabled column default is 'false'
+  const defRes = await db.query(`
+    SELECT column_default
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'advance_confirmation_enabled';
+  `);
+  if (!defRes.rows[0]?.column_default?.includes('false')) {
+    throw new Error(`profiles.advance_confirmation_enabled must default to false, found: ${defRes.rows[0]?.column_default}`);
+  }
+  console.log('  ✓ Verified: profiles.advance_confirmation_enabled defaults to false.');
+
+  // Verify partial unique index on order_payments(reference_id)
+  const idxRes = await db.query(`
+    SELECT indexname, indexdef
+    FROM pg_indexes
+    WHERE tablename = 'order_payments' AND indexname = 'uq_order_payments_reference_verified';
+  `);
+  if (idxRes.rows.length === 0) {
+    throw new Error('Missing unique partial index uq_order_payments_reference_verified on order_payments!');
+  }
+  console.log('  ✓ Verified: Unique partial index uq_order_payments_reference_verified exists on order_payments.');
 
   console.log('🌱 Testing Multi-Seller Seed Fixture (seed.sql):');
   const seedPath = path.resolve(__dirname, '../supabase/seed.sql');
@@ -277,11 +342,50 @@ async function run() {
   const seedPayments = await db.query('SELECT count(*) as count FROM order_payments');
   console.log(`  ✓ Seed data executed cleanly: ${seedProfiles.rows[0].count} profile(s), ${seedDrops.rows[0].count} drop(s), ${seedProducts.rows[0].count} product(s), ${seedOrders.rows[0].count} order(s), ${seedPayments.rows[0].count} payment(s).`);
 
+  console.log('🛡️ Verifying Seller Direct Mutation Hardening (Migration 012):');
+  // Attempt direct payment status fabrication as authenticated seller
+  await db.exec(`
+    SET ROLE authenticated;
+    SET request.jwt.claims = '{"sub": "8a329e71-4b10-4055-90d2-df8029d5b512", "role": "authenticated"}';
+  `);
+
+  let attackBlocked = false;
+  try {
+    await db.query(`
+      UPDATE orders
+      SET status = 'paid', payment_status = 'paid', total_paid_paisa = total_paisa, balance_due_paisa = 0, fulfilment_status = 'ready_to_ship'
+      WHERE id = '9a279045-2366-464a-f866-ba7f546fa067';
+    `);
+  } catch (err) {
+    if (err.message.includes('Direct modification of payment or lifecycle fields is forbidden') || err.code === '42501') {
+      attackBlocked = true;
+    } else {
+      throw err;
+    }
+  }
+  if (!attackBlocked) {
+    throw new Error('CRITICAL SECURITY FAILURE: Authenticated seller was able to directly fabricate paid state!');
+  }
+  console.log('  ✓ Verified: Direct payment fabrication attack blocked at DB layer with SQLSTATE 42501.');
+
+  // Verify legitimate operational update succeeds
+  await db.query(`
+    UPDATE orders
+    SET tracking_number = 'TRACK-SEED-123', courier_partner = 'Delhivery'
+    WHERE id = '9a279045-2366-464a-f866-ba7f546fa067';
+  `);
+  console.log('  ✓ Verified: Legitimate operational updates (tracking_number, courier_partner) permitted.');
+
+  await db.exec('RESET ROLE;');
+
   await db.close();
   console.log('✅ ALL RELATIONAL DATABASE SCHEMA, STOREFRONT INVARIANTS, RLS POLICIES, BUSINESS RPCS & MULTI-SELLER SEED DATA VERIFIED.');
 }
 
 run().catch((err) => {
-  console.error('❌ Verification failed:', err.message, err.detail, err.hint, err);
+  console.error('❌ Verification failed:', err.message);
+  if (err.detail) console.error('Detail:', err.detail);
+  if (err.hint) console.error('Hint:', err.hint);
+  if (err.position) console.error('Position:', err.position);
   process.exit(1);
 });

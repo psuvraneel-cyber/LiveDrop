@@ -135,32 +135,21 @@ class SellerRepository {
     }
   }
 
-  /// Confirms buyer payment via the `mark_order_paid` atomic RPC.
+  /// [DEPRECATED — F-01 Audit Remediation]
+  /// `mark_order_paid` is now restricted to `service_role` only.
+  /// Payment confirmation must go through the backend payment verification
+  /// service, not the authenticated Dart client.
+  ///
+  /// This method is intentionally preserved (not deleted) so that call sites
+  /// produce a clear compile-time reference and a runtime error, rather than
+  /// silently failing with a PostgreSQL permission denied error.
+  @Deprecated('mark_order_paid is now service_role only. Use backend payment verification.')
   Future<bool> markOrderPaid(String orderId) async {
-    _requireSellerId();
-
-    try {
-      final response = await _client.rpc<dynamic>(
-        'mark_order_paid',
-        params: {'p_order_id': orderId},
-      );
-
-      final map = response as Map<String, dynamic>;
-      if (map['success'] != true) {
-        final error = map['error'] as String? ?? 'UNKNOWN_ERROR';
-        if (error == 'PRODUCT_ALREADY_RECLAIMED') {
-          throw ProductReclaimedException(
-            map['message'] as String? ??
-                'One or more items in this order were claimed by another buyer after the hold expired.',
-          );
-        }
-        throw LiveDropException(map['message'] as String? ?? error, code: error);
-      }
-
-      return true;
-    } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
-    }
+    throw UnsupportedError(
+      'markOrderPaid is no longer available from the seller client. '
+      'Payment confirmation must go through the backend payment verification service '
+      '(service_role only). See F-01 in the TASK-2.4A.1 audit report.',
+    );
   }
 
   /// Forces manual release of a reserved hold via the `force_release_hold` RPC.

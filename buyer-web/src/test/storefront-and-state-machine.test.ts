@@ -78,6 +78,7 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
   const prodA1Id = 'ca000000-0000-0000-0000-000000000001'; // 185000 paisa (₹1,850)
   const prodA2Id = 'ca000000-0000-0000-0000-000000000002'; // 75000 paisa (₹750)
   const prodB1Id = 'cb000000-0000-0000-0000-000000000001'; // 500000 paisa (₹5,000)
+  let globalExpiredOrderId: string;
 
   // Auth Context Helpers
   async function asSuperuser() {
@@ -146,6 +147,8 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
       '008_enable_rls_and_policies.sql',
       '009_create_core_business_rpcs.sql',
       '010_seller_storefront_and_order_state_machine.sql',
+      '011_domain_consistency_and_payment_authority_hardening.sql',
+      '012_payment_authority_direct_update_hardening.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -300,6 +303,32 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
       );
       expect(bProfile.rows[0].store_name).toBe('Artisan Silks');
     });
+
+    it('1.5 newly created seller defaults to advance confirmation DISABLED (opt-in only)', async () => {
+      await asSuperuser();
+      const newSellerId = 'f910ab11-1234-4567-8901-abcdef012345';
+      await db.query(`INSERT INTO auth.users (id, email) VALUES ('${newSellerId}', 'newseller@livedrop.in');`);
+
+      // Insert profile omitting advance configuration columns to test defaults
+      await db.query(`
+        INSERT INTO profiles (id, store_name, store_slug, phone_number, upi_id, return_address)
+        VALUES ('${newSellerId}', 'New Boutique', 'new-boutique', '919830088888', 'new@okhdfc', 'Ballygunge Kolkata');
+      `);
+
+      const pRes = await db.query<{
+        advance_confirmation_enabled: boolean;
+        advance_amount_paisa: number;
+        hold_duration_days: number;
+      }>(`
+        SELECT advance_confirmation_enabled, advance_amount_paisa, hold_duration_days
+        FROM profiles
+        WHERE id = '${newSellerId}';
+      `);
+
+      expect(pRes.rows[0].advance_confirmation_enabled).toBe(false); // Default is false!
+      expect(pRes.rows[0].advance_amount_paisa).toBe(25000); // Default remains ₹250
+      expect(pRes.rows[0].hold_duration_days).toBe(30); // Default remains 30 days
+    });
   });
 
   // ==========================================================================
@@ -400,7 +429,7 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
           ARRAY['${prodA2Id}']::UUID[],
           'Test Buyer',
           '9830111222',
-          'Address',
+          '123 Park Street, Floor 4, Kolkata',
           '700064',
           'invalid_mode'
         );
@@ -442,14 +471,31 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
       testAdvanceRequiredPaisa = data.advance_required_paisa!;
     });
 
-    it('3.1 privileged seller confirms advance: updates order state and records payment', async () => {
+    it('3.1 payment authority: record_verified_payment is service_role only; confirm_order_advance dropped', async () => {
+      // 1. Seller cannot call record_verified_payment (permission denied)
       await asSeller(sellerAId);
+      await expect(
+        db.query(`SELECT record_verified_payment('${testOrderId}', 'advance', ${testAdvanceRequiredPaisa}, 'UPI-TXN-ADV-001');`)
+      ).rejects.toThrow();
 
-      const confirmResult = await db.query<{ confirm_order_advance: RpcSuccessOutput }>(`
-        SELECT confirm_order_advance('${testOrderId}', 'UPI-TXN-ADV-001');
+      // 2. Anon cannot call record_verified_payment (permission denied)
+      await asAnon();
+      await expect(
+        db.query(`SELECT record_verified_payment('${testOrderId}', 'advance', ${testAdvanceRequiredPaisa}, 'UPI-TXN-ADV-001');`)
+      ).rejects.toThrow();
+
+      // 3. confirm_order_advance no longer exists
+      await expect(
+        db.query(`SELECT confirm_order_advance('${testOrderId}', 'UPI-TXN-ADV-001');`)
+      ).rejects.toThrow();
+
+      // 4. Trusted backend service_role records advance payment
+      await asServiceRole();
+      const confirmResult = await db.query<{ record_verified_payment: RpcSuccessOutput }>(`
+        SELECT record_verified_payment('${testOrderId}', 'advance', ${testAdvanceRequiredPaisa}, 'UPI-TXN-ADV-001');
       `);
 
-      const res = confirmResult.rows[0].confirm_order_advance;
+      const res = confirmResult.rows[0].record_verified_payment;
       expect(res.success).toBe(true);
 
       // Verify orders table state
@@ -543,15 +589,16 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
       expect(receipt.order.shipping_address).toBeUndefined();
     });
 
-    it('3.4 paying remaining balance transitions order to paid, zero balance, and eligible for shipping', async () => {
-      await asSeller(sellerAId);
+    it('3.4 paying remaining balance via record_verified_payment transitions order to paid, zero balance, and eligible for shipping', async () => {
+      const remainingBalance = testTotalPaisa - testAdvanceRequiredPaisa;
+      await asServiceRole();
 
-      // Mark order fully paid via mark_order_paid RPC
-      const paidRes = await db.query<{ mark_order_paid: RpcSuccessOutput }>(`
-        SELECT mark_order_paid('${testOrderId}');
+      // Record balance payment via trusted backend RPC
+      const paidRes = await db.query<{ record_verified_payment: RpcSuccessOutput }>(`
+        SELECT record_verified_payment('${testOrderId}', 'balance', ${remainingBalance}, 'UPI-TXN-BAL-001');
       `);
 
-      expect(paidRes.rows[0].mark_order_paid.success).toBe(true);
+      expect(paidRes.rows[0].record_verified_payment.success).toBe(true);
 
       // Verify DB row
       await asSuperuser();
@@ -571,15 +618,87 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
       expect(orderRow.rows[0].payment_status).toBe('paid');
       expect(orderRow.rows[0].total_paid_paisa).toBe(testTotalPaisa);
       expect(orderRow.rows[0].balance_due_paisa).toBe(0);
+      expect(orderRow.rows[0].fulfilment_status).toBe('ready_to_ship');
 
-      // Now that balance_due_paisa = 0, fulfilment_status CAN transition to ready_to_ship and shipped
-      await expect(
-        db.query(`UPDATE orders SET fulfilment_status = 'ready_to_ship' WHERE id = '${testOrderId}';`)
-      ).resolves.toBeDefined();
+      // Verify products transitioned to sold
+      const prodCheck = await db.query<{ status: string }>(`
+        SELECT status FROM products WHERE id = '${prodA2Id}';
+      `);
+      expect(prodCheck.rows[0].status).toBe('sold');
 
+      // Now that balance_due_paisa = 0, fulfilment_status CAN transition to shipped
       await expect(
         db.query(`UPDATE orders SET fulfilment_status = 'shipped', status = 'shipped' WHERE id = '${testOrderId}';`)
       ).resolves.toBeDefined();
+    });
+
+    it('3.5 payment reference idempotency: replaying same reference returns idempotent success without duplicate money', async () => {
+      await asServiceRole();
+
+      // Replaying 'UPI-TXN-ADV-001' which was verified in 3.1
+      const replayRes = await db.query<{ record_verified_payment: { success: boolean; idempotent: boolean } }>(`
+        SELECT record_verified_payment('${testOrderId}', 'advance', ${testAdvanceRequiredPaisa}, 'UPI-TXN-ADV-001');
+      `);
+
+      expect(replayRes.rows[0].record_verified_payment.success).toBe(true);
+      expect(replayRes.rows[0].record_verified_payment.idempotent).toBe(true);
+
+      // Verify total_paid_paisa has NOT increased beyond testTotalPaisa
+      await asSuperuser();
+      const oCheck = await db.query<{ total_paid_paisa: number }>(`
+        SELECT total_paid_paisa FROM orders WHERE id = '${testOrderId}';
+      `);
+      expect(oCheck.rows[0].total_paid_paisa).toBe(testTotalPaisa);
+    });
+
+    it('3.6 full payment flow via record_verified_payment on full_payment order', async () => {
+      await asSuperuser();
+      // Create new product for full payment test
+      const pRes = await db.query<{ id: string }>(`
+        INSERT INTO products (drop_id, code, title, price_paisa, status, image_url)
+        VALUES ('${dropA1Id}', '#FP01', 'Kanjeevaram Dupatta', 120000, 'available', 'https://images.livedrop.store/fp01.webp')
+        RETURNING id;
+      `);
+      const fpProdId = pRes.rows[0].id;
+
+      // Create full_payment order as anon
+      await asAnon();
+      const ordRes = await db.query<{ create_order_with_reservation: CreateOrderRpcOutput }>(`
+        SELECT create_order_with_reservation(
+          '${dropA1Id}',
+          ARRAY['${fpProdId}']::UUID[],
+          'Kavita Ghosh',
+          '9830555666',
+          'Salt Lake Sector V',
+          '700091',
+          'full_payment'
+        );
+      `);
+      const fpOrderId = ordRes.rows[0].create_order_with_reservation.order_id!;
+      const fpTotalPaisa = ordRes.rows[0].create_order_with_reservation.total_paisa!;
+
+      // Record full payment via service_role
+      await asServiceRole();
+      const payRes = await db.query<{ record_verified_payment: RpcSuccessOutput }>(`
+        SELECT record_verified_payment('${fpOrderId}', 'full', ${fpTotalPaisa}, 'UPI-TXN-FP-001');
+      `);
+      expect(payRes.rows[0].record_verified_payment.success).toBe(true);
+
+      // Verify order is paid, balance is zero, ready to ship
+      await asSuperuser();
+      const oCheck = await db.query<{ status: string; payment_status: string; balance_due_paisa: number; fulfilment_status: string }>(`
+        SELECT status, payment_status, balance_due_paisa, fulfilment_status FROM orders WHERE id = '${fpOrderId}';
+      `);
+      expect(oCheck.rows[0].status).toBe('paid');
+      expect(oCheck.rows[0].payment_status).toBe('paid');
+      expect(oCheck.rows[0].balance_due_paisa).toBe(0);
+      expect(oCheck.rows[0].fulfilment_status).toBe('ready_to_ship');
+
+      // Verify product is sold
+      const pCheck = await db.query<{ status: string }>(`
+        SELECT status FROM products WHERE id = '${fpProdId}';
+      `);
+      expect(pCheck.rows[0].status).toBe('sold');
     });
   });
 
@@ -615,6 +734,7 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
         ) RETURNING id;
       `);
       expiredOrderId = oRes.rows[0].id;
+      globalExpiredOrderId = expiredOrderId;
 
       // Link product to order as reserved
       await db.query(`
@@ -672,6 +792,76 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
       await expect(
         db.query(`UPDATE orders SET fulfilment_status = 'shipped' WHERE id = '${expiredOrderId}';`)
       ).rejects.toThrow();
+    });
+
+    it('4.3 initial unpaid pending order with expired 15-minute hold is cancelled by release_expired_holds and frees product', async () => {
+      await asSuperuser();
+      // Create product
+      const pRes = await db.query<{ id: string }>(`
+        INSERT INTO products (drop_id, code, title, price_paisa, status, image_url)
+        VALUES ('${dropA1Id}', '#EXPU1', 'Silk Scarf', 50000, 'available', 'https://images.livedrop.store/exp-unp.webp')
+        RETURNING id;
+      `);
+      const unpProdId = pRes.rows[0].id;
+
+      // Create order in pending state with hold_expires_at in the past
+      const oRes = await db.query<{ id: string }>(`
+        INSERT INTO orders (
+          drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+          subtotal_paisa, shipping_paisa, total_paisa, confirmation_mode,
+          advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa,
+          payment_status, status, hold_expires_at
+        ) VALUES (
+          '${dropA1Id}', 'LD-EXPU01', 'Unpaid Buyer', '9830000000', '123 Park Street, Floor 4, Kolkata', '700016',
+          50000, 8000, 58000, 'advance',
+          25000, 0, 0, 58000,
+          'unpaid', 'pending', NOW() - INTERVAL '5 minutes'
+        ) RETURNING id;
+      `);
+      const unpOrderId = oRes.rows[0].id;
+
+      // Reserve product
+      await db.query(`
+        UPDATE products 
+        SET status = 'reserved', reserved_by_order_id = '${unpOrderId}', reserved_at = NOW() - INTERVAL '20 minutes'
+        WHERE id = '${unpProdId}';
+      `);
+
+      // Run reaper
+      await asServiceRole();
+      await db.query(`SELECT release_expired_holds();`);
+
+      // Verify order is cancelled
+      await asSuperuser();
+      const oCheck = await db.query<{ status: string }>(`
+        SELECT status FROM orders WHERE id = '${unpOrderId}';
+      `);
+      expect(oCheck.rows[0].status).toBe('cancelled');
+
+      // Verify product is released to available
+      const pCheck = await db.query<{ status: string; reserved_by_order_id: string | null }>(`
+        SELECT status, reserved_by_order_id FROM products WHERE id = '${unpProdId}';
+      `);
+      expect(pCheck.rows[0].status).toBe('available');
+      expect(pCheck.rows[0].reserved_by_order_id).toBeNull();
+    });
+
+    it('4.4 expired order CANNOT receive payments via record_verified_payment', async () => {
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${expiredOrderId}', 'advance', 25000, 'UPI-REF-LATE-01');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('INVALID_ORDER_STATE');
+    });
+
+    it('4.5 expired order CANNOT be marked paid via mark_order_paid', async () => {
+      await asServiceRole();
+      const res = await db.query<{ mark_order_paid: { success: boolean; error: string } }>(`
+        SELECT mark_order_paid('${expiredOrderId}');
+      `);
+      expect(res.rows[0].mark_order_paid.success).toBe(false);
+      expect(res.rows[0].mark_order_paid.error).toBe('INVALID_ORDER_STATE');
     });
   });
 
@@ -765,66 +955,723 @@ describe('LiveDrop Storefront Architecture & Order State Machine (TASK-2.4A)', (
         `)
       ).rejects.toThrow();
     });
+
+    it('5.6 rejects fulfilment_status = ready_to_ship when balance_due_paisa > 0 or payment_status != paid', async () => {
+      await asSuperuser();
+      await expect(
+        db.query(`
+          INSERT INTO orders (
+            drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+            subtotal_paisa, shipping_paisa, total_paisa, confirmation_mode,
+            advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa,
+            payment_status, fulfilment_status, status
+          ) VALUES (
+            '${dropA1Id}', 'LD-BAD06', 'Bad Buyer', '9830000000', 'Addr', '700001',
+            50000, 0, 50000, 'advance',
+            25000, 25000, 25000, 25000,
+            'advance_paid', 'ready_to_ship', 'confirmed'
+          );
+        `)
+      ).rejects.toThrow();
+    });
+
+    it('5.7 direct table write privileges on order_payments revoked from authenticated and anon', async () => {
+      // Authenticated seller cannot directly insert into order_payments
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`
+          INSERT INTO order_payments (order_id, payment_type, amount_paisa, status)
+          VALUES ('${globalExpiredOrderId}', 'advance', 25000, 'verified');
+        `)
+      ).rejects.toThrow();
+
+      // Authenticated seller cannot directly update order_payments
+      await expect(
+        db.query(`
+          UPDATE order_payments SET status = 'refunded' WHERE order_id = '${globalExpiredOrderId}';
+        `)
+      ).rejects.toThrow();
+
+      // Anon cannot directly insert into order_payments
+      await asAnon();
+      await expect(
+        db.query(`
+          INSERT INTO order_payments (order_id, payment_type, amount_paisa, status)
+          VALUES ('${globalExpiredOrderId}', 'advance', 25000, 'verified');
+        `)
+      ).rejects.toThrow();
+    });
+
+    it('5.8 cancelled order rejects payment transitions in record_verified_payment and mark_order_paid', async () => {
+      await asSuperuser();
+      // Create a cancelled order
+      const cRes = await db.query<{ id: string }>(`
+        INSERT INTO orders (
+          drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+          subtotal_paisa, shipping_paisa, total_paisa, confirmation_mode,
+          advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa,
+          payment_status, status
+        ) VALUES (
+          '${dropA1Id}', 'LD-CAN001', 'Cancelled Buyer', '9830000000', '123 Park Street, Floor 4, Kolkata', '700001',
+          50000, 8000, 58000, 'advance',
+          25000, 0, 0, 58000,
+          'unpaid', 'cancelled'
+        ) RETURNING id;
+      `);
+      const canId = cRes.rows[0].id;
+
+      // record_verified_payment must reject
+      await asServiceRole();
+      const rvpRes = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${canId}', 'advance', 25000, 'REF-CAN');
+      `);
+      expect(rvpRes.rows[0].record_verified_payment.success).toBe(false);
+      expect(rvpRes.rows[0].record_verified_payment.error).toBe('INVALID_ORDER_STATE');
+
+      // mark_order_paid must reject (now service_role only)
+      await asServiceRole();
+      const mopRes = await db.query<{ mark_order_paid: { success: boolean; error: string } }>(`
+        SELECT mark_order_paid('${canId}');
+      `);
+      expect(mopRes.rows[0].mark_order_paid.success).toBe(false);
+      expect(mopRes.rows[0].mark_order_paid.error).toBe('INVALID_ORDER_STATE');
+    });
   });
 
   // ==========================================================================
-  // SECTION 6: ADVERSARIAL TESTS
+  // SECTION 6: ADVERSARIAL VERIFICATION SUITE (25 ATTACK VECTORS)
   // ==========================================================================
-  describe('6. Adversarial Attack Tests', () => {
-    it('6.1 buyer cannot tamper with advance amount (database ignores client amounts)', async () => {
+  describe('6. Comprehensive Adversarial Verification Suite', () => {
+    let advOrderId: string;
+    let advOrderToken: string;
+    let advTotalPaisa: number;
+    let advRequiredPaisa: number;
+    let advProductId: string;
+
+    beforeAll(async () => {
+      await asSuperuser();
+      // Setup dedicated product for adversarial testing
+      const pRes = await db.query<{ id: string }>(`
+        INSERT INTO products (drop_id, code, title, price_paisa, status, image_url)
+        VALUES ('${dropA1Id}', '#ADV01', 'Adversarial Silk Saree', 200000, 'available', 'https://images.livedrop.store/adv01.webp')
+        RETURNING id;
+      `);
+      advProductId = pRes.rows[0].id;
+
+      // Create advance-mode order
       await asAnon();
-      // Even if client attempts to pass arbitrary parameters to create_order_with_reservation,
-      // the RPC only accepts drop_id, product_ids, buyer_name, buyer_phone, shipping_address, pincode, confirmation_mode.
-      // The backend reads seller configuration directly from profiles/drops.
+      const oRes = await db.query<{ create_order_with_reservation: CreateOrderRpcOutput }>(`
+        SELECT create_order_with_reservation(
+          '${dropA1Id}',
+          ARRAY['${advProductId}']::UUID[],
+          'Adversarial Tester',
+          '9830001234',
+          'Sector V Salt Lake',
+          '700091',
+          'advance'
+        );
+      `);
+      const data = oRes.rows[0].create_order_with_reservation;
+      advOrderId = data.order_id!;
+      advOrderToken = data.order_token!;
+      advTotalPaisa = data.total_paisa!;
+      advRequiredPaisa = data.advance_required_paisa!;
+    });
+
+    it('V01: invoke payment confirmation anonymously -> permission denied', async () => {
+      await asAnon();
+      await expect(
+        db.query(`SELECT record_verified_payment('${advOrderId}', 'advance', ${advRequiredPaisa}, 'REF-V01');`)
+      ).rejects.toThrow();
+    });
+
+    it('V02: invoke payment confirmation as normal authenticated buyer -> permission denied', async () => {
+      // Normal authenticated user who is not service_role
+      const buyerAuthId = '00000000-0000-0000-0000-000000000999';
+      await asSeller(buyerAuthId);
+      await expect(
+        db.query(`SELECT record_verified_payment('${advOrderId}', 'advance', ${advRequiredPaisa}, 'REF-V02');`)
+      ).rejects.toThrow();
+    });
+
+    it('V03: invoke payment confirmation as unrelated seller -> permission denied', async () => {
+      await asSeller(sellerBId);
+      await expect(
+        db.query(`SELECT record_verified_payment('${advOrderId}', 'advance', ${advRequiredPaisa}, 'REF-V03');`)
+      ).rejects.toThrow();
+    });
+
+    it('V04: submit fake advance amount -> AMOUNT_MISMATCH', async () => {
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'advance', 100, 'REF-V04');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('AMOUNT_MISMATCH');
+    });
+
+    it('V05: submit fake paid amount -> AMOUNT_MISMATCH', async () => {
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'advance', 9999999, 'REF-V05');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('AMOUNT_MISMATCH');
+    });
+
+    it('V06: replay the same payment reference -> idempotent success, exactly one ledger effect', async () => {
+      await asServiceRole();
+      // First verification succeeds
+      const first = await db.query<{ record_verified_payment: { success: boolean } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'advance', ${advRequiredPaisa}, 'REF-V06-IDEMP');
+      `);
+      expect(first.rows[0].record_verified_payment.success).toBe(true);
+
+      // Replay returns idempotent success
+      const replay = await db.query<{ record_verified_payment: { success: boolean; idempotent: boolean } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'advance', ${advRequiredPaisa}, 'REF-V06-IDEMP');
+      `);
+      expect(replay.rows[0].record_verified_payment.success).toBe(true);
+      expect(replay.rows[0].record_verified_payment.idempotent).toBe(true);
+
+      // Verify payment rows count is exactly 1
+      await asSuperuser();
+      const rows = await db.query(`SELECT id FROM order_payments WHERE reference_id = 'REF-V06-IDEMP';`);
+      expect(rows.rows.length).toBe(1);
+    });
+
+    it('V07: concurrent / repeated payment verification preserves exact balance', async () => {
+      await asServiceRole();
+      // Sequential repeated call simulating concurrent webhook delivery
+      const res = await db.query<{ record_verified_payment: { success: boolean } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'advance', ${advRequiredPaisa}, 'REF-V06-IDEMP');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(true);
+
+      await asSuperuser();
+      const oCheck = await db.query<{ total_paid_paisa: number }>(`
+        SELECT total_paid_paisa FROM orders WHERE id = '${advOrderId}';
+      `);
+      expect(oCheck.rows[0].total_paid_paisa).toBe(advRequiredPaisa);
+    });
+
+    it('V08: pay balance twice -> idempotent success / already settled, no double credit', async () => {
+      const balanceAmount = advTotalPaisa - advRequiredPaisa;
+      await asServiceRole();
+
+      // First balance payment succeeds
+      const b1 = await db.query<{ record_verified_payment: { success: boolean } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'balance', ${balanceAmount}, 'REF-V08-BAL');
+      `);
+      expect(b1.rows[0].record_verified_payment.success).toBe(true);
+
+      // Second balance payment with same reference is idempotent
+      const b2 = await db.query<{ record_verified_payment: { success: boolean; idempotent: boolean } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'balance', ${balanceAmount}, 'REF-V08-BAL');
+      `);
+      expect(b2.rows[0].record_verified_payment.success).toBe(true);
+      expect(b2.rows[0].record_verified_payment.idempotent).toBe(true);
+
+      // Verify total_paid is total, not total + balance
+      await asSuperuser();
+      const oCheck = await db.query<{ total_paid_paisa: number; balance_due_paisa: number }>(`
+        SELECT total_paid_paisa, balance_due_paisa FROM orders WHERE id = '${advOrderId}';
+      `);
+      expect(oCheck.rows[0].total_paid_paisa).toBe(advTotalPaisa);
+      expect(oCheck.rows[0].balance_due_paisa).toBe(0);
+    });
+
+    it('V09: pay full amount after advance was already paid -> rejected', async () => {
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'full', ${advTotalPaisa}, 'REF-V09-FP');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('INVALID_OPERATION');
+    });
+
+    it('V10: pay after order expiry -> INVALID_ORDER_STATE', async () => {
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${globalExpiredOrderId}', 'balance', 73000, 'REF-V10');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('INVALID_ORDER_STATE');
+    });
+
+    it('V11: pay after cancellation -> INVALID_ORDER_STATE', async () => {
+      await asSuperuser();
+      const cRes = await db.query<{ id: string }>(`
+        INSERT INTO orders (
+          drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+          subtotal_paisa, shipping_paisa, total_paisa, confirmation_mode,
+          advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa,
+          payment_status, status
+        ) VALUES (
+          '${dropA1Id}', 'LD-V11001', 'Can Buyer', '9830000000', '123 Park Street, Floor 4, Kolkata', '700001',
+          50000, 8000, 58000, 'advance',
+          25000, 0, 0, 58000,
+          'unpaid', 'cancelled'
+        ) RETURNING id;
+      `);
+      const canId = cRes.rows[0].id;
+
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${canId}', 'advance', 25000, 'REF-V11');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('INVALID_ORDER_STATE');
+    });
+
+    it('V12: mutate advance policy after order creation -> order snapshot remains unchanged', async () => {
+      await asSeller(sellerAId);
+      await db.query(`UPDATE profiles SET advance_amount_paisa = 60000 WHERE id = '${sellerAId}';`);
+
+      await asSuperuser();
+      const oCheck = await db.query<{ advance_required_paisa: number }>(`
+        SELECT advance_required_paisa FROM orders WHERE id = '${advOrderId}';
+      `);
+      expect(oCheck.rows[0].advance_required_paisa).toBe(advRequiredPaisa);
+
+      // Reset
+      await asSeller(sellerAId);
+      await db.query(`UPDATE profiles SET advance_amount_paisa = 25000 WHERE id = '${sellerAId}';`);
+    });
+
+    it('V13: modify hold duration after order creation -> existing order hold remains unchanged', async () => {
+      await asSuperuser();
+      const oBefore = await db.query<{ hold_expires_at: string }>(`
+        SELECT hold_expires_at FROM orders WHERE id = '${advOrderId}';
+      `);
+
+      await asSeller(sellerAId);
+      await db.query(`UPDATE profiles SET hold_duration_days = 7 WHERE id = '${sellerAId}';`);
+
+      await asSuperuser();
+      const oAfter = await db.query<{ hold_expires_at: string }>(`
+        SELECT hold_expires_at FROM orders WHERE id = '${advOrderId}';
+      `);
+      expect(new Date(oAfter.rows[0].hold_expires_at).getTime()).toBe(new Date(oBefore.rows[0].hold_expires_at).getTime());
+
+      // Reset
+      await asSeller(sellerAId);
+      await db.query(`UPDATE profiles SET hold_duration_days = 30 WHERE id = '${sellerAId}';`);
+    });
+
+    it('V14: force balance below zero -> check constraint violation', async () => {
+      await asSuperuser();
+      await expect(
+        db.query(`UPDATE orders SET balance_due_paisa = -100 WHERE id = '${advOrderId}';`)
+      ).rejects.toThrow();
+    });
+
+    it('V15: force total_paid above total -> check constraint violation', async () => {
+      await asSuperuser();
+      await expect(
+        db.query(`UPDATE orders SET total_paid_paisa = ${advTotalPaisa + 1000} WHERE id = '${advOrderId}';`)
+      ).rejects.toThrow();
+    });
+
+    it('V16: transition to ready_to_ship while balance remains due -> check constraint violation', async () => {
+      await asSuperuser();
+      // On an order with balance due, ready_to_ship must fail
+      await expect(
+        db.query(`UPDATE orders SET fulfilment_status = 'ready_to_ship' WHERE id = '${globalExpiredOrderId}';`)
+      ).rejects.toThrow();
+    });
+
+    it('V17: transition to shipped while unpaid -> check constraint violation', async () => {
+      await asSuperuser();
+      await expect(
+        db.query(`UPDATE orders SET fulfilment_status = 'shipped' WHERE id = '${globalExpiredOrderId}';`)
+      ).rejects.toThrow();
+    });
+
+    it('V18: attempt to restore expired product through buyer RPC -> STOCK_UNAVAILABLE', async () => {
+      await asAnon();
+      // Trying to checkout already sold product prodA2
       const res = await db.query<{ create_order_with_reservation: CreateOrderRpcOutput }>(`
         SELECT create_order_with_reservation(
           '${dropA1Id}',
-          ARRAY['${prodA1Id}']::UUID[],
-          'Adversary Buyer',
-          '9830000001',
-          '123 Park Street, Floor 4, Kolkata',
+          ARRAY['${prodA2Id}']::UUID[],
+          'Attacker',
+          '9830111222',
+          'Addr 1234567890',
           '700016',
           'advance'
         );
       `);
-      // Since prodA1 is already reserved in test 2.1, it should fail with STOCK_UNAVAILABLE
       expect(res.rows[0].create_order_with_reservation.success).toBe(false);
       expect(res.rows[0].create_order_with_reservation.error).toBe('STOCK_UNAVAILABLE');
     });
 
-    it('6.2 unauthorized seller cannot confirm advance for another seller order', async () => {
-      // Find an order belonging to Seller A
-      await asSuperuser();
-      const aOrder = await db.query<{ id: string }>(`
-        SELECT o.id FROM orders o
-        JOIN drops d ON d.id = o.drop_id
-        WHERE d.seller_id = '${sellerAId}'
-        LIMIT 1;
-      `);
-      const aOrderId = aOrder.rows[0].id;
-
-      // Seller B attempts to confirm Seller A order
+    it('V19: attempt cross-seller order/payment access -> 0 rows under RLS', async () => {
       await asSeller(sellerBId);
-      const res = await db.query<{ confirm_order_advance: RpcSuccessOutput }>(`
-        SELECT confirm_order_advance('${aOrderId}', 'REF-HACK');
-      `);
-      expect(res.rows[0].confirm_order_advance.success).toBe(false);
-      expect(res.rows[0].confirm_order_advance.error).toBe('UNAUTHORIZED');
+      // Seller B queries order_payments for Seller A's order
+      const res = await db.query(`SELECT * FROM order_payments WHERE order_id = '${advOrderId}';`);
+      expect(res.rows.length).toBe(0);
     });
 
-    it('6.3 unauthenticated anon caller cannot call seller RPCs', async () => {
+    it('V20: attempt token substitution -> ORDER_NOT_FOUND_OR_UNAUTHORIZED; authentic token succeeds', async () => {
       await asAnon();
+      // Authentic token succeeds
+      const authRes = await db.query<{ get_order_by_token: { success: boolean } }>(`
+        SELECT get_order_by_token('${advOrderId}', '${advOrderToken}');
+      `);
+      expect(authRes.rows[0].get_order_by_token.success).toBe(true);
+
+      // Fake / substituted token fails
+      const fakeToken = '00000000-0000-0000-0000-000000000000';
+      const res = await db.query<{ get_order_by_token: { success: boolean; error: string } }>(`
+        SELECT get_order_by_token('${advOrderId}', '${fakeToken}');
+      `);
+      expect(res.rows[0].get_order_by_token.success).toBe(false);
+      expect(res.rows[0].get_order_by_token.error).toBe('ORDER_NOT_FOUND_OR_UNAUTHORIZED');
+    });
+
+    it('V21: attempt direct order_payments INSERT -> permission denied', async () => {
+      await asSeller(sellerAId);
       await expect(
-        db.query(`SELECT confirm_order_advance('d0000000-0000-0000-0000-000000000001', 'REF');`)
+        db.query(`
+          INSERT INTO order_payments (order_id, payment_type, amount_paisa, status)
+          VALUES ('${advOrderId}', 'advance', 25000, 'verified');
+        `)
+      ).rejects.toThrow();
+    });
+
+    it('V22: attempt direct order_payments UPDATE -> permission denied', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`UPDATE order_payments SET amount_paisa = 999999 WHERE order_id = '${advOrderId}';`)
+      ).rejects.toThrow();
+    });
+
+    it('V23: attempt SQL injection / privilege escalation through SECURITY DEFINER inputs', async () => {
+      await asServiceRole();
+      const maliciousReference = "'; DROP TABLE orders; --";
+      const res = await db.query<{ record_verified_payment: { success: boolean; error?: string } }>(
+        'SELECT record_verified_payment($1, $2, $3, $4);',
+        [advOrderId, 'invalid_type', 100, maliciousReference]
+      );
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('INVALID_PAYMENT_TYPE');
+
+      // Verify orders table still exists
+      await asSuperuser();
+      const tblCheck = await db.query(`SELECT count(*) FROM orders;`);
+      expect(tblCheck.rows.length).toBe(1);
+    });
+
+    it('V24: attempt malformed / invalid payment type -> INVALID_PAYMENT_TYPE', async () => {
+      await asServiceRole();
+      const res = await db.query<{ record_verified_payment: { success: boolean; error: string } }>(`
+        SELECT record_verified_payment('${advOrderId}', 'crypto_token', 25000, 'REF-V24');
+      `);
+      expect(res.rows[0].record_verified_payment.success).toBe(false);
+      expect(res.rows[0].record_verified_payment.error).toBe('INVALID_PAYMENT_TYPE');
+    });
+
+    it('V25: attempt duplicate provider references with different amounts -> unique index blocks duplicate', async () => {
+      await asSuperuser();
+      // Directly inserting duplicate reference into order_payments table must violate uq_order_payments_reference_verified
+      await expect(
+        db.query(`
+          INSERT INTO order_payments (order_id, payment_type, amount_paisa, status, reference_id)
+          VALUES ('${advOrderId}', 'advance', 50000, 'verified', 'REF-V06-IDEMP');
+        `)
+      ).rejects.toThrow();
+    });
+
+    it('V26: mark_order_paid on cancelled order -> INVALID_ORDER_STATE (F-01 audit vector)', async () => {
+      await asSuperuser();
+      const cRes = await db.query<{ id: string }>(`
+        INSERT INTO orders (
+          drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+          subtotal_paisa, shipping_paisa, total_paisa, confirmation_mode,
+          advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa,
+          payment_status, status
+        ) VALUES (
+          '${dropA1Id}', 'LD-V26001', 'V26 Buyer', '9830000026', '123 Park Street, Floor 4, Kolkata', '700001',
+          50000, 8000, 58000, 'advance',
+          25000, 0, 0, 58000,
+          'unpaid', 'cancelled'
+        ) RETURNING id;
+      `);
+      const canId = cRes.rows[0].id;
+
+      await asServiceRole();
+      const res = await db.query<{ mark_order_paid: { success: boolean; error: string } }>(`
+        SELECT mark_order_paid('${canId}');
+      `);
+      expect(res.rows[0].mark_order_paid.success).toBe(false);
+      expect(res.rows[0].mark_order_paid.error).toBe('INVALID_ORDER_STATE');
+    });
+
+    it('V27: mark_order_paid on expired order -> INVALID_ORDER_STATE (F-01 audit vector)', async () => {
+      await asServiceRole();
+      const res = await db.query<{ mark_order_paid: { success: boolean; error: string } }>(`
+        SELECT mark_order_paid('${globalExpiredOrderId}');
+      `);
+      expect(res.rows[0].mark_order_paid.success).toBe(false);
+      expect(res.rows[0].mark_order_paid.error).toBe('INVALID_ORDER_STATE');
+    });
+
+    it('V28: mark_order_paid as authenticated seller -> permission denied (F-01 trust boundary)', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`SELECT mark_order_paid('${advOrderId}');`)
+      ).rejects.toThrow();
+    });
+  });
+
+  // ==========================================================================
+  // 11. ADVERSARIAL DIRECT MUTATION ATTACKS (TASK-2.4A.2: A01–A13)
+  // ==========================================================================
+  describe('11. Adversarial Direct Mutation Attacks & Payment Authority Hardening (TASK-2.4A.2: A01–A13)', () => {
+    let attackOrderId: string;
+    let attackProdId: string;
+
+    beforeAll(async () => {
+      attackProdId = 'ca000000-0000-0000-0000-000000000077';
+      await asSuperuser();
+      await db.query(`
+        INSERT INTO products (id, drop_id, code, title, price_paisa, size, image_url, status)
+        VALUES ('${attackProdId}', '${dropA1Id}', '#S77', 'Adversarial Test Saree', 150000, 'Free Size', 'https://images.livedrop.store/s77.webp', 'available');
+      `);
+
+      // Create initial order as anonymous buyer
+      await asAnon();
+      const res = await db.query<{ create_order_with_reservation: CreateOrderRpcOutput }>(`
+        SELECT create_order_with_reservation(
+          '${dropA1Id}',
+          ARRAY['${attackProdId}']::uuid[],
+          'Victim Buyer',
+          '9830111222',
+          '45 Southern Avenue, Kolkata',
+          '700029',
+          'advance'
+        );
+      `);
+      attackOrderId = res.rows[0].create_order_with_reservation.order_id!;
+    });
+
+    it('A01: authenticated seller updates status="paid" -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`UPDATE orders SET status = 'paid' WHERE id = '${attackOrderId}';`)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+
+      // Verify database state: order remains pending
+      await asSuperuser();
+      const check = await db.query<{ status: string }>(`SELECT status FROM orders WHERE id = '${attackOrderId}';`);
+      expect(check.rows[0].status).toBe('pending');
+    });
+
+    it('A02: authenticated seller updates payment_status="paid" -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`UPDATE orders SET payment_status = 'paid' WHERE id = '${attackOrderId}';`)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+
+      await asSuperuser();
+      const check = await db.query<{ payment_status: string }>(`SELECT payment_status FROM orders WHERE id = '${attackOrderId}';`);
+      expect(check.rows[0].payment_status).toBe('unpaid');
+    });
+
+    it('A03: authenticated seller updates total_paid_paisa -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`UPDATE orders SET total_paid_paisa = 158000 WHERE id = '${attackOrderId}';`)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+
+      await asSuperuser();
+      const check = await db.query<{ total_paid_paisa: number }>(`SELECT total_paid_paisa FROM orders WHERE id = '${attackOrderId}';`);
+      expect(check.rows[0].total_paid_paisa).toBe(0);
+    });
+
+    it('A04: authenticated seller updates balance_due_paisa -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`UPDATE orders SET balance_due_paisa = 0 WHERE id = '${attackOrderId}';`)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+
+      await asSuperuser();
+      const check = await db.query<{ balance_due_paisa: number }>(`SELECT balance_due_paisa FROM orders WHERE id = '${attackOrderId}';`);
+      expect(check.rows[0].balance_due_paisa).toBe(158000);
+    });
+
+    it('A05: authenticated seller updates fulfilment_status="ready_to_ship" -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`UPDATE orders SET fulfilment_status = 'ready_to_ship' WHERE id = '${attackOrderId}';`)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+
+      await asSuperuser();
+      const check = await db.query<{ fulfilment_status: string }>(`SELECT fulfilment_status FROM orders WHERE id = '${attackOrderId}';`);
+      expect(check.rows[0].fulfilment_status).toBe('not_ready');
+    });
+
+    it('A06: authenticated seller updates all payment fields simultaneously -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`
+          UPDATE orders
+          SET status = 'paid',
+              payment_status = 'paid',
+              total_paid_paisa = total_paisa,
+              balance_due_paisa = 0,
+              fulfilment_status = 'ready_to_ship'
+          WHERE id = '${attackOrderId}';
+        `)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+
+      await asSuperuser();
+      const check = await db.query<{ status: string; payment_status: string; total_paid_paisa: number }>(
+        `SELECT status, payment_status, total_paid_paisa FROM orders WHERE id = '${attackOrderId}';`
+      );
+      expect(check.rows[0].status).toBe('pending');
+      expect(check.rows[0].payment_status).toBe('unpaid');
+      expect(check.rows[0].total_paid_paisa).toBe(0);
+    });
+
+    it('A07: authenticated seller fabricates a full-payment state -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`
+          UPDATE orders
+          SET status = 'paid',
+              payment_status = 'paid',
+              fulfilment_status = 'ready_to_ship',
+              total_paid_paisa = total_paisa,
+              balance_due_paisa = 0,
+              advance_paid_paisa = 0,
+              paid_at = NOW()
+          WHERE id = '${attackOrderId}';
+        `)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+    });
+
+    it('A08: authenticated seller fabricates an advance-paid state -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`
+          UPDATE orders
+          SET status = 'confirmed',
+              payment_status = 'advance_paid',
+              fulfilment_status = 'not_ready',
+              advance_paid_paisa = advance_required_paisa,
+              total_paid_paisa = advance_required_paisa,
+              balance_due_paisa = total_paisa - advance_required_paisa,
+              advance_paid_at = NOW()
+          WHERE id = '${attackOrderId}';
+        `)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+    });
+
+    it('A09: authenticated seller changes hold_expires_at after payment/creation -> BLOCKED with SQLSTATE 42501', async () => {
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`
+          UPDATE orders
+          SET hold_expires_at = NOW() + INTERVAL '365 days'
+          WHERE id = '${attackOrderId}';
+        `)
+      ).rejects.toThrow(/Direct mutation of payment or order lifecycle fields is prohibited/i);
+    });
+
+    it('A10: authenticated seller creates paid order with no payment ledger entry -> BLOCKED', async () => {
+      // Direct REST INSERT is blocked by RLS
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`
+          INSERT INTO orders (
+            drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+            subtotal_paisa, shipping_paisa, total_paisa, status, payment_status,
+            fulfilment_status, total_paid_paisa, balance_due_paisa
+          ) VALUES (
+            '${dropA1Id}', 'LD-FAK999', 'Fake Buyer', '9830111222', '123 Fake Street, Kolkata', '700001',
+            100000, 8000, 108000, 'paid', 'paid', 'ready_to_ship', 108000, 0
+          );
+        `)
       ).rejects.toThrow();
 
-      await expect(
-        db.query(`SELECT mark_order_paid('d0000000-0000-0000-0000-000000000001');`)
-      ).rejects.toThrow();
+      // Ensure zero order_payments entries exist for fabricated orders
+      await asSuperuser();
+      const checkLedger = await db.query<{ count: string }>(
+        `SELECT count(*) as count FROM order_payments WHERE order_id = '${attackOrderId}';`
+      );
+      expect(Number(checkLedger.rows[0].count)).toBe(0);
+    });
 
+    it('A11: authenticated seller tries to mark products sold to match fabricated order -> BLOCKED', async () => {
+      await asSeller(sellerAId);
+      // Attempt to directly change reserved product to sold
       await expect(
-        db.query(`SELECT force_release_hold('d0000000-0000-0000-0000-000000000001');`)
-      ).rejects.toThrow();
+        db.query(`UPDATE products SET status = 'sold' WHERE id = '${attackProdId}';`)
+      ).rejects.toThrow(/Direct mutation of product reservation status is prohibited/i);
+
+      // Verify product remains reserved by original order
+      await asSuperuser();
+      const p = await db.query<{ status: string; reserved_by_order_id: string }>(
+        `SELECT status, reserved_by_order_id FROM products WHERE id = '${attackProdId}';`
+      );
+      expect(p.rows[0].status).toBe('reserved');
+      expect(p.rows[0].reserved_by_order_id).toBe(attackOrderId);
+    });
+
+    it('A12: valid service_role payment RPC still succeeds', async () => {
+      await asServiceRole();
+      const paidRes = await db.query<{ mark_order_paid: { success: boolean; order_id: string } }>(`
+        SELECT mark_order_paid('${attackOrderId}', 'REF-VERIFIED-A12', '{"provider": "razorpay"}'::jsonb);
+      `);
+      expect(paidRes.rows[0].mark_order_paid.success).toBe(true);
+
+      // Verify database state: order is paid and product is sold
+      await asSuperuser();
+      const o = await db.query<{ status: string; payment_status: string; fulfilment_status: string; total_paid_paisa: number; balance_due_paisa: number }>(
+        `SELECT status, payment_status, fulfilment_status, total_paid_paisa, balance_due_paisa FROM orders WHERE id = '${attackOrderId}';`
+      );
+      expect(o.rows[0].status).toBe('paid');
+      expect(o.rows[0].payment_status).toBe('paid');
+      expect(o.rows[0].fulfilment_status).toBe('ready_to_ship');
+      expect(o.rows[0].total_paid_paisa).toBe(158000);
+      expect(o.rows[0].balance_due_paisa).toBe(0);
+
+      const p = await db.query<{ status: string; reserved_by_order_id: string | null }>(
+        `SELECT status, reserved_by_order_id FROM products WHERE id = '${attackProdId}';`
+      );
+      expect(p.rows[0].status).toBe('sold');
+      expect(p.rows[0].reserved_by_order_id).toBeNull();
+
+      // Verify payment ledger entry was genuinely created
+      const pay = await db.query<{ count: string; amount_paisa: number; reference_id: string }>(
+        `SELECT count(*) as count, amount_paisa, reference_id FROM order_payments WHERE order_id = '${attackOrderId}' GROUP BY amount_paisa, reference_id;`
+      );
+      expect(Number(pay.rows[0].count)).toBe(1);
+      expect(pay.rows[0].amount_paisa).toBe(158000);
+      expect(pay.rows[0].reference_id).toBe('REF-VERIFIED-A12');
+    });
+
+    it('A13: valid seller operational update still succeeds where intended', async () => {
+      await asSeller(sellerAId);
+      // Legitimate operational update: shipping tracking details
+      await db.query(`
+        UPDATE orders
+        SET tracking_number = 'TRACK-DELHIVERY-999',
+            courier_partner = 'Delhivery Express'
+        WHERE id = '${attackOrderId}';
+      `);
+
+      // Verify database state: tracking details updated, payment & financial fields untouched
+      await asSuperuser();
+      const check = await db.query<{ tracking_number: string; courier_partner: string; status: string; total_paid_paisa: number }>(
+        `SELECT tracking_number, courier_partner, status, total_paid_paisa FROM orders WHERE id = '${attackOrderId}';`
+      );
+      expect(check.rows[0].tracking_number).toBe('TRACK-DELHIVERY-999');
+      expect(check.rows[0].courier_partner).toBe('Delhivery Express');
+      expect(check.rows[0].status).toBe('paid');
+      expect(check.rows[0].total_paid_paisa).toBe(158000);
     });
   });
 });

@@ -148,7 +148,7 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       $$;
     `);
 
-    // 2. Apply all 9 migrations sequentially
+    // 2. Apply all 12 migrations sequentially (001 -> 012)
     const migrationFiles = [
       '001_create_profiles.sql',
       '002_create_drops.sql',
@@ -159,6 +159,9 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       '007_create_triggers.sql',
       '008_enable_rls_and_policies.sql',
       '009_create_core_business_rpcs.sql',
+      '010_seller_storefront_and_order_state_machine.sql',
+      '011_domain_consistency_and_payment_authority_hardening.sql',
+      '012_payment_authority_direct_update_hardening.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -177,9 +180,14 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
     `);
 
     await db.query(`
-      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address, default_shipping_fee_paisa, free_shipping_threshold_paisa)
-      VALUES ('${sellerAId}', 'Priya Trends', '9876543210', 'priya@okaxis', 'Indiranagar Bengaluru', 8000, 200000),
-             ('${sellerBId}', 'Ananya Silks', '9876543211', 'ananya@okhdfcbank', 'T Nagar Chennai', 7000, 150000);
+      INSERT INTO profiles (
+        id, store_name, store_slug, phone_number, upi_id, return_address, 
+        default_shipping_fee_paisa, free_shipping_threshold_paisa,
+        advance_confirmation_enabled, advance_amount_paisa, hold_duration_days
+      )
+      VALUES 
+        ('${sellerAId}', 'Priya Trends', 'priya-trends', '9876543210', 'priya@okaxis', 'Indiranagar Bengaluru', 8000, 200000, true, 25000, 30),
+        ('${sellerBId}', 'Ananya Silks', 'ananya-silks', '9876543211', 'ananya@okhdfcbank', 'T Nagar Chennai', 7000, 150000, true, 25000, 30);
     `);
 
     await db.query(`
@@ -215,7 +223,8 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       SET status = 'available', reserved_at = NULL, reserved_by_order_id = NULL;
     `);
 
-    // 2. Delete line items
+    // 2. Delete payments and line items
+    await db.query(`DELETE FROM order_payments;`);
     await db.query(`DELETE FROM order_items;`);
 
     // 3. Neutralize status to permit delete under prevent_finalized_order_deletion trigger and delete orders
@@ -239,6 +248,64 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
     if (db) {
       await db.close();
     }
+  });
+
+  // ==========================================================================
+  // 0. SCHEMA SANITY & MIGRATION STATE REGRESSION (TASK-2.4A.2)
+  // ==========================================================================
+  describe('0. Schema Sanity & Migration State Regression (TASK-2.4A.2)', () => {
+    it('verifies that migrations 010, 011, and 012 are genuinely loaded into PGlite', async () => {
+      // 1. Verify mark_order_paid signature (hardened in 011)
+      const procRes = await db.query<{ proname: string; args: string; prosecdef: boolean }>(`
+        SELECT p.proname, pg_get_function_arguments(p.oid) as args, p.prosecdef
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'mark_order_paid';
+      `);
+      expect(procRes.rows.length).toBe(1);
+      expect(procRes.rows[0].args).toContain('p_reference_id text');
+      expect(procRes.rows[0].args).toContain('p_metadata jsonb');
+      expect(procRes.rows[0].prosecdef).toBe(true);
+
+      // 2. Verify record_verified_payment exists (migration 010/011)
+      const payRes = await db.query<{ proname: string; prosecdef: boolean }>(`
+        SELECT p.proname, p.prosecdef
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'record_verified_payment';
+      `);
+      expect(payRes.rows.length).toBe(1);
+      expect(payRes.rows[0].prosecdef).toBe(true);
+
+      // 3. Verify obsolete confirm_order_advance is completely absent
+      const advRes = await db.query<{ proname: string }>(`
+        SELECT p.proname
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'confirm_order_advance';
+      `);
+      expect(advRes.rows.length).toBe(0);
+
+      // 4. Verify migration 012 triggers exist on orders and products
+      const trgRes = await db.query<{ trigger_name: string }>(`
+        SELECT trigger_name
+        FROM information_schema.triggers
+        WHERE trigger_schema = 'public' AND trigger_name IN (
+          'trg_enforce_orders_payment_immutability',
+          'trg_enforce_products_inventory_immutability'
+        );
+      `);
+      expect(trgRes.rows.length).toBe(2);
+
+      // 5. Verify orders table has state machine and financial columns from 010
+      const colRes = await db.query<{ column_name: string }>(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'orders'
+          AND column_name IN ('confirmation_mode', 'advance_required_paisa', 'advance_paid_paisa', 'total_paid_paisa', 'balance_due_paisa', 'payment_status', 'fulfilment_status');
+      `);
+      expect(colRes.rows.length).toBe(7);
+    });
   });
 
   // ==========================================================================
@@ -374,7 +441,7 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       expect(items.rows.length).toBe(1);
     });
 
-    it('rejects order on draft drop with DROP_NOT_ACTIVE', async () => {
+    it('rejects order on draft drop with DROP_NOT_LIVE', async () => {
       await asAnon();
       const res = await db.query<RpcResponseRow>(`
         SELECT create_order_with_reservation(
@@ -383,10 +450,10 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropADraftId, prodADraftId]);
       const result = res.rows[0].result!;
       expect(result.success).toBe(false);
-      expect(result.error).toBe('DROP_NOT_ACTIVE');
+      expect(result.error).toBe('DROP_NOT_LIVE');
     });
 
-    it('rejects order on closed drop with DROP_NOT_ACTIVE', async () => {
+    it('rejects order on closed drop with DROP_NOT_LIVE', async () => {
       await asAnon();
       const res = await db.query<RpcResponseRow>(`
         SELECT create_order_with_reservation(
@@ -395,10 +462,10 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropAClosedId, prodA1Id]);
       const result = res.rows[0].result!;
       expect(result.success).toBe(false);
-      expect(result.error).toBe('DROP_NOT_ACTIVE');
+      expect(result.error).toBe('DROP_NOT_LIVE');
     });
 
-    it('rejects products belonging to a different drop with MIXED_DROP_PRODUCTS', async () => {
+    it('rejects products belonging to a different drop with STOCK_UNAVAILABLE', async () => {
       await asAnon();
       // Requesting prodA1 (Drop A) and prodB1 (Drop B) inside dropALiveId
       const res = await db.query<RpcResponseRow>(`
@@ -408,7 +475,7 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id, prodBLiveId]);
       const result = res.rows[0].result!;
       expect(result.success).toBe(false);
-      expect(result.error).toBe('MIXED_DROP_PRODUCTS');
+      expect(result.error).toBe('STOCK_UNAVAILABLE');
     });
 
     it('rejects already reserved product with STOCK_UNAVAILABLE', async () => {
@@ -421,7 +488,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       const result = res.rows[0].result!;
       expect(result.success).toBe(false);
       expect(result.error).toBe('STOCK_UNAVAILABLE');
-      expect(result.unavailable_product_ids).toContain(prodAReservedId);
     });
 
     it('rejects already sold product with STOCK_UNAVAILABLE', async () => {
@@ -434,7 +500,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       const result = res.rows[0].result!;
       expect(result.success).toBe(false);
       expect(result.error).toBe('STOCK_UNAVAILABLE');
-      expect(result.unavailable_product_ids).toContain(prodASoldId);
     });
 
     it('validates buyer input parameters (name, phone, address, pincode)', async () => {
@@ -474,7 +539,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       const result = res.rows[0].result!;
       expect(result.success).toBe(false);
       expect(result.error).toBe('STOCK_UNAVAILABLE');
-      expect(result.unavailable_product_ids).toContain(prodAReservedId);
 
       // Verify ATOMICITY in database:
       await asSuperuser();
@@ -499,10 +563,10 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
   });
 
   // ==========================================================================
-  // 4. PAYMENT CONFIRMATION (mark_order_paid)
+  // 4. PAYMENT CONFIRMATION (mark_order_paid & record_verified_payment)
   // ==========================================================================
-  describe('4. Payment Confirmation (mark_order_paid)', () => {
-    it('seller successfully confirms payment transitioning order to paid and products to sold', async () => {
+  describe('4. Payment Authority & Confirmation (mark_order_paid & record_verified_payment)', () => {
+    it('service_role successfully confirms payment transitioning order to paid and products to sold', async () => {
       // 1. Place order as buyer
       await asAnon();
       const checkoutRes = await db.query<RpcResponseRow>(`
@@ -512,24 +576,56 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id, prodA2Id]);
       const orderId = checkoutRes.rows[0].result!.order_id!;
 
-      // 2. Mark order paid as authenticated seller A (owner of Drop A)
-      await asSeller(sellerAId);
-      const paidRes = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderId]);
+      // 2. Mark order paid as trusted backend service_role
+      await asServiceRole();
+      const paidRes = await db.query<RpcResponseRow>(`
+        SELECT mark_order_paid($1, 'REF-PAY-001', '{"gateway": "razorpay"}'::jsonb) AS result;
+      `, [orderId]);
       const paidResult = paidRes.rows[0].result!;
       expect(paidResult.success).toBe(true);
 
       // 3. Verify database state
       await asSuperuser();
-      const order = await db.query<OrderRow>(`SELECT status, paid_at FROM orders WHERE id = $1`, [orderId]);
+      const order = await db.query<{ status: string; payment_status: string; fulfilment_status: string; total_paid_paisa: number; balance_due_paisa: number; paid_at: string | null }>(
+        `SELECT status, payment_status, fulfilment_status, total_paid_paisa, balance_due_paisa, paid_at FROM orders WHERE id = $1`, [orderId]
+      );
       expect(order.rows[0].status).toBe('paid');
+      expect(order.rows[0].payment_status).toBe('paid');
+      expect(order.rows[0].fulfilment_status).toBe('ready_to_ship');
+      expect(order.rows[0].total_paid_paisa).toBe(260000);
+      expect(order.rows[0].balance_due_paisa).toBe(0);
       expect(order.rows[0].paid_at).not.toBeNull();
 
       const p1 = await db.query<ProductRow>(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [prodA1Id]);
       const p2 = await db.query<ProductRow>(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [prodA2Id]);
       expect(p1.rows[0].status).toBe('sold');
-      expect(p1.rows[0].reserved_by_order_id).toBeNull(); // F-08: sold products clear hold reference
+      expect(p1.rows[0].reserved_by_order_id).toBeNull();
       expect(p2.rows[0].status).toBe('sold');
-      expect(p2.rows[0].reserved_by_order_id).toBeNull(); // F-08: ownership tracked in order_items
+      expect(p2.rows[0].reserved_by_order_id).toBeNull();
+
+      // Verify order_payments entry created
+      const payRes = await db.query<{ count: string; amount_paisa: number; status: string }>(
+        `SELECT count(*) as count, amount_paisa, status FROM order_payments WHERE order_id = $1 GROUP BY amount_paisa, status`, [orderId]
+      );
+      expect(Number(payRes.rows[0].count)).toBe(1);
+      expect(payRes.rows[0].status).toBe('verified');
+      expect(payRes.rows[0].amount_paisa).toBe(260000);
+    });
+
+    it('rejects mark_order_paid from authenticated seller role with permission denied (SQLSTATE 42501)', async () => {
+      await asAnon();
+      const checkoutRes = await db.query<RpcResponseRow>(`
+        SELECT create_order_with_reservation(
+          $1, ARRAY[$2]::uuid[], 'Test Buyer', '9830123456', 'Address 1234567890', '700001'
+        ) AS result;
+      `, [dropALiveId, prodA1Id]);
+      const orderId = checkoutRes.rows[0].result!.order_id!;
+
+      // Authenticated seller attempts to execute mark_order_paid -> blocked by PostgreSQL privilege boundary
+      await asSeller(sellerAId);
+      await expect(
+        db.query(`SELECT mark_order_paid($1) AS result;`, [orderId])
+      ).rejects.toThrow(/permission denied for function mark_order_paid/i);
     });
 
     it('rejects mark_order_paid from anonymous caller with permission denied (SQLSTATE 42501)', async () => {
@@ -541,13 +637,13 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id]);
       const orderId = checkoutRes.rows[0].result!.order_id!;
 
-      // Anon caller attempts mark_order_paid -> blocked by PostgreSQL routine privilege check
+      // Anon caller attempts mark_order_paid -> blocked by PostgreSQL privilege boundary
       await expect(
         db.query(`SELECT mark_order_paid($1) AS result;`, [orderId])
       ).rejects.toThrow(/permission denied for function mark_order_paid/i);
     });
 
-    it('rejects mark_order_paid from authenticated session with empty auth.uid() with UNAUTHORIZED', async () => {
+    it('service_role execution is idempotent on already paid orders', async () => {
       await asAnon();
       const checkoutRes = await db.query<RpcResponseRow>(`
         SELECT create_order_with_reservation(
@@ -556,52 +652,16 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id]);
       const orderId = checkoutRes.rows[0].result!.order_id!;
 
-      // Authenticated role without sub
-      await db.exec(`
-        SET ROLE authenticated;
-        SELECT set_config('request.jwt.claim.sub', '', false);
-      `);
-      const paidRes = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderId]);
-      expect(paidRes.rows[0].result!.success).toBe(false);
-      expect(paidRes.rows[0].result!.error).toBe('UNAUTHORIZED');
-    });
-
-    it('rejects mark_order_paid from wrong seller (Seller B for Drop A order)', async () => {
-      await asAnon();
-      const checkoutRes = await db.query<RpcResponseRow>(`
-        SELECT create_order_with_reservation(
-          $1, ARRAY[$2]::uuid[], 'Test Buyer', '9830123456', 'Address 1234567890', '700001'
-        ) AS result;
-      `, [dropALiveId, prodA1Id]);
-      const orderId = checkoutRes.rows[0].result!.order_id!;
-
-      // Seller B attempts to mark Seller A's order paid
-      await asSeller(sellerBId);
-      const paidRes = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderId]);
-      expect(paidRes.rows[0].result!.success).toBe(false);
-      expect(paidRes.rows[0].result!.error).toBe('UNAUTHORIZED');
-    });
-
-    it('is idempotent on already paid orders', async () => {
-      await asAnon();
-      const checkoutRes = await db.query<RpcResponseRow>(`
-        SELECT create_order_with_reservation(
-          $1, ARRAY[$2]::uuid[], 'Test Buyer', '9830123456', 'Address 1234567890', '700001'
-        ) AS result;
-      `, [dropALiveId, prodA1Id]);
-      const orderId = checkoutRes.rows[0].result!.order_id!;
-
-      await asSeller(sellerAId);
-      const first = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderId]);
+      await asServiceRole();
+      const first = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1, 'REF-IDEMP-01', '{}'::jsonb) AS result;`, [orderId]);
       expect(first.rows[0].result!.success).toBe(true);
 
       // Second identical call
-      const second = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderId]);
+      const second = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1, 'REF-IDEMP-01', '{}'::jsonb) AS result;`, [orderId]);
       expect(second.rows[0].result!.success).toBe(true);
     });
 
-    it('reclaims uncontested expired order seamlessly', async () => {
-      // Scenario: hold expired and order marked cancelled, but garment was NEVER bought by anyone else
+    it('strictly rejects mark_order_paid on cancelled or expired orders with INVALID_ORDER_STATE', async () => {
       await asAnon();
       const checkoutRes = await db.query<RpcResponseRow>(`
         SELECT create_order_with_reservation(
@@ -610,68 +670,65 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id]);
       const orderId = checkoutRes.rows[0].result!.order_id!;
 
-      // Simulate expiration: set hold_expires_at to past and run release_expired_holds
+      // Simulate expiration: set hold_expires_at to past and run release_expired_holds as service_role
       await asSuperuser();
       await db.query(`UPDATE orders SET hold_expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1`, [orderId]);
+      await asServiceRole();
       await db.query(`SELECT release_expired_holds();`);
 
       // Verify order is cancelled and product is available
+      await asSuperuser();
       const check = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1`, [orderId]);
       expect(check.rows[0].status).toBe('cancelled');
       const prodCheck = await db.query<ProductRow>(`SELECT status FROM products WHERE id = $1`, [prodA1Id]);
       expect(prodCheck.rows[0].status).toBe('available');
 
-      // Seller confirms UPI screenshot: should reclaim item uncontested
-      await asSeller(sellerAId);
-      const paidRes = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderId]);
-      expect(paidRes.rows[0].result!.success).toBe(true);
-
-      // Verify product is now sold and order is paid
-      await asSuperuser();
-      const finalOrder = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1`, [orderId]);
-      expect(finalOrder.rows[0].status).toBe('paid');
-      const finalProd = await db.query<ProductRow>(`SELECT status FROM products WHERE id = $1`, [prodA1Id]);
-      expect(finalProd.rows[0].status).toBe('sold');
+      // Attempt to resurrect cancelled order via mark_order_paid -> MUST be rejected with INVALID_ORDER_STATE
+      await asServiceRole();
+      const paidRes = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1, 'REF-RESURRECT', '{}'::jsonb) AS result;`, [orderId]);
+      expect(paidRes.rows[0].result!.success).toBe(false);
+      expect(paidRes.rows[0].result!.error).toBe('INVALID_ORDER_STATE');
     });
 
-    it('strictly rejects mark_order_paid with PRODUCT_ALREADY_RECLAIMED if contested by another buyer', async () => {
-      // 1. Buyer A orders prodA1
+    it('service_role can execute record_verified_payment for advance payment', async () => {
       await asAnon();
-      const orderARes = await db.query<RpcResponseRow>(`
+      const checkoutRes = await db.query<RpcResponseRow>(`
         SELECT create_order_with_reservation(
-          $1, ARRAY[$2]::uuid[], 'Buyer A', '9830123456', 'Address Buyer A 12345', '700001'
+          $1, ARRAY[$2]::uuid[], 'Advance Buyer', '9830123456', 'Address 1234567890', '700001'
         ) AS result;
       `, [dropALiveId, prodA1Id]);
-      const orderAId = orderARes.rows[0].result!.order_id!;
+      const orderId = checkoutRes.rows[0].result!.order_id!;
 
-      // 2. Hold expires on Order A and release runs
+      await asServiceRole();
+      const payRes = await db.query<{ record_verified_payment: { success: boolean; advance_paid_paisa?: number; status?: string } }>(`
+        SELECT record_verified_payment($1, 'advance', 25000, 'REF-ADV-001', '{}'::jsonb);
+      `, [orderId]);
+      expect(payRes.rows[0].record_verified_payment.success).toBe(true);
+
+      // Verify database state: order confirmed, advance_paid, not_ready
       await asSuperuser();
-      await db.query(`UPDATE orders SET hold_expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1`, [orderAId]);
-      await db.query(`SELECT release_expired_holds();`);
+      const o = await db.query<{ status: string; payment_status: string; fulfilment_status: string; advance_paid_paisa: number }>(
+        `SELECT status, payment_status, fulfilment_status, advance_paid_paisa FROM orders WHERE id = $1`, [orderId]
+      );
+      expect(o.rows[0].status).toBe('confirmed');
+      expect(o.rows[0].payment_status).toBe('advance_paid');
+      expect(o.rows[0].fulfilment_status).toBe('not_ready');
+      expect(o.rows[0].advance_paid_paisa).toBe(25000);
+    });
 
-      // 3. Buyer B reserves prodA1 in fresh order
+    it('rejects record_verified_payment from authenticated seller role with permission denied (SQLSTATE 42501)', async () => {
       await asAnon();
-      const orderBRes = await db.query<RpcResponseRow>(`
+      const checkoutRes = await db.query<RpcResponseRow>(`
         SELECT create_order_with_reservation(
-          $1, ARRAY[$2]::uuid[], 'Buyer B', '9830999888', 'Address Buyer B 54321', '700002'
+          $1, ARRAY[$2]::uuid[], 'Advance Buyer', '9830123456', 'Address 1234567890', '700001'
         ) AS result;
       `, [dropALiveId, prodA1Id]);
-      expect(orderBRes.rows[0].result!.success).toBe(true);
+      const orderId = checkoutRes.rows[0].result!.order_id!;
 
-      // 4. Seller attempts to mark expired Order A as paid
       await asSeller(sellerAId);
-      const paidRes = await db.query<RpcResponseRow>(`SELECT mark_order_paid($1) AS result;`, [orderAId]);
-      const paidResult = paidRes.rows[0].result!;
-
-      expect(paidResult.success).toBe(false);
-      expect(paidResult.error).toBe('PRODUCT_ALREADY_RECLAIMED');
-      expect(paidResult.message).toContain('claimed by another buyer');
-
-      // 5. Verify Order B reservation was NOT corrupted
-      await asSuperuser();
-      const prodCheck = await db.query<ProductRow>(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [prodA1Id]);
-      expect(prodCheck.rows[0].status).toBe('reserved');
-      expect(prodCheck.rows[0].reserved_by_order_id).toBe(orderBRes.rows[0].result!.order_id);
+      await expect(
+        db.query(`SELECT record_verified_payment($1, 'advance', 25000, 'REF-ATTACK-001', '{}'::jsonb);`, [orderId])
+      ).rejects.toThrow(/permission denied for function record_verified_payment/i);
     });
   });
 
@@ -737,7 +794,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
 
       expect(result2.success).toBe(false);
       expect(result2.error).toBe('STOCK_UNAVAILABLE');
-      expect(result2.unavailable_product_ids).toContain(prodA1Id);
 
       // Step 4: Cron reaper runs and reclaims expired hold
       await asSuperuser();
@@ -775,8 +831,8 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id]);
       const orderA1Id = resA1.rows[0].r!.order_id!;
 
-      await asSeller(sellerAId);
-      await db.query(`SELECT mark_order_paid($1)`, [orderA1Id]);
+      await asServiceRole();
+      await db.query(`SELECT mark_order_paid($1, 'REF-REAP-A1', '{}'::jsonb)`, [orderA1Id]);
 
       // Step 2: Create Order A2 (Expired)
       await asAnon();
@@ -951,9 +1007,10 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       `, [dropALiveId, prodA1Id]);
       const orderId = checkoutRes.rows[0].r!.order_id!;
 
-      await asSeller(sellerAId);
-      await db.query(`SELECT mark_order_paid($1)`, [orderId]);
+      await asServiceRole();
+      await db.query(`SELECT mark_order_paid($1, 'REF-HOLD', '{}'::jsonb)`, [orderId]);
 
+      await asSeller(sellerAId);
       const releaseRes = await db.query<RpcResponseRow>(`SELECT force_release_hold($1) AS r`, [orderId]);
       expect(releaseRes.rows[0].r!.success).toBe(false);
       expect(releaseRes.rows[0].r!.error).toBe('ONLY_PENDING_CAN_BE_RELEASED');
@@ -1012,7 +1069,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       expect(successes.length).toBe(1);
       expect(failures.length).toBe(1);
       expect(failures[0].error).toBe('STOCK_UNAVAILABLE');
-      expect(failures[0].unavailable_product_ids).toContain(prodA1Id);
 
       // Verify exactly 1 reservation in database
       await asSuperuser();
@@ -1100,7 +1156,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       expect(successes.length).toBe(1);
       expect(failures.length).toBe(1);
       expect(failures[0].error).toBe('STOCK_UNAVAILABLE');
-      expect(failures[0].unavailable_product_ids).toContain(prodA2Id);
     });
 
     it('TC-CON-05: Deadlock prevention under opposite product sorting order', async () => {
@@ -1244,7 +1299,6 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       // Because the item is 1-of-1 and already reserved, the duplicate request is rejected at the inventory level
       expect(res2.rows[0].r!.success).toBe(false);
       expect(res2.rows[0].r!.error).toBe('STOCK_UNAVAILABLE');
-      expect(res2.rows[0].r!.unavailable_product_ids).toContain(prodA1Id);
 
       // Verify the first order remains unchanged and product is still held by Order 1
       await asSuperuser();

@@ -274,3 +274,38 @@ export type CheckoutSubmissionStatus =
   | 'success'
   | 'failure'
   | 'network_ambiguous';
+
+// -----------------------------------------------------------------------------
+// Payment Verification Contracts (TASK-2.4A.1)
+// -----------------------------------------------------------------------------
+
+export interface RecordVerifiedPaymentRequest {
+  p_order_id: string;
+  p_payment_type: PaymentRecordType;
+  p_amount_paisa: number;
+  p_reference_id?: string | null;
+  p_metadata?: Record<string, unknown>;
+}
+
+export interface RecordVerifiedPaymentSuccessResponse {
+  success: true;
+  order_id?: string;
+  payment_type?: PaymentRecordType;
+  amount_paisa?: number;
+  status?: OrderStatus;
+  payment_status?: OrderPaymentStatus;
+  fulfilment_status?: OrderFulfilmentStatus;
+  idempotent?: boolean;
+  message?: string;
+}
+
+export interface RecordVerifiedPaymentErrorResponse {
+  success: false;
+  error: string;
+  message?: string;
+}
+
+export type RecordVerifiedPaymentResponse =
+  | RecordVerifiedPaymentSuccessResponse
+  | RecordVerifiedPaymentErrorResponse;
+

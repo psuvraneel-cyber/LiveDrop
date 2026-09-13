@@ -202,9 +202,9 @@ class SellerProfile {
       upiId: json['upi_id'] as String,
       upiQrUrl: json['upi_qr_url'] as String?,
       returnAddress: json['return_address'] as String,
-      defaultShippingFeePaisa: json['default_shipping_fee_paisa'] as int,
+      defaultShippingFeePaisa: json['default_shipping_fee_paisa'] as int? ?? 8000,
       freeShippingThresholdPaisa: json['free_shipping_threshold_paisa'] as int?,
-      advanceConfirmationEnabled: json['advance_confirmation_enabled'] as bool? ?? true,
+      advanceConfirmationEnabled: json['advance_confirmation_enabled'] as bool? ?? false,
       advanceAmountPaisa: json['advance_amount_paisa'] as int? ?? 25000,
       holdDurationDays: json['hold_duration_days'] as int? ?? 30,
     );

@@ -41,6 +41,23 @@ void main() {
       expect(profile.holdDurationDays, 30);
     });
 
+    test('SellerProfile defaults advanceConfirmationEnabled to false if omitted', () {
+      final json = {
+        'id': '8a329e71-4b10-4055-90d2-df8029d5b512',
+        'store_name': 'New Seller',
+        'store_slug': 'new-seller',
+        'phone_number': '919830012345',
+        'upi_id': 'newseller@okaxis',
+        'return_address': '12A Ballygunge Place, Kolkata - 700019',
+        'default_shipping_fee_paisa': 8000,
+      };
+
+      final profile = SellerProfile.fromJson(json);
+      expect(profile.advanceConfirmationEnabled, false);
+      expect(profile.advanceAmountPaisa, 25000);
+      expect(profile.holdDurationDays, 30);
+    });
+
     test('SellerDrop parses status enum and integer Paisa shipping', () {
       final json = {
         'id': 'c1f76d42-4f36-4d2b-9801-b5e1cf3e6801',
