@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/env_config.dart';
@@ -6,7 +7,7 @@ import 'data/repositories/seller_repository.dart';
 import 'presentation/payment_settings_screen.dart';
 import 'presentation/pending_verifications_screen.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Supabase client if configured in environment
@@ -46,20 +47,20 @@ class LiveDropSellerApp extends StatelessWidget {
           backgroundColor: Color(0xFF4F46E5),
           foregroundColor: Colors.white,
         ),
-        cardTheme: CardTheme(
+        cardTheme: const CardThemeData(
           elevation: 1,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            side: BorderSide(color: Color(0xFFE5E7EB)),
           ),
         ),
-        inputDecorationTheme: InputDecorationTheme(
+        inputDecorationTheme: const InputDecorationTheme(
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+            borderSide: BorderSide(color: Color(0xFFD1D5DB)),
           ),
           filled: true,
-          fillColor: const Color(0xFFF9FAFB),
+          fillColor: Color(0xFFF9FAFB),
         ),
       ),
       home: SellerAuthGate(customRepository: repository),
@@ -80,6 +81,7 @@ class SellerAuthGate extends StatefulWidget {
 class _SellerAuthGateState extends State<SellerAuthGate> {
   bool _isChecking = true;
   bool _isAuthenticated = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
@@ -88,7 +90,7 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
 
     // Listen to Supabase auth state changes if Supabase is initialized
     try {
-      Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
         if (mounted) {
           setState(() {
             _isAuthenticated = data.session != null;
@@ -98,6 +100,12 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
     } catch (_) {
       // Supabase not yet initialized (e.g. in standalone tests)
     }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   void _checkAuth() {
@@ -186,6 +194,8 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
         password: password,
       );
 
+      if (!mounted) return;
+
       if (res.session != null) {
         widget.onLoginSuccess();
       } else {
@@ -195,6 +205,7 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
         });
       }
     } catch (err) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = err.toString();
         _isLoading = false;
