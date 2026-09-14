@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:seller_app/core/config/env_config.dart';
 import 'package:seller_app/core/errors/exceptions.dart';
+import 'package:seller_app/core/services/supabase_service.dart';
+import 'package:seller_app/data/repositories/seller_repository.dart';
 import 'package:seller_app/domain/models/models.dart';
 
 void main() {
@@ -9,6 +11,37 @@ void main() {
       expect(
         () => EnvConfig.validate(),
         throwsA(isA<StateError>()),
+      );
+    });
+  });
+
+  group('TASK-2.5A: Seller SupabaseService & Repository Startup Hardening Tests', () {
+    test('SupabaseService.isInitialized defaults to false before initialization', () {
+      expect(SupabaseService.instance.isInitialized, false);
+      expect(SupabaseService.instance.isAuthenticated, false);
+      expect(SupabaseService.instance.currentUser, isNull);
+      expect(SupabaseService.instance.currentSellerId, isNull);
+    });
+
+    test('SupabaseService.client throws clean StateError if accessed before initialization', () {
+      expect(
+        () => SupabaseService.instance.client,
+        throwsA(isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('SupabaseService has not been initialized'),
+        )),
+      );
+    });
+
+    test('SellerRepository throws clean StateError when constructed without client or initialization', () {
+      expect(
+        () => SellerRepository(),
+        throwsA(isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('SellerRepository cannot be instantiated before SupabaseService is initialized'),
+        )),
       );
     });
   });

@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/services/supabase_service.dart';
 import '../../domain/models/models.dart';
 
 /// LiveDrop Seller Mobile App — Realtime Order Subscription Manager
@@ -20,7 +21,13 @@ class SellerOrderRealtimeSubscription {
     required this.onOrderCreated,
     required this.onOrderUpdated,
     this.onStatusChanged,
-  }) : _client = client ?? Supabase.instance.client;
+  }) : _client = client ??
+            (SupabaseService.instance.isInitialized
+                ? SupabaseService.instance.client
+                : throw StateError(
+                    'SellerOrderRealtimeSubscription cannot be instantiated before SupabaseService is initialized. '
+                    'Initialize SupabaseService first or provide an explicit SupabaseClient.',
+                  ));
 
   /// Subscribes to postgres_changes for orders matching the specified dropId.
   RealtimeChannel subscribe() {

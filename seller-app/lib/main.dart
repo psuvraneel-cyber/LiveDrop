@@ -4,29 +4,35 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/env_config.dart';
 import 'core/services/supabase_service.dart';
 import 'data/repositories/seller_repository.dart';
+import 'presentation/configuration_error_screen.dart';
 import 'presentation/payment_settings_screen.dart';
 import 'presentation/pending_verifications_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase client if configured in environment
+  String? initError;
   try {
-    if (EnvConfig.supabaseUrl.isNotEmpty && EnvConfig.supabaseAnonKey.isNotEmpty) {
-      await SupabaseService.instance.initialize();
-    }
+    EnvConfig.validate();
+    await SupabaseService.instance.initialize();
   } catch (err) {
-    debugPrint('[LiveDrop Seller] Warning initializing Supabase: $err');
+    debugPrint('[LiveDrop Seller] Error initializing Supabase: $err');
+    initError = err.toString();
   }
 
-  runApp(const LiveDropSellerApp());
+  runApp(LiveDropSellerApp(initializationError: initError));
 }
 
 /// Root Application Widget for LiveDrop Seller App
 class LiveDropSellerApp extends StatelessWidget {
   final SellerRepository? repository;
+  final String? initializationError;
 
-  const LiveDropSellerApp({super.key, this.repository});
+  const LiveDropSellerApp({
+    super.key,
+    this.repository,
+    this.initializationError,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +69,20 @@ class LiveDropSellerApp extends StatelessWidget {
           fillColor: Color(0xFFF9FAFB),
         ),
       ),
-      home: SellerAuthGate(customRepository: repository),
+      home: initializationError != null
+          ? ConfigurationErrorScreen(
+              errorMessage: initializationError!,
+              onRetry: () async {
+                try {
+                  EnvConfig.validate();
+                  await SupabaseService.instance.initialize();
+                  runApp(const LiveDropSellerApp());
+                } catch (e) {
+                  debugPrint('[LiveDrop Seller] Retry failed: $e');
+                }
+              },
+            )
+          : SellerAuthGate(customRepository: repository),
     );
   }
 }
@@ -88,17 +107,15 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
     super.initState();
     _checkAuth();
 
-    // Listen to Supabase auth state changes if Supabase is initialized
-    try {
-      _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    // Listen to Supabase auth state changes safely via SupabaseService
+    if (SupabaseService.instance.isInitialized) {
+      _authSubscription = SupabaseService.instance.authStateChanges.listen((data) {
         if (mounted) {
           setState(() {
             _isAuthenticated = data.session != null;
           });
         }
       });
-    } catch (_) {
-      // Supabase not yet initialized (e.g. in standalone tests)
     }
   }
 
@@ -186,6 +203,14 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
+
+    if (!SupabaseService.instance.isInitialized) {
+      setState(() {
+        _errorMessage = 'Supabase client is not initialized. Please verify environment configuration.';
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
       final client = SupabaseService.instance.client;

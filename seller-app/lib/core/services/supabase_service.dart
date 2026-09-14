@@ -11,12 +11,19 @@ class SupabaseService {
 
   SupabaseService._();
 
+  bool _isInitialized = false;
+
+  /// Returns true if the underlying Supabase client has been successfully initialized.
+  bool get isInitialized => _isInitialized;
+
   /// Initializes the Supabase client.
   /// Falls back to validated [EnvConfig] if credentials are not explicitly supplied.
   Future<void> initialize({
     String? url,
     String? anonKey,
   }) async {
+    if (_isInitialized) return;
+
     final targetUrl = url ?? EnvConfig.supabaseUrl;
     final targetAnonKey = anonKey ?? EnvConfig.supabaseAnonKey;
 
@@ -32,22 +39,43 @@ class SupabaseService {
         authFlowType: AuthFlowType.pkce,
       ),
     );
+
+    _isInitialized = true;
   }
 
   /// Returns the underlying SupabaseClient.
-  SupabaseClient get client => Supabase.instance.client;
+  /// Throws [StateError] if accessed before [initialize] completes.
+  SupabaseClient get client {
+    if (!_isInitialized) {
+      throw StateError(
+        'SupabaseService has not been initialized. '
+        'Call initialize() before accessing client.',
+      );
+    }
+    return Supabase.instance.client;
+  }
 
   /// Returns current authenticated user or null.
-  User? get currentUser => client.auth.currentUser;
+  User? get currentUser => _isInitialized ? client.auth.currentUser : null;
 
   /// Returns current authenticated seller ID (`auth.uid()`) or null.
-  String? get currentSellerId => client.auth.currentUser?.id;
+  String? get currentSellerId => _isInitialized ? client.auth.currentUser?.id : null;
 
   /// Returns true if a valid authenticated seller session exists.
-  bool get isAuthenticated => client.auth.currentSession != null;
+  bool get isAuthenticated => _isInitialized && client.auth.currentSession != null;
+
+  /// Stream of authentication state changes. Emits empty stream if uninitialized.
+  Stream<AuthState> get authStateChanges {
+    if (!_isInitialized) {
+      return const Stream.empty();
+    }
+    return client.auth.onAuthStateChange;
+  }
 
   /// Terminates the seller session and clears credentials.
   Future<void> signOut() async {
-    await client.auth.signOut();
+    if (_isInitialized) {
+      await client.auth.signOut();
+    }
   }
 }

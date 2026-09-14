@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/errors/exceptions.dart';
+import '../../core/services/supabase_service.dart';
 import '../../domain/models/models.dart';
 
 /// LiveDrop Seller Mobile App — Application Data Access Repository
@@ -13,7 +14,13 @@ class SellerRepository {
   final SupabaseClient _client;
 
   SellerRepository({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+      : _client = client ??
+            (SupabaseService.instance.isInitialized
+                ? SupabaseService.instance.client
+                : throw StateError(
+                    'SellerRepository cannot be instantiated before SupabaseService is initialized. '
+                    'Initialize SupabaseService first or provide an explicit SupabaseClient.',
+                  ));
 
   String _requireSellerId() {
     final uid = _client.auth.currentUser?.id;

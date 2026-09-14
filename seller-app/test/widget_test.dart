@@ -14,4 +14,18 @@ void main() {
     expect(find.byType(TextField), findsNWidgets(2)); // Email & Password
     expect(find.text('Sign In to Boutique'), findsOneWidget);
   });
+
+  testWidgets('LiveDropSellerApp renders controlled ConfigurationErrorScreen when initializationError is present', (WidgetTester tester) async {
+    const errorMsg = '[ENV CONFIG ERROR] Missing required configuration: SUPABASE_URL';
+    await tester.pumpWidget(const LiveDropSellerApp(initializationError: errorMsg));
+    await tester.pump();
+
+    // Verify that the configuration error screen is presented
+    expect(find.text('Configuration Required'), findsOneWidget);
+    expect(find.text(errorMsg), findsOneWidget);
+    expect(find.text('Retry Connection'), findsOneWidget);
+    // Verify login inputs are not rendered in error mode
+    expect(find.byType(TextField), findsNothing);
+  });
 }
+
