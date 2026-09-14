@@ -402,8 +402,10 @@ The following validations could not be completed on the local workstation and ar
    - *Requirement to Unblock:* Execution of `.github/workflows/seller-app-ci.yml` in a GitHub Actions runner with Flutter SDK, or installing Flutter SDK v3.24+ and Android SDK locally.
 2. **Scheduled GitHub Actions Cron Reaper Execution (Scenario 26):**
    - *Requirement to Unblock:* Pushing `.github/workflows/reaper-cron.yml` to the remote GitHub repository and monitoring the scheduled 5-minute trigger.
-3. **Remote Supabase Multi-Client TCP Network Trials (Scenario 30):**
-   - *Requirement to Unblock:* Provisioning isolated Supabase staging project credentials (`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`).
+
+> [!NOTE]
+> **UNBLOCKED & PASSED — Scenario 30 (Remote Supabase Multi-Client Concurrency Trials):**
+> Real hosted multi-connection concurrency validation was executed against the real LiveDrop Staging Supabase project (`https://aoagqdtnrbmayfoajzes.supabase.co`). 5 trials with 4 concurrent independent HTTP/TCP connections each (20 total race attempts) were executed. In every trial, exactly 1 reservation succeeded, exactly 3 were rejected with `STOCK_UNAVAILABLE`, product state transitioned atomically to `reserved`, and zero double-allocations or financial anomalies occurred. Result: **PASS**.
 
 ---
 
