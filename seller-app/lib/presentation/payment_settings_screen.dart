@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../data/repositories/seller_repository.dart';
-import '../domain/models/models.dart';
 
 /// LiveDrop Seller Mobile App — Direct UPI Payment Settings Screen (TASK-2.4B)
 ///
@@ -135,11 +134,11 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                         borderRadius: BorderRadius.circular(12.0),
                         border: Border.all(color: const Color(0xFFBBF7D0)),
                       ),
-                      child: Column(
+                      child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            children: const [
+                            children: [
                               Icon(Icons.shield_outlined, color: Color(0xFF16A34A), size: 20),
                               SizedBox(width: 8),
                               Text(
@@ -152,8 +151,8 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
+                          SizedBox(height: 8),
+                          Text(
                             'Buyers pay directly into your personal or business UPI-linked bank account. '
                             'LiveDrop never custodies your money and charges zero gateway fees. '
                             'You inspect your bank transaction history to manually verify receipt.',

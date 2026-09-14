@@ -237,6 +237,7 @@ export interface OrderReceipt {
   upi_uri?: string | null;
   payment_instructions?: string | null;
   active_payment_attempt?: PaymentAttempt | null;
+  payment_attempt?: PaymentAttempt | null;
   items: OrderReceiptItem[];
 }
 
@@ -341,6 +342,7 @@ export interface PaymentAttempt {
   seller_verified_at: string | null;
   verified_by: string | null;
   rejection_reason: string | null;
+  verification_expires_at?: string | null;
   expires_at: string;
   created_at: string;
   updated_at: string;
@@ -364,7 +366,9 @@ export interface InitiatePaymentAttemptSuccessResponse {
   transaction_reference: string;
   status: PaymentAttemptStatus;
   upi_uri: string;
+  verification_expires_at?: string | null;
   expires_at: string;
+  is_existing?: boolean;
   message?: string;
 }
 
@@ -392,6 +396,9 @@ export interface SubmitBuyerPaymentClaimSuccessResponse {
   status: PaymentAttemptStatus;
   buyer_submitted_utr: string;
   buyer_claimed_at: string;
+  verification_expires_at?: string | null;
+  expires_at?: string;
+  idempotent?: boolean;
   message: string;
 }
 

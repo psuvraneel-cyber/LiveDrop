@@ -306,7 +306,7 @@ class SellerRepository {
         'verify_manual_upi_payment',
         params: {
           'p_payment_attempt_id': paymentAttemptId,
-          if (overrideReference != null) 'p_override_reference': overrideReference,
+          'p_override_reference': ?overrideReference,
         },
       );
 

@@ -97,6 +97,7 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
       '011_domain_consistency_and_payment_authority_hardening.sql',
       '012_payment_authority_direct_update_hardening.sql',
       '013_direct_upi_and_manual_payment_verification.sql',
+      '014_persistent_payment_claim_window.sql',
     ];
 
     for (const file of migrationFiles) {

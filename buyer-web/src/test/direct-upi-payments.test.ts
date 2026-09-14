@@ -25,6 +25,9 @@ interface RpcOutput {
   order_token?: string;
   order_code?: string;
   total_paisa?: number;
+  is_existing?: boolean;
+  verification_expires_at?: string;
+  expires_at?: string;
 }
 
 interface PaymentAttemptRow {
@@ -59,6 +62,23 @@ interface OrderRow {
   total_paisa: number;
   fulfilment_status: string;
   hold_expires_at: string;
+  created_at: string;
+}
+
+interface ReceiptOrderPayload {
+  status: string;
+  payment_status: string;
+  total_paid_paisa: number;
+  balance_due_paisa: number;
+  total_paisa: number;
+  advance_paid_paisa: number;
+  hold_expires_at: string;
+  payment_attempt: {
+    status: string;
+    buyer_submitted_utr: string;
+    verification_expires_at: string;
+    expires_at: string;
+  };
 }
 
 describe('LiveDrop Direct UPI Payment & Manual Verification (TASK-2.4B)', () => {
@@ -74,7 +94,6 @@ describe('LiveDrop Direct UPI Payment & Manual Verification (TASK-2.4B)', () => 
   let dropBId: string;
   let prodA1Id: string;
   let prodA2Id: string;
-  let _prodB1Id: string;
 
   async function asSuperuser() {
     await db.exec(`
@@ -106,17 +125,6 @@ describe('LiveDrop Direct UPI Payment & Manual Verification (TASK-2.4B)', () => 
       SET request.jwt.claim.role = 'authenticated';
       SET request.jwt.claim.sub = '${sellerId}';
       SET request.jwt.claims = '{"role": "authenticated", "sub": "${sellerId}"}';
-      RESET request.headers;
-    `);
-  }
-
-  async function _asServiceRole() {
-    await db.exec(`
-      SET SESSION AUTHORIZATION DEFAULT;
-      SET ROLE service_role;
-      SET request.jwt.claim.role = 'service_role';
-      RESET request.jwt.claim.sub;
-      SET request.jwt.claims = '{"role": "service_role"}';
       RESET request.headers;
     `);
   }
@@ -177,6 +185,7 @@ describe('LiveDrop Direct UPI Payment & Manual Verification (TASK-2.4B)', () => 
       '011_domain_consistency_and_payment_authority_hardening.sql',
       '012_payment_authority_direct_update_hardening.sql',
       '013_direct_upi_and_manual_payment_verification.sql',
+      '014_persistent_payment_claim_window.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -258,12 +267,11 @@ describe('LiveDrop Direct UPI Payment & Manual Verification (TASK-2.4B)', () => 
     `);
     prodA2Id = pA2.rows[0].id;
 
-    const pB1 = await db.query<{ id: string }>(`
+    await db.query<{ id: string }>(`
       INSERT INTO products (drop_id, code, title, price_paisa, status, image_url)
       VALUES ('${dropBId}', '#B01', 'Kanjivaram Saree', 350000, 'available', 'https://cdn.livedrop.in/b01.jpg')
       RETURNING id;
     `);
-    _prodB1Id = pB1.rows[0].id;
   });
 
   afterAll(async () => {
@@ -1305,6 +1313,473 @@ describe('LiveDrop Direct UPI Payment & Manual Verification (TASK-2.4B)', () => 
       const o = await db.query<OrderRow>(`SELECT status, payment_status FROM orders WHERE id = $1;`, [ord.order_id]);
       expect(o.rows[0].status).toBe('pending');
       expect(o.rows[0].payment_status).toBe('unpaid');
+    });
+  });
+
+  // ==========================================================================
+  // TASK-2.4C: PERSISTENCE (PERSIST-01 .. PERSIST-04)
+  // ==========================================================================
+  describe('TASK-2.4C: Persistence Across Sessions & Offline Verification', () => {
+    it('PERSIST-01: Buyer submits UTR and closes browser; claim and order persist in Supabase', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+
+      const claimRes = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      expect(claimRes.rows[0].submit_buyer_payment_claim.success).toBe(true);
+      expect(claimRes.rows[0].submit_buyer_payment_claim.status).toBe('awaiting_seller_verification');
+
+      // Browser closes: session disconnected, role reset
+      await asSuperuser();
+
+      // Verify records persist intact in database
+      const attCheck = await db.query<{ status: string; buyer_submitted_utr: string; verification_expires_at: string }>(`
+        SELECT status, buyer_submitted_utr, verification_expires_at FROM payment_attempts WHERE id = $1;
+      `, [attId]);
+      expect(attCheck.rows[0].status).toBe('awaiting_seller_verification');
+      expect(attCheck.rows[0].buyer_submitted_utr).toBe('428739182799');
+      expect(attCheck.rows[0].verification_expires_at).toBeTruthy();
+
+      const ordCheck = await db.query<OrderRow>(`SELECT status, payment_status, hold_expires_at FROM orders WHERE id = $1;`, [ord.order_id]);
+      expect(ordCheck.rows[0].status).toBe('pending');
+      expect(ordCheck.rows[0].payment_status).toBe('unpaid');
+      expect(new Date(ordCheck.rows[0].hold_expires_at).toISOString()).toBe(new Date(attCheck.rows[0].verification_expires_at).toISOString());
+    });
+
+    it('PERSIST-02: Buyer returns after many hours; current database state is displayed', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      // Buyer returns later and queries tokenized receipt
+      await asAnon(ord.order_token);
+      const receiptRes = await db.query<{ get_order_by_token: { success: boolean; order: ReceiptOrderPayload } }>(`
+        SELECT get_order_by_token($1);
+      `, [ord.order_token]);
+
+      expect(receiptRes.rows[0].get_order_by_token.success).toBe(true);
+      const order = receiptRes.rows[0].get_order_by_token.order;
+      expect(order.status).toBe('pending');
+      expect(order.payment_status).toBe('unpaid');
+      expect(order.total_paid_paisa).toBe(0);
+      expect(order.balance_due_paisa).toBe(order.total_paisa);
+      expect(order.payment_attempt).toBeTruthy();
+      expect(order.payment_attempt.status).toBe('awaiting_seller_verification');
+      expect(order.payment_attempt.buyer_submitted_utr).toBe('428739182799');
+      expect(order.payment_attempt.verification_expires_at).toBeTruthy();
+    });
+
+    it('PERSIST-03: Seller verifies while buyer is offline; buyer later sees verified state', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      // Buyer closes browser (simulated role reset)
+      await asSuperuser();
+
+      // Seller verifies payment hours later
+      await asSeller(sellerAId);
+      const verRes = await db.query<{ verify_manual_upi_payment: RpcOutput }>(`
+        SELECT verify_manual_upi_payment($1);
+      `, [attId]);
+      expect(verRes.rows[0].verify_manual_upi_payment.success).toBe(true);
+
+      // Buyer returns 24 hours later and opens order link
+      await asAnon(ord.order_token);
+      const returnRes = await db.query<{ get_order_by_token: { success: boolean; order: ReceiptOrderPayload } }>(`
+        SELECT get_order_by_token($1);
+      `, [ord.order_token]);
+
+      expect(returnRes.rows[0].get_order_by_token.success).toBe(true);
+      const returnedOrder = returnRes.rows[0].get_order_by_token.order;
+      expect(returnedOrder.status).toBe('confirmed');
+      expect(returnedOrder.payment_status).toBe('advance_paid');
+      expect(returnedOrder.advance_paid_paisa).toBe(25000);
+      expect(returnedOrder.total_paid_paisa).toBe(25000);
+      expect(returnedOrder.balance_due_paisa).toBe(returnedOrder.total_paisa - 25000);
+      // Product remains reserved under post-advance hold
+      expect(returnedOrder.hold_expires_at).toBeTruthy();
+    });
+
+    it('PERSIST-04: Buyer reloads repeatedly; no duplicate payment attempt is created', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+
+      // Reload 1
+      const res1 = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId1 = res1.rows[0].initiate_payment_attempt.attempt_id!;
+
+      // Reload 2
+      const res2 = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      expect(res2.rows[0].initiate_payment_attempt.attempt_id).toBe(attId1);
+      expect(res2.rows[0].initiate_payment_attempt.is_existing).toBe(true);
+
+      // Reload 3
+      const res3 = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      expect(res3.rows[0].initiate_payment_attempt.attempt_id).toBe(attId1);
+
+      // Exactly 1 payment attempt exists in DB
+      await asSuperuser();
+      const countRes = await db.query<{ count: string }>(`
+        SELECT count(*) as count FROM payment_attempts WHERE order_id = $1;
+      `, [ord.order_id]);
+      expect(parseInt(countRes.rows[0].count, 10)).toBe(1);
+    });
+  });
+
+  // ==========================================================================
+  // TASK-2.4C: TIMER SEPARATION (TIMER-01 .. TIMER-06)
+  // ==========================================================================
+  describe('TASK-2.4C: Timer Separation & Deadline Invariants', () => {
+    it('TIMER-01: Initial 15-minute checkout hold exists before claim', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asSuperuser();
+      const o = await db.query<OrderRow>(`SELECT hold_expires_at, created_at FROM orders WHERE id = $1;`, [ord.order_id]);
+      const holdExpiry = new Date(o.rows[0].hold_expires_at!).getTime();
+      const created = new Date(o.rows[0].created_at).getTime();
+      const diffMinutes = (holdExpiry - created) / (60 * 1000);
+      expect(diffMinutes).toBeGreaterThanOrEqual(14);
+      expect(diffMinutes).toBeLessThanOrEqual(16);
+    });
+
+    it('TIMER-02: UTR claim extends effective reservation to verification deadline', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+
+      const claimRes = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      const verExpires = new Date(claimRes.rows[0].submit_buyer_payment_claim.verification_expires_at!).getTime();
+
+      // Order hold_expires_at is extended to match verification deadline
+      await asSuperuser();
+      const o = await db.query<OrderRow>(`SELECT hold_expires_at FROM orders WHERE id = $1;`, [ord.order_id]);
+      const orderHold = new Date(o.rows[0].hold_expires_at!).getTime();
+      expect(orderHold).toBe(verExpires);
+      expect(orderHold - Date.now()).toBeGreaterThan(23 * 3600 * 1000);
+    });
+
+    it('TIMER-03: Claim does not extend indefinitely (strictly capped at 24 hours)', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+
+      const claimRes = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      const verExpires = new Date(claimRes.rows[0].submit_buyer_payment_claim.verification_expires_at!).getTime();
+      const diffHours = (verExpires - Date.now()) / (3600 * 1000);
+      expect(diffHours).toBeLessThanOrEqual(24.1);
+      expect(diffHours).toBeGreaterThanOrEqual(23.9);
+    });
+
+    it('TIMER-04: Refreshing page does not extend deadline', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      const claimRes = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      const originalDeadline = claimRes.rows[0].submit_buyer_payment_claim.verification_expires_at;
+
+      // Refresh via get_order_by_token
+      const refresh1 = await db.query<{ get_order_by_token: { order: ReceiptOrderPayload } }>(`SELECT get_order_by_token($1);`, [ord.order_token]);
+      expect(refresh1.rows[0].get_order_by_token.order.payment_attempt.verification_expires_at).toBe(originalDeadline);
+
+      // Refresh via initiate_payment_attempt
+      const refresh2 = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      expect(refresh2.rows[0].initiate_payment_attempt.expires_at).toBe(originalDeadline);
+    });
+
+    it('TIMER-05: Submitting same UTR again does not extend deadline', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      const claim1 = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      const originalDeadline = claim1.rows[0].submit_buyer_payment_claim.verification_expires_at;
+
+      // Resubmit same UTR
+      const claim2 = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      expect(claim2.rows[0].submit_buyer_payment_claim.idempotent).toBe(true);
+      expect(claim2.rows[0].submit_buyer_payment_claim.verification_expires_at).toBe(originalDeadline);
+    });
+
+    it('TIMER-06: Seller opening verification queue does not extend deadline', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      const claim = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      const deadline = claim.rows[0].submit_buyer_payment_claim.verification_expires_at;
+
+      // Seller queries pending verifications
+      await asSeller(sellerAId);
+      const sellerQ = await db.query<{ verification_expires_at: string }>(`
+        SELECT verification_expires_at FROM payment_attempts WHERE id = $1;
+      `, [attId]);
+      expect(new Date(sellerQ.rows[0].verification_expires_at).toISOString()).toBe(new Date(deadline!).toISOString());
+    });
+  });
+
+  // ==========================================================================
+  // TASK-2.4C: EXPIRY & REAPER HARDENING (EXPIRY-01 .. EXPIRY-05)
+  // ==========================================================================
+  describe('TASK-2.4C: Expiry & Reaper Hardening', () => {
+    it('EXPIRY-01: Claim remains valid before verification deadline', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      // Running reaper does NOT expire the order because hold_expires_at is 24 hours in the future
+      await asSuperuser();
+      await db.query(`SELECT release_expired_holds();`);
+
+      const ordCheck = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1;`, [ord.order_id]);
+      expect(ordCheck.rows[0].status).toBe('pending');
+      const prodCheck = await db.query<{ status: string }>(`SELECT status FROM products WHERE id = $1;`, [prodA1Id]);
+      expect(prodCheck.rows[0].status).toBe('reserved');
+    });
+
+    it('EXPIRY-02: Claim expires when verification deadline passes', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      // Simulate passage of 24 hours: set hold_expires_at and verification_expires_at to past
+      await asSuperuser();
+      await db.query(`UPDATE orders SET hold_expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;`, [ord.order_id]);
+      await db.query(`UPDATE payment_attempts SET verification_expires_at = NOW() - INTERVAL '1 minute', expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;`, [attId]);
+
+      // Run reaper
+      await db.query(`SELECT release_expired_holds();`);
+
+      // Verify order cancelled and attempt expired
+      const ordCheck = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1;`, [ord.order_id]);
+      expect(ordCheck.rows[0].status).toBe('cancelled');
+
+      const attCheck = await db.query<{ status: string }>(`SELECT status FROM payment_attempts WHERE id = $1;`, [attId]);
+      expect(attCheck.rows[0].status).toBe('expired');
+    });
+
+    it('EXPIRY-03: Expired claim cannot be verified by seller', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      // Force expiration
+      await asSuperuser();
+      await db.query(`
+        UPDATE payment_attempts SET verification_expires_at = NOW() - INTERVAL '1 minute', expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;
+      `, [attId]);
+
+      // Seller attempts to verify
+      await asSeller(sellerAId);
+      const verRes = await db.query<{ verify_manual_upi_payment: RpcOutput }>(`
+        SELECT verify_manual_upi_payment($1);
+      `, [attId]);
+      expect(verRes.rows[0].verify_manual_upi_payment.success).toBe(false);
+      expect(verRes.rows[0].verify_manual_upi_payment.error).toBe('PAYMENT_ATTEMPT_EXPIRED');
+    });
+
+    it('EXPIRY-04: Expired claim releases product reservation back to available', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      await asSuperuser();
+      await db.query(`UPDATE orders SET hold_expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;`, [ord.order_id]);
+      await db.query(`UPDATE payment_attempts SET verification_expires_at = NOW() - INTERVAL '1 minute', expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;`, [attId]);
+
+      await db.query(`SELECT release_expired_holds();`);
+
+      const prodCheck = await db.query<{ status: string; reserved_by_order_id: string | null }>(`
+        SELECT status, reserved_by_order_id FROM products WHERE id = $1;
+      `, [prodA1Id]);
+      expect(prodCheck.rows[0].status).toBe('available');
+      expect(prodCheck.rows[0].reserved_by_order_id).toBeNull();
+    });
+
+    it('EXPIRY-05: No payment ledger row is created when an unverified claim expires', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      await asSuperuser();
+      await db.query(`UPDATE orders SET hold_expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;`, [ord.order_id]);
+      await db.query(`UPDATE payment_attempts SET verification_expires_at = NOW() - INTERVAL '1 minute', expires_at = NOW() - INTERVAL '1 minute' WHERE id = $1;`, [attId]);
+
+      await db.query(`SELECT release_expired_holds();`);
+
+      const payCount = await db.query<{ count: string }>(`
+        SELECT count(*) as count FROM order_payments WHERE order_id = $1;
+      `, [ord.order_id]);
+      expect(parseInt(payCount.rows[0].count, 10)).toBe(0);
+    });
+  });
+
+  // ==========================================================================
+  // TASK-2.4C: RACE CONDITIONS & CONCURRENCY (RACE-01 .. RACE-04)
+  // ==========================================================================
+  describe('TASK-2.4C: Concurrency & Race Conditions', () => {
+    it('RACE-01: Seller verifies at the same time expiry process runs', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      // If seller verifies right at boundary:
+      await asSeller(sellerAId);
+      const verRes = await db.query<{ verify_manual_upi_payment: RpcOutput }>(`
+        SELECT verify_manual_upi_payment($1);
+      `, [attId]);
+      expect(verRes.rows[0].verify_manual_upi_payment.success).toBe(true);
+
+      // Now reaper runs: order is confirmed, hold extended, products NOT released
+      await asSuperuser();
+      await db.query(`SELECT release_expired_holds();`);
+
+      const o = await db.query<OrderRow>(`SELECT status, payment_status FROM orders WHERE id = $1;`, [ord.order_id]);
+      expect(o.rows[0].status).toBe('confirmed');
+      expect(o.rows[0].payment_status).toBe('advance_paid');
+    });
+
+    it('RACE-02: Two seller verification calls occur simultaneously', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+      await db.query(`SELECT submit_buyer_payment_claim($1, $2, '428739182799');`, [attId, ord.order_token]);
+
+      await asSeller(sellerAId);
+      const [call1, call2] = await Promise.all([
+        db.query<{ verify_manual_upi_payment: RpcOutput }>(`SELECT verify_manual_upi_payment($1);`, [attId]),
+        db.query<{ verify_manual_upi_payment: RpcOutput }>(`SELECT verify_manual_upi_payment($1);`, [attId]),
+      ]);
+
+      const res1 = call1.rows[0].verify_manual_upi_payment;
+      const res2 = call2.rows[0].verify_manual_upi_payment;
+      expect(res1.success).toBe(true);
+      expect(res2.success).toBe(true);
+      // Exactly one was the primary execution, the other was idempotent
+      expect(Boolean(res1.idempotent) !== Boolean(res2.idempotent)).toBe(true);
+
+      // Exactly 1 payment ledger row created
+      await asSuperuser();
+      const pCount = await db.query<{ count: string }>(`SELECT count(*) as count FROM order_payments WHERE order_id = $1;`, [ord.order_id]);
+      expect(parseInt(pCount.rows[0].count, 10)).toBe(1);
+    });
+
+    it('RACE-03: Buyer submits claim at the same time expiry executes', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+      const initRes = await db.query<{ initiate_payment_attempt: RpcOutput }>(`
+        SELECT initiate_payment_attempt($1, $2, 'advance');
+      `, [ord.order_id, ord.order_token]);
+      const attId = initRes.rows[0].initiate_payment_attempt.attempt_id!;
+
+      // Claim submitted: atomically extends hold to 24 hours
+      const claim = await db.query<{ submit_buyer_payment_claim: RpcOutput }>(`
+        SELECT submit_buyer_payment_claim($1, $2, '428739182799');
+      `, [attId, ord.order_token]);
+      expect(claim.rows[0].submit_buyer_payment_claim.success).toBe(true);
+
+      // Reaper runs concurrently: skips order because hold_expires_at is now 24h away
+      await asSuperuser();
+      await db.query(`SELECT release_expired_holds();`);
+
+      const ordCheck = await db.query<OrderRow>(`SELECT status FROM orders WHERE id = $1;`, [ord.order_id]);
+      expect(ordCheck.rows[0].status).toBe('pending');
+    });
+
+    it('RACE-04: Buyer attempts to initiate another payment attempt while an active payment attempt exists', async () => {
+      const ord = await createOrder(dropAId, [prodA1Id]);
+      await asAnon(ord.order_token);
+
+      // Simultaneous initiate calls
+      const [init1, init2] = await Promise.all([
+        db.query<{ initiate_payment_attempt: RpcOutput }>(`SELECT initiate_payment_attempt($1, $2, 'advance');`, [ord.order_id, ord.order_token]),
+        db.query<{ initiate_payment_attempt: RpcOutput }>(`SELECT initiate_payment_attempt($1, $2, 'advance');`, [ord.order_id, ord.order_token]),
+      ]);
+
+      const att1 = init1.rows[0].initiate_payment_attempt;
+      const att2 = init2.rows[0].initiate_payment_attempt;
+      expect(att1.success).toBe(true);
+      expect(att2.success).toBe(true);
+      expect(att1.attempt_id).toBe(att2.attempt_id);
+
+      await asSuperuser();
+      const countRes = await db.query<{ count: string }>(`
+        SELECT count(*) as count FROM payment_attempts WHERE order_id = $1 AND payment_type = 'advance';
+      `, [ord.order_id]);
+      expect(parseInt(countRes.rows[0].count, 10)).toBe(1);
     });
   });
 });

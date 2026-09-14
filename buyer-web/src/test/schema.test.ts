@@ -101,6 +101,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       '011_domain_consistency_and_payment_authority_hardening.sql',
       '012_payment_authority_direct_update_hardening.sql',
       '013_direct_upi_and_manual_payment_verification.sql',
+      '014_persistent_payment_claim_window.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -572,12 +573,13 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       'idx_payment_attempts_reference',
       'idx_payment_attempts_status',
       'idx_payment_attempts_utr',
+      'idx_payment_attempts_verification_expires',
     ];
 
     for (const exp of expectedIndexes) {
       expect(indexNames, `Expected index ${exp} to be present in pg_indexes`).toContain(exp);
     }
-    expect(indexNames.length).toBe(14);
+    expect(indexNames.length).toBe(15);
   });
 
   // ==========================================================================
@@ -926,7 +928,6 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     expect(cols.status).toBe('text');
 
     // Verify status constraint rejects illegal values
-    const userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
     const dropRes = await db.query<{ id: string }>(`SELECT id FROM drops LIMIT 1;`);
     const ordRes = await db.query<{ id: string }>(`
       INSERT INTO orders (

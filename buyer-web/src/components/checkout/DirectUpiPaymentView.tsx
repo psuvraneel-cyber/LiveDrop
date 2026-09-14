@@ -21,6 +21,26 @@ export interface DirectUpiPaymentViewProps {
   onOrderRefresh?: (updatedOrder: OrderReceipt) => void;
 }
 
+function maskUtr(utr: string | null | undefined): string {
+  if (!utr) return '';
+  if (utr.length <= 4) return utr;
+  return '•'.repeat(Math.max(0, utr.length - 4)) + utr.slice(-4);
+}
+
+function formatDeadline(isoString: string | null | undefined): string {
+  if (!isoString) return '24 hours from submission';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleString('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 export function DirectUpiPaymentView({
   order,
   orderToken,
@@ -38,10 +58,17 @@ export function DirectUpiPaymentView({
     order.payment_status === 'advance_paid' ? 'balance' : initialPaymentType
   );
 
-  const initialAttempt =
-    'active_payment_attempt' in order && order.active_payment_attempt
-      ? order.active_payment_attempt
-      : null;
+  const resolveAttempt = (src: CreateOrderSuccessResponse | OrderReceipt): PaymentAttempt | null => {
+    if ('active_payment_attempt' in src && src.active_payment_attempt) {
+      return src.active_payment_attempt;
+    }
+    if ('payment_attempt' in src && (src as { payment_attempt?: PaymentAttempt | null }).payment_attempt) {
+      return (src as { payment_attempt?: PaymentAttempt | null }).payment_attempt || null;
+    }
+    return null;
+  };
+
+  const initialAttempt = resolveAttempt(order);
 
   const [activeAttempt, setActiveAttempt] = useState<PaymentAttempt | null>(initialAttempt);
   const [upiUri, setUpiUri] = useState<string>(
@@ -54,15 +81,114 @@ export function DirectUpiPaymentView({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<'vpa' | 'ref' | 'amount' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  // Synchronize internal state if order prop changes from parent
+  const [prevOrder, setPrevOrder] = useState(order);
+  if (order !== prevOrder) {
+    setPrevOrder(order);
+    const freshAttempt = resolveAttempt(order);
+    if (freshAttempt) {
+      setActiveAttempt(freshAttempt);
+      if (freshAttempt.upi_uri) setUpiUri(freshAttempt.upi_uri);
+      if (freshAttempt.buyer_submitted_utr) setUtrInput(freshAttempt.buyer_submitted_utr);
+    }
+  }
 
   // Derive active payment status and lifecycle
   const paymentStatus = order.payment_status;
   const isPaidInFull = paymentStatus === 'paid';
   const isAdvancePaid = paymentStatus === 'advance_paid';
   const orderLifecycleStatus = 'status' in order ? order.status : 'pending';
+  const isExpiredClaim =
+    activeAttempt?.status === 'expired' || orderLifecycleStatus === 'expired';
   const isTerminal = orderLifecycleStatus === 'cancelled' || orderLifecycleStatus === 'expired';
 
-  // 1. Generate QR Code when UPI URI changes
+  // 1. Authoritative Refresh Handler
+  const refreshOrderState = useCallback(async () => {
+    if (!orderId || !token) return;
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      const client = getBuyerClient();
+      const updated = await getOrderByToken(client, orderId, token);
+      if (onOrderRefresh) {
+        onOrderRefresh(updated);
+      }
+      const newAttempt = resolveAttempt(updated);
+      if (newAttempt) {
+        setActiveAttempt(newAttempt);
+        if (newAttempt.upi_uri) setUpiUri(newAttempt.upi_uri);
+        if (newAttempt.buyer_submitted_utr) setUtrInput(newAttempt.buyer_submitted_utr);
+      }
+    } catch {
+      setRefreshError('Unable to refresh order status. Please try again.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [orderId, token, onOrderRefresh]);
+
+  // 2. Tab Resume / Visibility Handlers (Re-fetch fresh server state on return)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshOrderState();
+      }
+    };
+    const handleFocus = () => {
+      void refreshOrderState();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshOrderState]);
+
+  // 3. Scoped Realtime Invalidation Listener
+  useEffect(() => {
+    if (!orderId) return;
+
+    const client = getBuyerClient();
+    const channel = client
+      .channel(`buyer-order-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`,
+        },
+        () => {
+          void refreshOrderState();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payment_attempts',
+          filter: `order_id=eq.${orderId}`,
+        },
+        () => {
+          void refreshOrderState();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [orderId, refreshOrderState]);
+
+  // 4. Generate QR Code when UPI URI changes
   useEffect(() => {
     let active = true;
     if (!upiUri) {
@@ -87,7 +213,7 @@ export function DirectUpiPaymentView({
     };
   }, [upiUri]);
 
-  // 2. Fetch or initiate a payment attempt when needed
+  // 5. Fetch or initiate a payment attempt when needed
   const ensurePaymentAttempt = useCallback(
     async (type: 'advance' | 'balance' | 'full') => {
       if (!orderId || !token || isPaidInFull || isTerminal) return;
@@ -114,6 +240,7 @@ export function DirectUpiPaymentView({
             seller_verified_at: null,
             verified_by: null,
             rejection_reason: null,
+            verification_expires_at: res.verification_expires_at || null,
             expires_at: res.expires_at,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -147,7 +274,7 @@ export function DirectUpiPaymentView({
     }
   }, [activeAttempt, paymentType, isPaidInFull, isTerminal, ensurePaymentAttempt]);
 
-  // 3. Handle copy to clipboard
+  // 6. Handle copy to clipboard
   const handleCopy = (text: string, field: 'vpa' | 'ref' | 'amount') => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
@@ -156,7 +283,7 @@ export function DirectUpiPaymentView({
     }
   };
 
-  // 4. Handle UTR claim submission
+  // 7. Handle UTR claim submission
   const handleSubmitClaim = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeAttempt) return;
@@ -167,8 +294,8 @@ export function DirectUpiPaymentView({
       return;
     }
 
-    if (cleanUtr.length < 6 || cleanUtr.length > 30 || !/^[a-zA-Z0-9]+$/.test(cleanUtr)) {
-      setUtrError('UTR must be 6–30 alphanumeric characters without symbols or spaces.');
+    if (cleanUtr.length < 6 || cleanUtr.length > 35 || !/^[a-zA-Z0-9_\-]+$/.test(cleanUtr)) {
+      setUtrError('UTR must be 6–35 alphanumeric characters without special symbols.');
       return;
     }
 
@@ -194,19 +321,14 @@ export function DirectUpiPaymentView({
                 status: res.status,
                 buyer_submitted_utr: res.buyer_submitted_utr,
                 buyer_claimed_at: res.buyer_claimed_at,
+                verification_expires_at: res.verification_expires_at || prev.verification_expires_at,
+                expires_at: res.expires_at || prev.expires_at,
               }
             : null
         );
 
-        // Refresh full order receipt if parent listener provided
-        if (onOrderRefresh && token) {
-          try {
-            const updated = await getOrderByToken(client, orderId, token);
-            onOrderRefresh(updated);
-          } catch {
-            // Retain local optimistic state
-          }
-        }
+        // Authoritatively refresh parent order state
+        await refreshOrderState();
       }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to submit payment claim.');
@@ -252,30 +374,75 @@ export function DirectUpiPaymentView({
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: Terminal states (Cancelled / Expired)
+  // RENDER: Expired state
   // ---------------------------------------------------------------------------
-  if (isTerminal) {
+  if (isExpiredClaim) {
     return (
-      <div className="ld-payment-box ld-payment-box-terminal" data-testid="payment-terminal-banner">
+      <div className="ld-payment-box ld-payment-box-terminal" data-testid="verification-expired-banner">
         <div className="ld-payment-status-badge ld-badge-expired">
-          <span>Order {orderLifecycleStatus === 'expired' ? 'Expired' : 'Cancelled'}</span>
+          <span>Payment Verification Expired</span>
         </div>
+        <h3 className="ld-payment-headline">Verification Window Elapsed</h3>
         <p className="ld-payment-subtext">
-          This order is in terminal state ({orderLifecycleStatus}) and cannot accept new payments or claims.
+          This order could not be confirmed because the payment was not verified within the 24-hour verification window. The product reservation has been released.
+        </p>
+        <p className="ld-payment-subtext" style={{ marginTop: '8px', fontSize: '13px', color: '#64748B' }}>
+          If money was debited from your bank account, please contact the boutique directly with your UPI UTR reference for out-of-band resolution.
         </p>
       </div>
     );
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER: Advance paid state (Prompting balance payment)
+  // RENDER: Terminal states (Cancelled)
+  // ---------------------------------------------------------------------------
+  if (isTerminal) {
+    return (
+      <div className="ld-payment-box ld-payment-box-terminal" data-testid="payment-terminal-banner">
+        <div className="ld-payment-status-badge ld-badge-expired">
+          <span>Order Cancelled</span>
+        </div>
+        <p className="ld-payment-subtext">
+          This order is cancelled and cannot accept new payments or claims.
+        </p>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER: Active Payment or Verification Queue
   // ---------------------------------------------------------------------------
   const isClaimUnderReview =
     activeAttempt?.status === 'awaiting_seller_verification' ||
     activeAttempt?.status === 'buyer_claimed';
 
+  const verificationDeadline =
+    activeAttempt?.verification_expires_at || activeAttempt?.expires_at;
+
+  const balanceAfterVerification =
+    order.total_paisa - (order.advance_required_paisa || activeAttempt?.expected_amount_paisa || 0);
+
   return (
     <div className="ld-direct-upi-container" data-testid="direct-upi-payment-section">
+      {/* Network Refresh Error Banner */}
+      {refreshError && (
+        <div className="ld-payment-error" role="alert" data-testid="network-refresh-error" style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{refreshError}</span>
+            <button
+              type="button"
+              className="ld-btn-claim"
+              style={{ width: 'auto', padding: '4px 12px', fontSize: '12px' }}
+              onClick={() => void refreshOrderState()}
+              disabled={isRefreshing}
+              data-testid="retry-refresh-btn"
+            >
+              {isRefreshing ? 'Retrying...' : 'Retry'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Advance Confirmed Alert if applicable */}
       {isAdvancePaid && (
         <div className="ld-advance-confirmed-banner" data-testid="advance-verified-banner">
@@ -284,9 +451,20 @@ export function DirectUpiPaymentView({
             <span className="ld-banner-amount">{formatPaisaToINR(order.advance_paid_paisa)} Paid</span>
           </div>
           <p className="ld-banner-subtext">
-            Your reservation hold is confirmed! Remaining balance due is{' '}
-            <strong>{formatPaisaToINR(order.balance_due_paisa)}</strong>. Complete payment before dispatch.
+            Your order is confirmed! The {formatPaisaToINR(order.advance_paid_paisa)} advance is part of your purchase price and has been deducted from your remaining balance.
           </p>
+          <div className="ld-submitted-meta" style={{ marginTop: '8px' }}>
+            <div className="ld-sub-row">
+              <span>Remaining Balance:</span>
+              <strong>{formatPaisaToINR(order.balance_due_paisa)}</strong>
+            </div>
+            {order.hold_expires_at && (
+              <div className="ld-sub-row">
+                <span>Reserved Until:</span>
+                <strong>{formatDeadline(order.hold_expires_at)}</strong>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -306,7 +484,7 @@ export function DirectUpiPaymentView({
         </div>
 
         {/* Payment Type Switcher (only if advance confirmation is supported on order and unpaid) */}
-        {order.confirmation_mode === 'advance' && order.payment_status === 'unpaid' && (
+        {order.confirmation_mode === 'advance' && order.payment_status === 'unpaid' && !isClaimUnderReview && (
           <div className="ld-payment-mode-tabs" role="tablist" aria-label="Payment Mode Options">
             <button
               type="button"
@@ -352,139 +530,202 @@ export function DirectUpiPaymentView({
           </div>
         ) : activeAttempt ? (
           <div className="ld-upi-body">
-            {/* QR Code Section */}
-            <div className="ld-qr-block">
-              {qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={qrDataUrl}
-                  alt={`UPI Payment QR Code for ${activeAttempt.payee_display_name_snapshot || 'Boutique'}`}
-                  className="ld-qr-image"
-                  data-testid="upi-qr-image"
-                />
-              ) : (
-                <div className="ld-qr-placeholder" aria-hidden="true">
-                  <span>QR Code Loading...</span>
+            {/* If claim is NOT submitted yet, show QR & UPI details */}
+            {!isClaimUnderReview && (
+              <>
+                {/* QR Code Section */}
+                <div className="ld-qr-block">
+                  {qrDataUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={qrDataUrl}
+                      alt={`UPI Payment QR Code for ${activeAttempt.payee_display_name_snapshot || 'Boutique'}`}
+                      className="ld-qr-image"
+                      data-testid="upi-qr-image"
+                    />
+                  ) : (
+                    <div className="ld-qr-placeholder" aria-hidden="true">
+                      <span>QR Code Loading...</span>
+                    </div>
+                  )}
+                  <span className="ld-qr-caption">Scan with any UPI app to pay exact amount</span>
                 </div>
-              )}
-              <span className="ld-qr-caption">Scan with any UPI app to pay exact amount</span>
-            </div>
 
-            {/* Payee Details List */}
-            <div className="ld-upi-details-list">
-              <div className="ld-detail-row">
-                <span className="ld-detail-label">Payee Name</span>
-                <span className="ld-detail-val" data-testid="payee-name">
-                  {activeAttempt.payee_display_name_snapshot || 'Boutique'}
-                </span>
-              </div>
+                {/* Payee Details List */}
+                <div className="ld-upi-details-list">
+                  <div className="ld-detail-row">
+                    <span className="ld-detail-label">Payee Name</span>
+                    <span className="ld-detail-val" data-testid="payee-name">
+                      {activeAttempt.payee_display_name_snapshot || 'Boutique'}
+                    </span>
+                  </div>
 
-              <div className="ld-detail-row">
-                <span className="ld-detail-label">UPI ID</span>
-                <div className="ld-copyable-box">
-                  <code className="ld-vpa-code" data-testid="payee-vpa">
-                    {activeAttempt.payee_vpa_snapshot}
-                  </code>
-                  <button
-                    type="button"
-                    className="ld-copy-btn"
-                    onClick={() => handleCopy(activeAttempt.payee_vpa_snapshot, 'vpa')}
-                    aria-label="Copy UPI ID"
-                    data-testid="copy-vpa-btn"
-                  >
-                    {copiedField === 'vpa' ? 'Copied!' : 'Copy'}
-                  </button>
+                  <div className="ld-detail-row">
+                    <span className="ld-detail-label">UPI ID</span>
+                    <div className="ld-copyable-box">
+                      <code className="ld-vpa-code" data-testid="payee-vpa">
+                        {activeAttempt.payee_vpa_snapshot}
+                      </code>
+                      <button
+                        type="button"
+                        className="ld-copy-btn"
+                        onClick={() => handleCopy(activeAttempt.payee_vpa_snapshot, 'vpa')}
+                        aria-label="Copy UPI ID"
+                        data-testid="copy-vpa-btn"
+                      >
+                        {copiedField === 'vpa' ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="ld-detail-row">
+                    <span className="ld-detail-label">Exact Amount</span>
+                    <span className="ld-detail-val ld-detail-amount" data-testid="payment-expected-amount">
+                      {formatPaisaToINR(activeAttempt.expected_amount_paisa)}
+                    </span>
+                  </div>
+
+                  <div className="ld-detail-row">
+                    <span className="ld-detail-label">Order Reference</span>
+                    <div className="ld-copyable-box">
+                      <code className="ld-ref-code" data-testid="payment-reference">
+                        {activeAttempt.transaction_reference}
+                      </code>
+                      <button
+                        type="button"
+                        className="ld-copy-btn"
+                        onClick={() => handleCopy(activeAttempt.transaction_reference, 'ref')}
+                        aria-label="Copy Reference"
+                        data-testid="copy-ref-btn"
+                      >
+                        {copiedField === 'ref' ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="ld-detail-row">
-                <span className="ld-detail-label">Exact Amount</span>
-                <span className="ld-detail-val ld-detail-amount" data-testid="payment-expected-amount">
-                  {formatPaisaToINR(activeAttempt.expected_amount_paisa)}
-                </span>
-              </div>
-
-              <div className="ld-detail-row">
-                <span className="ld-detail-label">Order Reference</span>
-                <div className="ld-copyable-box">
-                  <code className="ld-ref-code" data-testid="payment-reference">
-                    {activeAttempt.transaction_reference}
-                  </code>
-                  <button
-                    type="button"
-                    className="ld-copy-btn"
-                    onClick={() => handleCopy(activeAttempt.transaction_reference, 'ref')}
-                    aria-label="Copy Reference"
-                    data-testid="copy-ref-btn"
-                  >
-                    {copiedField === 'ref' ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* UPI App Launch Intent Button */}
-            {upiUri && (
-              <div className="ld-intent-cta-wrap">
-                <a
-                  href={upiUri}
-                  className="ld-btn-upi-intent"
-                  data-testid="pay-with-upi-intent-btn"
-                  target="_self"
-                  rel="noopener noreferrer"
-                >
-                  Pay {formatPaisaToINR(activeAttempt.expected_amount_paisa)} with UPI App
-                </a>
-                <span className="ld-intent-note">
-                  Opens Google Pay, PhonePe, Paytm, or BHIM directly on mobile.
-                </span>
-              </div>
+                {/* UPI App Launch Intent Button */}
+                {upiUri && (
+                  <div className="ld-intent-cta-wrap">
+                    <a
+                      href={upiUri}
+                      className="ld-btn-upi-intent"
+                      data-testid="pay-with-upi-intent-btn"
+                      target="_self"
+                      rel="noopener noreferrer"
+                    >
+                      Pay {formatPaisaToINR(activeAttempt.expected_amount_paisa)} with UPI App
+                    </a>
+                    <span className="ld-intent-note">
+                      Opens Google Pay, PhonePe, Paytm, or BHIM directly on mobile.
+                    </span>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Claim / UTR Submission Workflow */}
             <div className="ld-claim-section" data-testid="payment-claim-section">
-              <div className="ld-claim-header">
-                <h4 className="ld-claim-title">Step 2: Submit Payment Confirmation</h4>
-              </div>
+              {!isClaimUnderReview && (
+                <div className="ld-claim-header">
+                  <h4 className="ld-claim-title">Step 2: Submit Payment Confirmation</h4>
+                </div>
+              )}
 
               {isClaimUnderReview ? (
-                /* State: Buyer Claimed & Awaiting Seller Manual Verification */
+                /* State: Buyer Claimed & Awaiting Seller Manual Verification (TASK-2.4C Resume-Safe UX) */
                 <div className="ld-claim-submitted-box" data-testid="payment-claimed-card">
                   <div className="ld-claim-badge">
                     <span className="ld-pulse-dot" />
                     <span>Payment Submitted</span>
                   </div>
-                  <h5 className="ld-claim-headline">Waiting for Boutique Verification</h5>
+                  <h5 className="ld-claim-headline">Payment Verification Pending</h5>
                   <p className="ld-claim-text">
-                    We received your transaction reference. The boutique will check their bank account and manually verify the payment.
+                    Your {formatPaisaToINR(activeAttempt.expected_amount_paisa)} payment claim has been saved.
+                    The boutique needs to verify the payment from their UPI/bank transaction history.
                   </p>
+
+                  <div
+                    style={{
+                      backgroundColor: '#ECFDF5',
+                      border: '1px solid #A7F3D0',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      margin: '12px 0',
+                    }}
+                    data-testid="safe-to-close-notice"
+                  >
+                    <strong style={{ color: '#065F46', display: 'block', marginBottom: '4px' }}>
+                      You can safely close this page.
+                    </strong>
+                    <span style={{ color: '#047857', fontSize: '13px' }}>
+                      Save this order link to check your payment and order status later. When the boutique verifies your payment, this page will reflect the updated status immediately.
+                    </span>
+                  </div>
+
                   <div className="ld-submitted-meta">
                     <div className="ld-sub-row">
-                      <span>Submitted UTR:</span>
-                      <strong data-testid="submitted-utr-val">{activeAttempt.buyer_submitted_utr}</strong>
+                      <span>Order:</span>
+                      <strong>{order.order_code}</strong>
                     </div>
                     <div className="ld-sub-row">
-                      <span>Amount:</span>
-                      <strong>{formatPaisaToINR(activeAttempt.expected_amount_paisa)}</strong>
+                      <span>Payment:</span>
+                      <strong>
+                        {formatPaisaToINR(activeAttempt.expected_amount_paisa)}{' '}
+                        {activeAttempt.payment_type === 'advance' ? 'Advance' : 'Payment'}
+                      </strong>
                     </div>
                     <div className="ld-sub-row">
                       <span>Status:</span>
-                      <span className="ld-badge-waiting">Awaiting Seller Verification</span>
+                      <span className="ld-badge-waiting">Verification Pending</span>
                     </div>
+                    <div className="ld-sub-row">
+                      <span>Submitted UTR:</span>
+                      <strong data-testid="submitted-utr-val">
+                        {maskUtr(activeAttempt.buyer_submitted_utr)}
+                      </strong>
+                    </div>
+                    <div className="ld-sub-row">
+                      <span>Verification Deadline:</span>
+                      <strong data-testid="verification-deadline">
+                        {formatDeadline(verificationDeadline)}
+                      </strong>
+                    </div>
+                    {activeAttempt.payment_type === 'advance' && (
+                      <div className="ld-sub-row">
+                        <span>Balance after verification:</span>
+                        <strong>{formatPaisaToINR(balanceAfterVerification)}</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      marginTop: '12px',
+                    }}
+                    data-testid="do-not-pay-again-warning"
+                  >
+                    <span style={{ color: '#92400E', fontSize: '13px', fontWeight: 600 }}>
+                      ⚠️ Do not pay again unless the boutique asks you to.
+                    </span>
                   </div>
                 </div>
               ) : activeAttempt.status === 'rejected' ? (
-                /* State: Seller Rejected Claim */
+                /* State: Seller Rejected Claim (Non-accusatory message) */
                 <div className="ld-claim-rejected-box" data-testid="payment-rejected-card">
                   <div className="ld-claim-badge ld-badge-error">
-                    <span>Payment Verification Unsuccessful</span>
+                    <span>Payment Could Not Be Verified</span>
                   </div>
                   <p className="ld-reject-desc">
-                    The boutique could not verify this transaction:{' '}
-                    <strong>{activeAttempt.rejection_reason || 'Payment not found in bank statement.'}</strong>
+                    The boutique was unable to verify this payment claim (
+                    {activeAttempt.rejection_reason || 'Payment not found in bank statement'}).
                   </p>
                   <p className="ld-reject-action">
-                    Please verify your transaction in your UPI app and re-submit the correct 12-digit UTR below.
+                    Please verify your transaction in your UPI app and re-submit the correct 12-digit UTR below. If needed, contact the boutique directly.
                   </p>
 
                   <form onSubmit={handleSubmitClaim} className="ld-utr-form">
@@ -499,7 +740,7 @@ export function DirectUpiPaymentView({
                         placeholder="e.g. 428739182734"
                         value={utrInput}
                         onChange={(e) => setUtrInput(e.target.value.toUpperCase())}
-                        maxLength={30}
+                        maxLength={35}
                         autoComplete="off"
                         data-testid="utr-retry-input"
                       />
@@ -535,7 +776,7 @@ export function DirectUpiPaymentView({
                         setUtrInput(e.target.value.trim());
                         if (utrError) setUtrError(null);
                       }}
-                      maxLength={30}
+                      maxLength={35}
                       autoComplete="off"
                       aria-required="true"
                       data-testid="utr-input-field"

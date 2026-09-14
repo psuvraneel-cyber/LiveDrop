@@ -521,6 +521,7 @@ class PaymentAttempt {
   final DateTime? sellerVerifiedAt;
   final String? verifiedBy;
   final String? rejectionReason;
+  final DateTime? verificationExpiresAt;
   final DateTime expiresAt;
   final DateTime createdAt;
   final String? orderCode;
@@ -541,6 +542,7 @@ class PaymentAttempt {
     this.sellerVerifiedAt,
     this.verifiedBy,
     this.rejectionReason,
+    this.verificationExpiresAt,
     required this.expiresAt,
     required this.createdAt,
     this.orderCode,
@@ -569,6 +571,9 @@ class PaymentAttempt {
           : null,
       verifiedBy: json['verified_by'] as String?,
       rejectionReason: json['rejection_reason'] as String?,
+      verificationExpiresAt: json['verification_expires_at'] != null
+          ? DateTime.parse(json['verification_expires_at'] as String)
+          : null,
       expiresAt: DateTime.parse(json['expires_at'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
       orderCode: orderMap?['order_code'] as String?,

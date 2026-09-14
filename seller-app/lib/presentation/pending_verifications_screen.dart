@@ -59,8 +59,7 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm Manual Verification'),
         content: Text(
-          'Have you verified receipt of ${_formatPaisa(attempt.expectedAmountPaisa)} '
-          'with UTR "${attempt.buyerSubmittedUtr}" in your UPI/bank app?',
+          'Confirm that ${_formatPaisa(attempt.expectedAmountPaisa)} was received in your UPI/bank account for this order.',
         ),
         actions: [
           TextButton(
@@ -73,7 +72,7 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Yes, Payment Verified'),
+            child: const Text('Verify Payment'),
           ),
         ],
       ),
@@ -251,60 +250,89 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadVerifications,
-              child: _pendingAttempts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.check_circle_outline, size: 64, color: Color(0xFF16A34A)),
-                          SizedBox(height: 16),
-                          Text(
-                            'All Payments Verified!',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Color(0xFFDC2626)),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Failed to load verifications',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadVerifications,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadVerifications,
+                  child: _pendingAttempts.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 64, color: Color(0xFF16A34A)),
+                              SizedBox(height: 16),
+                              Text(
+                                'All Payments Verified!',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'No pending buyer payment claims awaiting verification.',
+                                style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                              ),
+                            ],
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'No pending buyer payment claims awaiting verification.',
-                            style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      itemCount: _pendingAttempts.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          // Instructional Banner
-                          return Container(
-                            margin: const EdgeInsets.bottom(16.0),
-                            padding: const EdgeInsets.all(14.0),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(8.0),
-                              border: Border.all(color: const Color(0xFFFDE68A)),
-                            ),
-                            child: Row(
-                              children: const [
-                                Icon(Icons.info_outline, color: Color(0xFF92400E), size: 20),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Check your bank account/UPI app before confirming. '
-                                    'Manual verification records an immutable transaction on the order ledger.',
-                                    style: TextStyle(
-                                      color: Color(0xFF92400E),
-                                      fontSize: 13,
-                                      height: 1.3,
-                                    ),
-                                  ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16.0),
+                          itemCount: _pendingAttempts.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              // Instructional Banner
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 16.0),
+                                padding: const EdgeInsets.all(14.0),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  border: Border.all(color: const Color(0xFFFDE68A)),
                                 ),
-                              ],
-                            ),
-                          );
-                        }
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline, color: Color(0xFF92400E), size: 20),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Check your bank account/UPI app before confirming. '
+                                        'Manual verification records an immutable transaction on the order ledger.',
+                                        style: TextStyle(
+                                          color: Color(0xFF92400E),
+                                          fontSize: 13,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
 
                         final attempt = _pendingAttempts[index - 1];
                         final isProcessing = _processingIds.contains(attempt.id);
@@ -437,6 +465,22 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                                   'Reference: ${attempt.transactionReference}',
                                   style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                                 ),
+                                if (attempt.buyerClaimedAt != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Claimed At: ${attempt.buyerClaimedAt!.toLocal().toString().substring(0, 16)}',
+                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                                  ),
+                                ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Verification Deadline: ${(attempt.verificationExpiresAt ?? attempt.expiresAt).toLocal().toString().substring(0, 16)}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFB45309),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 16),
 
                                 // Verification Actions
@@ -480,9 +524,10 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                                                       AlwaysStoppedAnimation<Color>(Colors.white),
                                                 ),
                                               )
-                                            : const Text(
-                                                'Verify Payment',
-                                                style: TextStyle(fontWeight: FontWeight.bold),
+                                            : Text(
+                                                'Verify ${_formatPaisa(attempt.expectedAmountPaisa)} received',
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                                textAlign: TextAlign.center,
                                               ),
                                       ),
                                     ),

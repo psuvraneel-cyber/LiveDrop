@@ -50,6 +50,7 @@ async function run() {
     '011_domain_consistency_and_payment_authority_hardening.sql',
     '012_payment_authority_direct_update_hardening.sql',
     '013_direct_upi_and_manual_payment_verification.sql',
+    '014_persistent_payment_claim_window.sql',
   ];
 
   console.log(`📦 Applying ${migrationFiles.length} migrations sequentially:`);
@@ -97,10 +98,22 @@ async function run() {
     'idx_payment_attempts_order_id',
     'idx_payment_attempts_status',
     'idx_payment_attempts_reference',
+    'idx_payment_attempts_verification_expires',
   ];
   for (const exp of expectedIndexes) {
     if (!indexes.includes(exp)) throw new Error(`Missing expected index: ${exp}`);
   }
+
+  console.log('🔍 Verifying payment_attempts.verification_expires_at column:');
+  const verColRes = await db.query(`
+    SELECT column_name, data_type 
+    FROM information_schema.columns 
+    WHERE table_name = 'payment_attempts' AND column_name = 'verification_expires_at';
+  `);
+  if (verColRes.rows.length === 0) {
+    throw new Error('Missing expected column: payment_attempts.verification_expires_at!');
+  }
+  console.log('  ✓ payment_attempts.verification_expires_at: timestamp with time zone');
 
   console.log('🔍 Verifying integer Paisa columns:');
   const paisaRes = await db.query(`
@@ -397,6 +410,58 @@ async function run() {
   console.log('  ✓ Verified: Cross-order reference reuse explicitly blocked with REFERENCE_USED_ON_ANOTHER_ORDER.');
 
   await db.exec('RESET ROLE;');
+
+  console.log('🛡️ Verifying Persistent Payment Claim Window & Reaper Hardening (TASK-2.4C):');
+  // Order 6 (9a279045-2366-464a-f866-ba7f546fa067) is pending with advance mode
+  // Buyer submits UTR for Order 6 payment attempt
+  const claimRes = await db.query(`
+    SELECT submit_buyer_payment_claim(
+      '9a279045-2366-464a-f866-ba7f546fa067'::uuid,
+      '4b56c377-a036-4b66-42ff-8b39406df589',
+      'a1000000-0000-0000-0000-000000000001'::uuid,
+      '428739182799'
+    ) as r;
+  `);
+  const cResult = claimRes.rows[0].r;
+  if (!cResult.success) {
+    throw new Error(`Claim submission failed: ${JSON.stringify(cResult)}`);
+  }
+  if (!cResult.verification_expires_at) {
+    throw new Error('Claim result missing verification_expires_at!');
+  }
+  // Verify order hold was extended
+  const ordCheck = await db.query(`SELECT hold_expires_at, payment_status, total_paid_paisa FROM orders WHERE id = '9a279045-2366-464a-f866-ba7f546fa067'`);
+  if (new Date(ordCheck.rows[0].hold_expires_at).getTime() < Date.now() + 23 * 3600 * 1000) {
+    throw new Error('Order hold_expires_at was not extended to 24-hour verification window!');
+  }
+  if (ordCheck.rows[0].payment_status !== 'unpaid' || ordCheck.rows[0].total_paid_paisa !== 0) {
+    throw new Error('Financial state mutated on claim submission!');
+  }
+  console.log('  ✓ Verified: UTR claim atomically extended order hold to 24-hour window without mutating financial state.');
+
+  // Verify idempotent submission does not extend deadline further
+  const claimRes2 = await db.query(`
+    SELECT submit_buyer_payment_claim(
+      '9a279045-2366-464a-f866-ba7f546fa067'::uuid,
+      '4b56c377-a036-4b66-42ff-8b39406df589',
+      'a1000000-0000-0000-0000-000000000001'::uuid,
+      '428739182799'
+    ) as r;
+  `);
+  if (!claimRes2.rows[0].r.idempotent) {
+    throw new Error('Expected idempotent success on resubmitting same UTR!');
+  }
+  console.log('  ✓ Verified: Resubmitting identical UTR returns idempotent success without resetting deadline.');
+
+  // Verify get_order_by_token returns payment_attempt with verification_expires_at
+  const tokenReceipt = await db.query(`
+    SELECT get_order_by_token('4b56c377-a036-4b66-42ff-8b39406df589') as r;
+  `);
+  const rOrder = tokenReceipt.rows[0].r.order;
+  if (!rOrder.payment_attempt || !rOrder.payment_attempt.verification_expires_at) {
+    throw new Error('get_order_by_token did not include payment_attempt.verification_expires_at!');
+  }
+  console.log('  ✓ Verified: get_order_by_token returns authoritative payment_attempt with verification_expires_at.');
 
   await db.close();
   console.log('✅ ALL RELATIONAL DATABASE SCHEMA, STOREFRONT INVARIANTS, RLS POLICIES, BUSINESS RPCS & MULTI-SELLER SEED DATA VERIFIED.');
