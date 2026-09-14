@@ -11,6 +11,7 @@ on:
     paths:
       - "seller-app/**"
       - ".github/workflows/seller-app-ci.yml"
+  workflow_dispatch:
 
 jobs:
   validate-flutter:
@@ -45,5 +46,22 @@ jobs:
       - name: Run Flutter unit & widget tests
         run: flutter test
 
-      - name: Build Android Debug APK
-        run: flutter build apk --debug
+      - name: Build Android Staging Debug APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SUPABASE_ANON_KEY" ]; then
+            echo "::add-mask::$SUPABASE_ANON_KEY"
+          fi
+          flutter build apk --debug \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --dart-define=APP_ENV=staging
+
+      - name: Upload Staging APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: seller-app-staging-debug
+          path: seller-app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

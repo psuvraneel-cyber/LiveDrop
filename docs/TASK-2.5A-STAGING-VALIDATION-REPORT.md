@@ -396,10 +396,10 @@ Below is the authoritative 30-scenario failure injection matrix evaluated in `sc
 
 ## 26. Remaining Blocks
 
-The following validations could not be completed on the local workstation and are formally classified as **BLOCKED**:
+The following validation status updates reflect the completed physical staging hardening:
 
 1. **Flutter APK On-Device Runtime Execution (Scenario 27):**
-   - *Requirement to Unblock:* Execution of `.github/workflows/seller-app-ci.yml` in a GitHub Actions runner with Flutter SDK, or installing Flutter SDK v3.24+ and Android SDK locally.
+   - *Status:* **UNBLOCKED & PASSED**. The Flutter toolchain (Flutter 3.41.6, Dart 3.11.4, Android SDK 35) was validated locally. The Supabase initialization lifecycle was hardened with `_isInitialized` tracking, graceful `ConfigurationErrorScreen` rendering, decoupled repository/realtime constructors, and safe auth change streams. The GitHub Actions CI workflow (`.github/workflows/seller-app-ci.yml`) was updated with `workflow_dispatch`, log masking via `::add-mask::`, `--dart-define` injection (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_ENV=staging`), and artifact upload. The debug staging APK compiles cleanly, contains zero service-role credentials, and authenticates successfully against LiveDrop Staging (`aoagqdtnrbmayfoajzes.supabase.co`).
 2. **Scheduled GitHub Actions Cron Reaper Execution (Scenario 26):**
    - *Requirement to Unblock:* Pushing `.github/workflows/reaper-cron.yml` to the remote GitHub repository and monitoring the scheduled 5-minute trigger.
 
