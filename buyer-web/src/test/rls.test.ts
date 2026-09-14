@@ -82,7 +82,7 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
       $$;
     `);
 
-    // 2. Apply all 8 migrations sequentially
+    // 2. Apply all 13 migrations sequentially
     const migrationFiles = [
       '001_create_profiles.sql',
       '002_create_drops.sql',
@@ -93,6 +93,10 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
       '007_create_triggers.sql',
       '008_enable_rls_and_policies.sql',
       '009_create_core_business_rpcs.sql',
+      '010_seller_storefront_and_order_state_machine.sql',
+      '011_domain_consistency_and_payment_authority_hardening.sql',
+      '012_payment_authority_direct_update_hardening.sql',
+      '013_direct_upi_and_manual_payment_verification.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -110,9 +114,9 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
 
     // Seed Profiles
     await db.query(`
-      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address, default_shipping_fee_paisa)
-      VALUES ($1, 'Priya Trends', '9876543210', 'priya@okaxis', 'Indiranagar Bengaluru', 8000),
-             ($2, 'Ananya Silks', '9876543211', 'ananya@okhdfcbank', 'T Nagar Chennai', 7000);
+      INSERT INTO profiles (id, store_name, store_slug, phone_number, upi_id, return_address, default_shipping_fee_paisa)
+      VALUES ($1, 'Priya Trends', 'priya-trends', '9876543210', 'priya@okaxis', 'Indiranagar Bengaluru', 8000),
+             ($2, 'Ananya Silks', 'ananya-silks', '9876543211', 'ananya@okhdfcbank', 'T Nagar Chennai', 7000);
     `, [sellerAId, sellerBId]);
 
     // Seed Drops
@@ -136,9 +140,13 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
 
     // Seed Orders
     await db.query(`
-      INSERT INTO orders (id, drop_id, order_code, order_token, buyer_name, buyer_phone, shipping_address, pincode, subtotal_paisa, shipping_paisa, total_paisa, status, hold_expires_at)
-      VALUES ($1, $2, 'LD-A00001', $3, 'Rohan Sharma', '919876543201', '12 Park Street Kolkata', '700016', 150000, 8000, 158000, 'pending', NOW() + INTERVAL '15 minutes'),
-             ($4, $5, 'LD-B00001', $6, 'Deepa Rao', '919876543202', '45 Anna Salai Chennai', '600002', 80000, 7000, 87000, 'pending', NOW() + INTERVAL '15 minutes');
+      INSERT INTO orders (
+        id, drop_id, order_code, order_token, buyer_name, buyer_phone, shipping_address, pincode,
+        subtotal_paisa, shipping_paisa, total_paisa, status, hold_expires_at,
+        confirmation_mode, advance_required_paisa, total_paid_paisa, balance_due_paisa
+      ) VALUES 
+        ($1, $2, 'LD-A00001', $3, 'Rohan Sharma', '919876543201', '12 Park Street Kolkata', '700016', 150000, 8000, 158000, 'pending', NOW() + INTERVAL '15 minutes', 'advance', 25000, 0, 158000),
+        ($4, $5, 'LD-B00001', $6, 'Deepa Rao', '919876543202', '45 Anna Salai Chennai', '600002', 80000, 7000, 87000, 'pending', NOW() + INTERVAL '15 minutes', 'advance', 25000, 0, 87000);
     `, [orderAId, dropA1LiveId, orderAToken, orderBId, dropB1LiveId, orderBToken]);
 
     // Seed Order Items
@@ -556,15 +564,16 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
           SET drop_id = $1 
           WHERE id = $2;
         `, [dropB1LiveId, orderAId])
-      ).rejects.toThrow(/violates row-level security policy/i);
+      ).rejects.toThrow(/violates row-level security policy|prohibited for authenticated sellers/i);
     });
 
     it('5.5 Seller A CANNOT DELETE a finalized order (trigger trg_orders_no_delete_finalized)', async () => {
-      await asSeller(sellerAId);
-      // First update status to 'paid' (simulating payment completion)
-      await db.query(`UPDATE orders SET status = 'paid' WHERE id = $1;`, [orderAId]);
+      // Superuser finalizes order (since migration 012 blocks seller from direct status=paid update)
+      await asSuperuser();
+      await db.query(`UPDATE orders SET status = 'paid', payment_status = 'paid', total_paid_paisa = total_paisa, balance_due_paisa = 0 WHERE id = $1;`, [orderAId]);
 
       // Attempt deletion as seller
+      await asSeller(sellerAId);
       await expect(
         db.query(`DELETE FROM orders WHERE id = $1;`, [orderAId])
       ).rejects.toThrow(/Cannot delete finalized order/i);
@@ -574,8 +583,15 @@ describe('LiveDrop Row-Level Security & Access Control (TASK-1.2)', () => {
       const tempOrderId = 'ea000000-0000-0000-0000-000000000099';
       await asSuperuser();
       await db.query(`
-        INSERT INTO orders (id, drop_id, order_code, order_token, buyer_name, buyer_phone, shipping_address, pincode, subtotal_paisa, shipping_paisa, total_paisa, status, hold_expires_at)
-        VALUES ($1, $2, 'LD-A99999', gen_random_uuid(), 'Cancel Buyer', '919876543211', '12 Test St Kolkata', '700001', 50000, 0, 50000, 'pending', NOW() + INTERVAL '15 min');
+        INSERT INTO orders (
+          id, drop_id, order_code, order_token, buyer_name, buyer_phone, shipping_address, pincode,
+          subtotal_paisa, shipping_paisa, total_paisa, status, hold_expires_at,
+          confirmation_mode, advance_required_paisa, total_paid_paisa, balance_due_paisa
+        ) VALUES (
+          $1, $2, 'LD-A99999', gen_random_uuid(), 'Cancel Buyer', '919876543211', '12 Test St Kolkata', '700001',
+          50000, 0, 50000, 'pending', NOW() + INTERVAL '15 min',
+          'full_payment', 0, 0, 50000
+        );
       `, [tempOrderId, dropA1LiveId]);
 
       await asSeller(sellerAId);

@@ -86,7 +86,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       $$;
     `);
 
-    // 2. Read and apply all 8 migration files in deterministic sequential order
+    // 2. Read and apply all 13 migration files in deterministic sequential order
     const migrationFiles = [
       '001_create_profiles.sql',
       '002_create_drops.sql',
@@ -97,6 +97,10 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       '007_create_triggers.sql',
       '008_enable_rls_and_policies.sql',
       '009_create_core_business_rpcs.sql',
+      '010_seller_storefront_and_order_state_machine.sql',
+      '011_domain_consistency_and_payment_authority_hardening.sql',
+      '012_payment_authority_direct_update_hardening.sql',
+      '013_direct_upi_and_manual_payment_verification.sql',
     ];
 
     for (const file of migrationFiles) {
@@ -123,10 +127,10 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
 
     const res = await db.query<ProfileRow>(`
       INSERT INTO profiles (
-        id, store_name, phone_number, upi_id, upi_qr_url, return_address, 
+        id, store_name, store_slug, phone_number, upi_id, upi_qr_url, return_address, 
         default_shipping_fee_paisa, free_shipping_threshold_paisa
       ) VALUES (
-        $1, 'Priya Boutique', '9876543210', 'priya@okaxis', 'https://cdn.livedrop.in/qr.png',
+        $1, 'Priya Boutique', 'priya-boutique', '9876543210', 'priya@okaxis', 'https://cdn.livedrop.in/qr.png',
         '42 MG Road, Indiranagar, Bengaluru, Karnataka 560038', 8000, 200000
       ) RETURNING *;
     `, [userId]);
@@ -185,11 +189,13 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const res = await db.query<OrderRow>(`
       INSERT INTO orders (
         id, drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
-        subtotal_paisa, shipping_paisa, total_paisa, status
+        subtotal_paisa, shipping_paisa, total_paisa, status,
+        confirmation_mode, advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa
       ) VALUES (
         $1, $2, 'LD-7K92MF', 'Ananya Sharma', '9123456789',
         'Flat 402, Palm Grove Apts, Koramangala, Bengaluru', '560034',
-        145000, 8000, 153000, 'pending'
+        145000, 8000, 153000, 'pending',
+        'advance', 25000, 0, 0, 153000
       ) RETURNING *;
     `, [orderId, dropId]);
 
@@ -438,10 +444,12 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const oRes = await db.query<OrderRow>(`
       INSERT INTO orders (
         drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
-        subtotal_paisa, shipping_paisa, total_paisa
+        subtotal_paisa, shipping_paisa, total_paisa,
+        confirmation_mode, advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa
       ) VALUES (
         $1, 'LD-CASC01', 'Cascade Buyer', '9876543210', '123 Address Lane', '560001',
-        50000, 0, 50000
+        50000, 0, 50000,
+        'full_payment', 0, 0, 0, 50000
       ) RETURNING id, order_code, order_token, subtotal_paisa, shipping_paisa, total_paisa, status, hold_expires_at;
     `, [dropId]);
     const oId = oRes.rows[0].id;
@@ -499,10 +507,12 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const oRes = await db.query<OrderRow>(`
       INSERT INTO orders (
         drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
-        subtotal_paisa, shipping_paisa, total_paisa
+        subtotal_paisa, shipping_paisa, total_paisa,
+        confirmation_mode, advance_required_paisa, advance_paid_paisa, total_paid_paisa, balance_due_paisa
       ) VALUES (
         $1, 'LD-RESV01', 'Reserve Buyer', '9876543210', '123 Address Lane', '560001',
-        75000, 0, 75000
+        75000, 0, 75000,
+        'full_payment', 0, 0, 0, 75000
       ) RETURNING id, order_code, order_token, subtotal_paisa, shipping_paisa, total_paisa, status, hold_expires_at;
     `, [dropId]);
     const orderId = oRes.rows[0].id;
@@ -532,7 +542,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       ORDER BY table_name, column_name;
     `);
 
-    expect(res.rows.length).toBe(9);
+    expect(res.rows.length).toBe(17);
     for (const col of res.rows) {
       expect(col.data_type, `Column ${col.table_name}.${col.column_name} must be integer`).toBe('integer');
     }
@@ -551,18 +561,23 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       'idx_products_drop_status',
       'idx_products_active_hold',
       'idx_orders_drop_status',
-      // idx_orders_order_token removed: UNIQUE constraint creates implicit index
       'idx_orders_hold_expiry',
       'idx_orders_buyer_phone',
       'idx_order_items_order',
       'idx_order_items_product',
       'idx_drops_one_live_per_seller',
+      'idx_order_payments_order',
+      'idx_order_payments_status',
+      'idx_payment_attempts_order_id',
+      'idx_payment_attempts_reference',
+      'idx_payment_attempts_status',
+      'idx_payment_attempts_utr',
     ];
 
     for (const exp of expectedIndexes) {
       expect(indexNames, `Expected index ${exp} to be present in pg_indexes`).toContain(exp);
     }
-    expect(indexNames.length).toBe(8);
+    expect(indexNames.length).toBe(14);
   });
 
   // ==========================================================================
@@ -575,10 +590,10 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const seller2Id = 'a2eebc99-9c0b-4ef8-bb6d-6bb9bd380a02';
     await db.query(`INSERT INTO auth.users (id, email) VALUES ($1, 's1@live.in'), ($2, 's2@live.in');`, [seller1Id, seller2Id]);
     await db.query(`
-      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address)
+      INSERT INTO profiles (id, store_name, store_slug, phone_number, upi_id, return_address)
       VALUES 
-        ($1, 'Seller One Store', '9811111111', 's1@okhdfc', '100 Road, Bengaluru 560001'),
-        ($2, 'Seller Two Store', '9822222222', 's2@okhdfc', '200 Road, Bengaluru 560002');
+        ($1, 'Seller One Store', 'seller-one-store', '9811111111', 's1@okhdfc', '100 Road, Bengaluru 560001'),
+        ($2, 'Seller Two Store', 'seller-two-store', '9822222222', 's2@okhdfc', '200 Road, Bengaluru 560002');
     `, [seller1Id, seller2Id]);
 
     // 1. Seller 1 creates their first live drop -> SUCCESS
@@ -660,10 +675,12 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const paidRes = await db.query<OrderRow>(`
       INSERT INTO orders (
         drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
-        subtotal_paisa, shipping_paisa, total_paisa, status, paid_at
+        subtotal_paisa, shipping_paisa, total_paisa, status, paid_at,
+        confirmation_mode, payment_status, total_paid_paisa, balance_due_paisa
       ) VALUES (
         $1, 'LD-PDTEST', 'Paid Buyer', '9876543210', '123 Address Lane', '560001',
-        100000, 0, 100000, 'paid', NOW()
+        100000, 0, 100000, 'paid', NOW(),
+        'full_payment', 'paid', 100000, 0
       ) RETURNING id;
     `, [dropId]);
     const paidOrderId = paidRes.rows[0].id;
@@ -675,10 +692,12 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const shippedRes = await db.query<OrderRow>(`
       INSERT INTO orders (
         drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
-        subtotal_paisa, shipping_paisa, total_paisa, status, paid_at, shipped_at
+        subtotal_paisa, shipping_paisa, total_paisa, status, paid_at, shipped_at,
+        confirmation_mode, payment_status, total_paid_paisa, balance_due_paisa, fulfilment_status
       ) VALUES (
         $1, 'LD-SHPTST', 'Shipped Buyer', '9876543210', '123 Address Lane', '560001',
-        100000, 0, 100000, 'shipped', NOW(), NOW()
+        100000, 0, 100000, 'shipped', NOW(), NOW(),
+        'full_payment', 'paid', 100000, 0, 'shipped'
       ) RETURNING id;
     `, [dropId]);
     const shippedOrderId = shippedRes.rows[0].id;
@@ -690,10 +709,12 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     const cancelledRes = await db.query<OrderRow>(`
       INSERT INTO orders (
         drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
-        subtotal_paisa, shipping_paisa, total_paisa, status
+        subtotal_paisa, shipping_paisa, total_paisa, status,
+        confirmation_mode, payment_status, total_paid_paisa, balance_due_paisa
       ) VALUES (
         $1, 'LD-CNLTST', 'Cancelled Buyer', '9876543210', '123 Address Lane', '560001',
-        100000, 0, 100000, 'cancelled'
+        100000, 0, 100000, 'cancelled',
+        'full_payment', 'unpaid', 0, 100000
       ) RETURNING id;
     `, [dropId]);
     const cancelledOrderId = cancelledRes.rows[0].id;
@@ -814,15 +835,15 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
 
     // Invalid UPI (no @)
     await expect(db.query(`
-      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address)
-      VALUES ($1, 'Store Name', '9876543210', 'invalidvpa', '123 Address Lane 560001');
+      INSERT INTO profiles (id, store_name, store_slug, phone_number, upi_id, return_address)
+      VALUES ($1, 'Store Name', 'bad-upi-store-1', '9876543210', 'invalidvpa', '123 Address Lane 560001');
     `, [badUserId])).rejects.toThrow();
 
     // Invalid UPI (username exceeds 255 chars)
     const longUpi = 'a'.repeat(256) + '@okhdfc';
     await expect(db.query(`
-      INSERT INTO profiles (id, store_name, phone_number, upi_id, return_address)
-      VALUES ($1, 'Store Name', '9876543210', $2, '123 Address Lane 560001');
+      INSERT INTO profiles (id, store_name, store_slug, phone_number, upi_id, return_address)
+      VALUES ($1, 'Store Name', 'bad-upi-store-2', '9876543210', $2, '123 Address Lane 560001');
     `, [badUserId, longUpi])).rejects.toThrow();
 
     // 2. Slug length validation: rejects slug < 3 chars or > 60 chars (F6 remediation)
@@ -864,7 +885,7 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
     `, [validDropId, longUrl])).rejects.toThrow();
   });
 
-  it('33. should verify all 5 database triggers exist in information_schema.triggers', async () => {
+  it('33. should verify all active database triggers exist in information_schema.triggers', async () => {
     const res = await db.query<{ trigger_name: string; event_object_table: string }>(`
       SELECT trigger_name, event_object_table
       FROM information_schema.triggers
@@ -878,12 +899,76 @@ describe('LiveDrop Relational Database Schema (TASK-1.1)', () => {
       'trg_orders_updated_at',
       'trg_products_updated_at',
       'trg_profiles_updated_at',
+      'trg_order_payments_updated_at',
+      'trg_enforce_orders_payment_immutability',
+      'trg_enforce_products_inventory_immutability',
+      'trg_payment_attempts_updated_at',
+      'trg_sync_profiles_upi_fields',
     ];
 
     const foundNames = res.rows.map((r) => r.trigger_name);
     for (const exp of expectedTriggers) {
       expect(foundNames, `Trigger ${exp} must exist`).toContain(exp);
     }
-    expect(res.rows.length).toBe(5);
+  });
+
+  it('34. should verify payment_attempts table schema, status constraints, and integer Paisa amounts (TASK-2.4B)', async () => {
+    // Verify table structure in information_schema
+    const colRes = await db.query<{ column_name: string; data_type: string }>(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'payment_attempts';
+    `);
+    const cols = Object.fromEntries(colRes.rows.map(r => [r.column_name, r.data_type]));
+    expect(cols.expected_amount_paisa).toBe('integer');
+    expect(cols.payee_vpa_snapshot).toBe('text');
+    expect(cols.transaction_reference).toBe('text');
+    expect(cols.status).toBe('text');
+
+    // Verify status constraint rejects illegal values
+    const userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const dropRes = await db.query<{ id: string }>(`SELECT id FROM drops LIMIT 1;`);
+    const ordRes = await db.query<{ id: string }>(`
+      INSERT INTO orders (
+        drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
+        subtotal_paisa, shipping_paisa, total_paisa,
+        confirmation_mode, advance_required_paisa, total_paid_paisa, balance_due_paisa
+      ) VALUES (
+        $1, 'LD-SCH001', 'Schema Buyer', '9876543299', '12 Test Lane', '560001',
+        100000, 5000, 105000,
+        'advance', 25000, 0, 105000
+      )
+      RETURNING id;
+    `, [dropRes.rows[0].id]);
+    const orderId = ordRes.rows[0].id;
+
+    await expect(db.query(`
+      INSERT INTO payment_attempts (order_id, payment_type, expected_amount_paisa, payee_vpa_snapshot, transaction_reference, status)
+      VALUES ($1, 'advance', 25000, 'seller@upi', 'REF-SCH-01', 'arbitrary_fake_status');
+    `, [orderId])).rejects.toThrow();
+  });
+
+  it('35. should verify order_payments payment_method and verification_method columns (TASK-2.4B)', async () => {
+    const colRes = await db.query<{ column_name: string; data_type: string }>(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'order_payments';
+    `);
+    const cols = Object.fromEntries(colRes.rows.map(r => [r.column_name, r.data_type]));
+    expect(cols.payment_method).toBe('text');
+    expect(cols.verification_method).toBe('text');
+  });
+
+  it('36. should verify profiles UPI settings and bidirectional sync trigger (TASK-2.4B)', async () => {
+    const colRes = await db.query<{ column_name: string; data_type: string }>(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'profiles';
+    `);
+    const cols = Object.fromEntries(colRes.rows.map(r => [r.column_name, r.data_type]));
+    expect(cols.upi_enabled).toBe('boolean');
+    expect(cols.upi_vpa).toBe('text');
+    expect(cols.upi_display_name).toBe('text');
+    expect(cols.payment_instructions).toBe('text');
   });
 });

@@ -195,4 +195,158 @@ class SellerRepository {
       throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
     }
   }
+
+  /// Updates seller-level UPI settings.
+  Future<void> updateUpiSettings({
+    required bool upiEnabled,
+    required String upiVpa,
+    String? upiDisplayName,
+    String? paymentInstructions,
+  }) async {
+    final sellerId = _requireSellerId();
+
+    try {
+      await _client.from('profiles').update({
+        'upi_enabled': upiEnabled,
+        'upi_vpa': upiVpa,
+        'upi_id': upiVpa,
+        'upi_display_name': upiDisplayName,
+        'payment_instructions': paymentInstructions,
+      }).eq('id', sellerId);
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Fetches pending payment attempts awaiting manual verification by this seller.
+  Future<List<PaymentAttempt>> getPendingVerifications() async {
+    _requireSellerId();
+
+    try {
+      final response = await _client
+          .from('payment_attempts')
+          .select('''
+            id,
+            order_id,
+            payment_type,
+            payment_method,
+            expected_amount_paisa,
+            payee_vpa_snapshot,
+            payee_display_name_snapshot,
+            transaction_reference,
+            status,
+            buyer_claimed_at,
+            buyer_submitted_utr,
+            seller_verified_at,
+            verified_by,
+            rejection_reason,
+            expires_at,
+            created_at,
+            orders!inner (
+              order_code,
+              buyer_name
+            )
+          ''')
+          .inFilter('status', ['buyer_claimed', 'awaiting_seller_verification'])
+          .order('buyer_claimed_at', ascending: true);
+
+      return (response as List<dynamic>)
+          .map((e) => PaymentAttempt.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Fetches all payment attempts associated with a specific order.
+  Future<List<PaymentAttempt>> getPaymentAttemptsForOrder(String orderId) async {
+    _requireSellerId();
+
+    try {
+      final response = await _client
+          .from('payment_attempts')
+          .select('''
+            id,
+            order_id,
+            payment_type,
+            payment_method,
+            expected_amount_paisa,
+            payee_vpa_snapshot,
+            payee_display_name_snapshot,
+            transaction_reference,
+            status,
+            buyer_claimed_at,
+            buyer_submitted_utr,
+            seller_verified_at,
+            verified_by,
+            rejection_reason,
+            expires_at,
+            created_at
+          ''')
+          .eq('order_id', orderId)
+          .order('created_at', ascending: false);
+
+      return (response as List<dynamic>)
+          .map((e) => PaymentAttempt.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Verifies a manual direct UPI payment attempt via `verify_manual_upi_payment` RPC.
+  Future<Map<String, dynamic>> verifyManualUpiPayment(
+    String paymentAttemptId, [
+    String? overrideReference,
+  ]) async {
+    _requireSellerId();
+
+    try {
+      final response = await _client.rpc<dynamic>(
+        'verify_manual_upi_payment',
+        params: {
+          'p_payment_attempt_id': paymentAttemptId,
+          if (overrideReference != null) 'p_override_reference': overrideReference,
+        },
+      );
+
+      final map = response as Map<String, dynamic>;
+      if (map['success'] != true) {
+        final error = map['error'] as String? ?? 'VERIFICATION_FAILED';
+        throw LiveDropException(map['message'] as String? ?? error, code: error);
+      }
+
+      return map;
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Rejects an unverified manual payment claim via `reject_manual_upi_payment` RPC.
+  Future<Map<String, dynamic>> rejectManualUpiPayment(
+    String paymentAttemptId,
+    String rejectionReason,
+  ) async {
+    _requireSellerId();
+
+    try {
+      final response = await _client.rpc<dynamic>(
+        'reject_manual_upi_payment',
+        params: {
+          'p_payment_attempt_id': paymentAttemptId,
+          'p_rejection_reason': rejectionReason,
+        },
+      );
+
+      final map = response as Map<String, dynamic>;
+      if (map['success'] != true) {
+        final error = map['error'] as String? ?? 'REJECTION_FAILED';
+        throw LiveDropException(map['message'] as String? ?? error, code: error);
+      }
+
+      return map;
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
 }

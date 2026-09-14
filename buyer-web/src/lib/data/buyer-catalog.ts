@@ -21,6 +21,10 @@ import {
   OrderReceipt,
   GetOrderByTokenResponse,
   GetOrderByTokenErrorResponse,
+  InitiatePaymentAttemptSuccessResponse,
+  InitiatePaymentAttemptResponse,
+  SubmitBuyerPaymentClaimSuccessResponse,
+  SubmitBuyerPaymentClaimResponse,
 } from '../../types/domain';
 import { classifyRpcError, ErrorCode, InvalidOrderTokenError, LiveDropError, NetworkError } from '../errors';
 
@@ -250,3 +254,92 @@ export async function getOrderByToken(
     throw new NetworkError(err instanceof Error ? err.message : String(err));
   }
 }
+
+/**
+ * Initiates an order-specific payment attempt via `initiate_payment_attempt` RPC.
+ * Server determines expected amount in integer Paisa and payee UPI VPA snapshot.
+ */
+export async function initiatePaymentAttempt(
+  client: SupabaseClient,
+  orderId: string,
+  orderToken: string,
+  paymentType: 'advance' | 'balance' | 'full' = 'advance'
+): Promise<InitiatePaymentAttemptSuccessResponse> {
+  if (!orderId || !orderToken) {
+    throw new InvalidOrderTokenError('Order ID and receipt token are required.');
+  }
+
+  try {
+    const { data, error } = await client.rpc('initiate_payment_attempt', {
+      p_order_id: orderId,
+      p_order_token: orderToken,
+      p_payment_type: paymentType,
+    });
+
+    if (error) {
+      throw new LiveDropError(
+        `Failed to initiate payment attempt: ${error.message}`,
+        (error.code as ErrorCode) || 'UNKNOWN_ERROR'
+      );
+    }
+
+    const response = data as InitiatePaymentAttemptResponse;
+    if (!response || response.success !== true) {
+      throw new LiveDropError(
+        response?.message || response?.error || 'Payment initiation failed.',
+        (response?.error as ErrorCode) || 'UNKNOWN_ERROR'
+      );
+    }
+
+    return response;
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Submits the buyer's payment claim (UTR / UPI Transaction ID) via `submit_buyer_payment_claim` RPC.
+ * Does NOT mark payment verified; transitions attempt to awaiting_seller_verification.
+ */
+export async function submitBuyerPaymentClaim(
+  client: SupabaseClient,
+  orderId: string,
+  orderToken: string,
+  paymentAttemptId: string,
+  utr: string
+): Promise<SubmitBuyerPaymentClaimSuccessResponse> {
+  if (!orderId || !orderToken || !paymentAttemptId || !utr) {
+    throw new LiveDropError('Order ID, token, payment attempt ID, and UTR are required.', 'INVALID_INPUT');
+  }
+
+  try {
+    const { data, error } = await client.rpc('submit_buyer_payment_claim', {
+      p_order_id: orderId,
+      p_order_token: orderToken,
+      p_payment_attempt_id: paymentAttemptId,
+      p_utr: utr,
+    });
+
+    if (error) {
+      throw new LiveDropError(
+        `Failed to submit payment claim: ${error.message}`,
+        (error.code as ErrorCode) || 'UNKNOWN_ERROR'
+      );
+    }
+
+    const response = data as SubmitBuyerPaymentClaimResponse;
+    if (!response || response.success !== true) {
+      throw new LiveDropError(
+        response?.message || response?.error || 'Payment claim submission failed.',
+        (response?.error as ErrorCode) || 'UNKNOWN_ERROR'
+      );
+    }
+
+    return response;
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+

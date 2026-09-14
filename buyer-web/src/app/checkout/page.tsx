@@ -301,7 +301,7 @@ function CheckoutPageContent() {
         </header>
 
         <main className="ld-container ld-checkout-main" role="main">
-          <CheckoutSuccessView order={existingOrder} />
+          <CheckoutSuccessView order={existingOrder} orderToken={urlToken || undefined} />
         </main>
       </div>
     );

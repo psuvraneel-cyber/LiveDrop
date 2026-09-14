@@ -148,7 +148,7 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       $$;
     `);
 
-    // 2. Apply all 12 migrations sequentially (001 -> 012)
+    // 2. Apply all 13 migrations sequentially (001 -> 013)
     const migrationFiles = [
       '001_create_profiles.sql',
       '002_create_drops.sql',
@@ -162,6 +162,7 @@ describe('LiveDrop Transactional Business RPCs (TASK-1.3)', () => {
       '010_seller_storefront_and_order_state_machine.sql',
       '011_domain_consistency_and_payment_authority_hardening.sql',
       '012_payment_authority_direct_update_hardening.sql',
+      '013_direct_upi_and_manual_payment_verification.sql',
     ];
 
     for (const file of migrationFiles) {

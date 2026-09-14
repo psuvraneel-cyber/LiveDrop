@@ -171,4 +171,77 @@ void main() {
       expect(ex.code, 'UNAUTHORIZED');
     });
   });
+
+  group('TASK-2.4B: Seller Direct UPI & Manual Verification Tests', () {
+    test('SellerProfile parses UPI settings correctly', () {
+      final json = {
+        'id': '8a329e71-4b10-4055-90d2-df8029d5b512',
+        'store_name': "Mother's Boutique",
+        'store_slug': 'mothers-boutique',
+        'phone_number': '919830012345',
+        'upi_id': 'mothersboutique@okaxis',
+        'upi_vpa': 'mothersboutique@okaxis',
+        'upi_display_name': "Mother's Boutique Official",
+        'payment_instructions': 'Include reference LD-XXXX in note',
+        'upi_enabled': true,
+        'return_address': '12A Ballygunge Place, Kolkata - 700019',
+        'default_shipping_fee_paisa': 8000,
+        'advance_confirmation_enabled': true,
+        'advance_amount_paisa': 25000,
+        'hold_duration_days': 30,
+      };
+
+      final profile = SellerProfile.fromJson(json);
+      expect(profile.upiEnabled, true);
+      expect(profile.upiVpa, 'mothersboutique@okaxis');
+      expect(profile.upiDisplayName, "Mother's Boutique Official");
+      expect(profile.paymentInstructions, 'Include reference LD-XXXX in note');
+    });
+
+    test('PaymentAttempt parses JSON correctly with status and timestamps', () {
+      final json = {
+        'id': 'a1000000-0000-0000-0000-000000000004',
+        'order_id': '7a389156-3477-475b-a977-cb8a657ab078',
+        'payment_type': 'advance',
+        'payment_method': 'upi',
+        'expected_amount_paisa': 30000,
+        'payee_vpa_snapshot': 'artisansilks@upi',
+        'payee_display_name_snapshot': 'Artisan Silks Handlooms',
+        'transaction_reference': 'LD-ART404-ADV-1004',
+        'status': 'awaiting_seller_verification',
+        'buyer_claimed_at': '2026-09-14T11:45:00Z',
+        'buyer_submitted_utr': '428739182738',
+        'seller_verified_at': null,
+        'verified_by': null,
+        'rejection_reason': null,
+        'expires_at': '2026-09-28T11:45:00Z',
+        'created_at': '2026-09-14T11:30:00Z',
+        'orders': {
+          'order_code': 'LD-ART404',
+          'buyer_name': 'Kavita Verma',
+        },
+      };
+
+      final attempt = PaymentAttempt.fromJson(json);
+      expect(attempt.id, 'a1000000-0000-0000-0000-000000000004');
+      expect(attempt.paymentType, 'advance');
+      expect(attempt.expectedAmountPaisa, 30000);
+      expect(attempt.payeeVpaSnapshot, 'artisansilks@upi');
+      expect(attempt.payeeDisplayNameSnapshot, 'Artisan Silks Handlooms');
+      expect(attempt.transactionReference, 'LD-ART404-ADV-1004');
+      expect(attempt.status, PaymentAttemptStatus.awaitingSellerVerification);
+      expect(attempt.buyerSubmittedUtr, '428739182738');
+      expect(attempt.orderCode, 'LD-ART404');
+      expect(attempt.buyerName, 'Kavita Verma');
+    });
+
+    test('PaymentAttemptStatus enum values match DB constraints', () {
+      expect(PaymentAttemptStatus.fromString('awaiting_payment').toDbValue(), 'awaiting_payment');
+      expect(PaymentAttemptStatus.fromString('buyer_claimed').toDbValue(), 'buyer_claimed');
+      expect(PaymentAttemptStatus.fromString('awaiting_seller_verification').toDbValue(), 'awaiting_seller_verification');
+      expect(PaymentAttemptStatus.fromString('verified').toDbValue(), 'verified');
+      expect(PaymentAttemptStatus.fromString('rejected').toDbValue(), 'rejected');
+      expect(PaymentAttemptStatus.fromString('expired').toDbValue(), 'expired');
+    });
+  });
 }

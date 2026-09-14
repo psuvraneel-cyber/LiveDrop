@@ -408,6 +408,73 @@ This document serves as the permanent, immutable engineering audit trail for all
 * **Verdict:**
   * **PASS — TASK-2.4A.2 COMPLETE; READY FOR FINAL ADVERSARIAL RE-AUDIT**
 
+---
+
+### [2026-09-14] TASK-2.4B — Direct UPI Payment & Manual Verification
+
+* **Status:** Complete (Verified)
+* **Goal:** Introduce direct peer-to-peer UPI payment rail with manual seller verification without payment gateway dependencies (Razorpay/Cashfree/Stripe), while guaranteeing zero fund custody, immutable financial ledgers, atomic state transitions, and adversarial protection.
+* **Execution Details:**
+  1. **Migration 013 (`013_direct_upi_and_manual_payment_verification.sql`):**
+     - Extended `profiles` with `upi_enabled`, `upi_vpa`, `upi_display_name`, `payment_instructions`, and bidirectional synchronization trigger `trg_sync_profiles_upi_fields`.
+     - Extended `order_payments` with `payment_method` (default 'upi') and `verification_method` (default 'seller_manual').
+     - Created `payment_attempts` table with check constraints, foreign keys, status state machine (`created`, `awaiting_payment`, `buyer_claimed`, `awaiting_seller_verification`, `verified`, `rejected`, `expired`), and collision-resistant transaction references.
+     - Enabled RLS on `payment_attempts` with seller select policy and token-gated buyer select policy.
+     - Created `generate_upi_payment_uri()` helper encoding standard provider-neutral UPI payment parameters.
+     - Created RPCs: `initiate_payment_attempt`, `submit_buyer_payment_claim`, `verify_manual_upi_payment`, `reject_manual_upi_payment`.
+     - Patched `record_verified_payment()` for cross-order idempotency (`REFERENCE_USED_ON_ANOTHER_ORDER`).
+     - Enhanced `get_order_by_token()` to return active payment attempt details and UPI URI.
+  2. **Multi-Seller Seed Fixture (`supabase/seed.sql`):** Added synthetic UPI configurations for Seller A, Seller B, Seller C, and representative payment attempts.
+  3. **Schema Verifier (`scripts/verify-schema.mjs`):** Updated to verify 13 migrations, 7 tables, 14 indexes, 17 Paisa columns, 11 triggers, 17 RLS policies, 13 RPCs with strict routine privileges, multi-seller seed data, direct seller mutation hardening, and cross-order reference reuse blocking.
+  4. **Buyer Web Application (`buyer-web`):**
+     - Implemented `DirectUpiPaymentView.tsx` with dynamic QR code generation (`qrcode`), mobile UPI intent launcher, copy UPI ID, 12-digit UTR submission, and clear verification status banners.
+     - Integrated with `CheckoutSuccessView.tsx` within backwards-compatible test containers.
+     - Updated domain models and error mappings in `types/domain.ts` and `lib/errors.ts`.
+  5. **Seller Mobile Application (`seller-app`):**
+     - Added domain models (`PaymentAttempt`, `PaymentSettings`, `VerifyPaymentResult`) and repository methods in `seller_repository.dart`.
+     - Created `PaymentSettingsScreen` for configuring UPI payments, UPI ID, display name, and optional payment instructions.
+     - Created `PendingVerificationsScreen` for reviewing buyer claims and triggering atomic verification/rejection.
+  6. **Adversarial & Positive Test Matrix (`direct-upi-payments.test.ts`):** Authored 54 exhaustive tests verifying all 16 positive vectors (`POS01`–`POS16`), all 35 adversarial vectors (`UPI-A01`–`UPI-A35`), and 3 financial invariant checks.
+
+* **Files Created / Modified:**
+  * Created: `supabase/migrations/013_direct_upi_and_manual_payment_verification.sql`
+  * Created: `buyer-web/src/components/checkout/DirectUpiPaymentView.tsx`
+  * Created: `buyer-web/src/test/direct-upi-payments.test.ts`
+  * Created: `seller-app/lib/ui/screens/payment_settings_screen.dart`
+  * Created: `seller-app/lib/ui/screens/pending_verifications_screen.dart`
+  * Modified: `supabase/seed.sql`
+  * Modified: `scripts/verify-schema.mjs`
+  * Modified: `buyer-web/src/types/domain.ts`
+  * Modified: `buyer-web/src/lib/errors.ts`
+  * Modified: `buyer-web/src/components/checkout/CheckoutSuccessView.tsx`
+  * Modified: `buyer-web/src/test/schema.test.ts`
+  * Modified: `buyer-web/src/test/rls.test.ts`
+  * Modified: `buyer-web/src/test/rpcs.test.ts`
+  * Modified: `buyer-web/src/test/storefront-and-state-machine.test.ts`
+  * Modified: `seller-app/lib/domain/models/models.dart`
+  * Modified: `seller-app/lib/data/repositories/seller_repository.dart`
+  * Modified: `seller-app/test/seller_repository_test.dart`
+  * Modified: `docs/00-project-status.md`
+  * Modified: `docs/06-requirements-traceability-matrix.md`
+  * Modified: `docs/IMPLEMENTATION-LOG.md`
+
+* **Verification Commands Executed & Results:**
+  1. `node scripts/verify-schema.mjs` ➔ 13 migrations, 7 tables, 14 indexes, 17 Paisa columns, 11 triggers, 17 RLS policies, 13 RPCs, 42 privilege grants, multi-seller seed data verified (Exit code 0).
+  2. `npx vitest run` (`buyer-web`) ➔ 13/13 test files passed, 329/329 tests passed (Exit code 0).
+     - `direct-upi-payments.test.ts`: 54 passed (all POS01..16, UPI-A01..35, invariants)
+     - `storefront-and-state-machine.test.ts`: 69 passed
+     - `rpcs.test.ts`: 46 passed
+     - `schema.test.ts`: 36 passed
+     - `rls.test.ts`: 35 passed
+     - Component/unit suites: 89 passed
+  3. `npm run typecheck` (`buyer-web`) ➔ TypeScript strict mode passed with 0 errors (Exit code 0).
+  4. `npm run lint` (`buyer-web`) ➔ ESLint passed with 0 errors (Exit code 0).
+  5. `npm run build` (`buyer-web`) ➔ Next.js production build succeeded with static pages and dynamic routes (Exit code 0).
+
+* **Verdict:**
+  * **PASS — TASK-2.4B COMPLETE; READY FOR PAYMENT/STAGING VALIDATION**
+
+
 
 
 

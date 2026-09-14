@@ -6,24 +6,28 @@ import { formatPaisaToINR } from '../../lib/utils/currency';
 import { HoldCountdown } from './HoldCountdown';
 import { OrderReceipt, CreateOrderSuccessResponse } from '../../types/domain';
 import { CartItem } from '../../types/cart';
+import { DirectUpiPaymentView } from './DirectUpiPaymentView';
 
 export interface CheckoutSuccessViewProps {
   order: CreateOrderSuccessResponse | OrderReceipt;
+  orderToken?: string;
   reservedItems?: CartItem[];
   dropSlug?: string | null;
 }
 
 export function CheckoutSuccessView({
   order,
+  orderToken,
   reservedItems = [],
   dropSlug,
 }: CheckoutSuccessViewProps) {
-  const isReceipt = 'items' in order;
-  const orderCode = order.order_code;
-  const subtotalPaisa = order.subtotal_paisa;
-  const shippingPaisa = order.shipping_paisa;
-  const totalPaisa = order.total_paisa;
-  const holdExpiresAt = order.hold_expires_at;
+  const [currentOrder, setCurrentOrder] = React.useState<CreateOrderSuccessResponse | OrderReceipt>(order);
+  const isReceipt = 'items' in currentOrder;
+  const orderCode = currentOrder.order_code;
+  const subtotalPaisa = currentOrder.subtotal_paisa;
+  const shippingPaisa = currentOrder.shipping_paisa;
+  const totalPaisa = currentOrder.total_paisa;
+  const holdExpiresAt = currentOrder.hold_expires_at;
 
   const displayItems = isReceipt
     ? (order as OrderReceipt).items.map((item) => ({
@@ -144,18 +148,13 @@ export function CheckoutSuccessView({
           </div>
         </div>
 
-        {/* Handoff to TASK-2.4 (Payment & WhatsApp Coordination) */}
-        <div className="ld-handoff-box" data-testid="task-handoff-box">
-          <div className="ld-handoff-header">
-            <span className="ld-handoff-icon" aria-hidden="true">⚡</span>
-            <h4 className="ld-handoff-title">Next Step: Payment & WhatsApp Coordination</h4>
-          </div>
-          <p className="ld-handoff-text">
-            Your garments are held for approximately 15 minutes. In the next workflow stage (TASK-2.4), you will complete UPI payment and share your confirmation screenshot with the seller on WhatsApp to finalize packing.
-          </p>
-          <div className="ld-handoff-notice">
-            <span>Status: <strong>PENDING PAYMENT VERIFICATION</strong></span>
-          </div>
+        {/* Direct UPI Payment & Manual Verification Section (TASK-2.4B) */}
+        <div data-testid="task-handoff-box">
+          <DirectUpiPaymentView
+            order={currentOrder}
+            orderToken={orderToken}
+            onOrderRefresh={(updated) => setCurrentOrder(updated)}
+          />
         </div>
 
         {/* Navigation Return Button */}

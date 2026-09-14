@@ -177,6 +177,10 @@ class SellerProfile {
   final bool advanceConfirmationEnabled;
   final int advanceAmountPaisa;
   final int holdDurationDays;
+  final bool upiEnabled;
+  final String? upiVpa;
+  final String? upiDisplayName;
+  final String? paymentInstructions;
 
   const SellerProfile({
     required this.id,
@@ -191,6 +195,10 @@ class SellerProfile {
     required this.advanceConfirmationEnabled,
     required this.advanceAmountPaisa,
     required this.holdDurationDays,
+    this.upiEnabled = true,
+    this.upiVpa,
+    this.upiDisplayName,
+    this.paymentInstructions,
   });
 
   factory SellerProfile.fromJson(Map<String, dynamic> json) {
@@ -207,6 +215,10 @@ class SellerProfile {
       advanceConfirmationEnabled: json['advance_confirmation_enabled'] as bool? ?? false,
       advanceAmountPaisa: json['advance_amount_paisa'] as int? ?? 25000,
       holdDurationDays: json['hold_duration_days'] as int? ?? 30,
+      upiEnabled: json['upi_enabled'] as bool? ?? true,
+      upiVpa: json['upi_vpa'] as String? ?? json['upi_id'] as String?,
+      upiDisplayName: json['upi_display_name'] as String?,
+      paymentInstructions: json['payment_instructions'] as String?,
     );
   }
 }
@@ -444,3 +456,124 @@ class SellerOrder {
     );
   }
 }
+
+enum PaymentAttemptStatus {
+  created,
+  awaitingPayment,
+  buyerClaimed,
+  awaitingSellerVerification,
+  verified,
+  rejected,
+  expired;
+
+  static PaymentAttemptStatus fromString(String value) {
+    switch (value) {
+      case 'awaiting_payment':
+        return PaymentAttemptStatus.awaitingPayment;
+      case 'buyer_claimed':
+        return PaymentAttemptStatus.buyerClaimed;
+      case 'awaiting_seller_verification':
+        return PaymentAttemptStatus.awaitingSellerVerification;
+      case 'verified':
+        return PaymentAttemptStatus.verified;
+      case 'rejected':
+        return PaymentAttemptStatus.rejected;
+      case 'expired':
+        return PaymentAttemptStatus.expired;
+      case 'created':
+      default:
+        return PaymentAttemptStatus.created;
+    }
+  }
+
+  String toDbValue() {
+    switch (this) {
+      case PaymentAttemptStatus.awaitingPayment:
+        return 'awaiting_payment';
+      case PaymentAttemptStatus.buyerClaimed:
+        return 'buyer_claimed';
+      case PaymentAttemptStatus.awaitingSellerVerification:
+        return 'awaiting_seller_verification';
+      case PaymentAttemptStatus.verified:
+        return 'verified';
+      case PaymentAttemptStatus.rejected:
+        return 'rejected';
+      case PaymentAttemptStatus.expired:
+        return 'expired';
+      case PaymentAttemptStatus.created:
+        return 'created';
+    }
+  }
+}
+
+class PaymentAttempt {
+  final String id;
+  final String orderId;
+  final String paymentType;
+  final String paymentMethod;
+  final int expectedAmountPaisa;
+  final String payeeVpaSnapshot;
+  final String? payeeDisplayNameSnapshot;
+  final String transactionReference;
+  final PaymentAttemptStatus status;
+  final DateTime? buyerClaimedAt;
+  final String? buyerSubmittedUtr;
+  final DateTime? sellerVerifiedAt;
+  final String? verifiedBy;
+  final String? rejectionReason;
+  final DateTime expiresAt;
+  final DateTime createdAt;
+  final String? orderCode;
+  final String? buyerName;
+
+  const PaymentAttempt({
+    required this.id,
+    required this.orderId,
+    required this.paymentType,
+    required this.paymentMethod,
+    required this.expectedAmountPaisa,
+    required this.payeeVpaSnapshot,
+    this.payeeDisplayNameSnapshot,
+    required this.transactionReference,
+    required this.status,
+    this.buyerClaimedAt,
+    this.buyerSubmittedUtr,
+    this.sellerVerifiedAt,
+    this.verifiedBy,
+    this.rejectionReason,
+    required this.expiresAt,
+    required this.createdAt,
+    this.orderCode,
+    this.buyerName,
+  });
+
+  factory PaymentAttempt.fromJson(Map<String, dynamic> json) {
+    final orderMap = json['orders'] as Map<String, dynamic>?;
+
+    return PaymentAttempt(
+      id: json['id'] as String,
+      orderId: json['order_id'] as String,
+      paymentType: json['payment_type'] as String,
+      paymentMethod: json['payment_method'] as String? ?? 'upi',
+      expectedAmountPaisa: json['expected_amount_paisa'] as int,
+      payeeVpaSnapshot: json['payee_vpa_snapshot'] as String,
+      payeeDisplayNameSnapshot: json['payee_display_name_snapshot'] as String?,
+      transactionReference: json['transaction_reference'] as String,
+      status: PaymentAttemptStatus.fromString(json['status'] as String),
+      buyerClaimedAt: json['buyer_claimed_at'] != null
+          ? DateTime.parse(json['buyer_claimed_at'] as String)
+          : null,
+      buyerSubmittedUtr: json['buyer_submitted_utr'] as String?,
+      sellerVerifiedAt: json['seller_verified_at'] != null
+          ? DateTime.parse(json['seller_verified_at'] as String)
+          : null,
+      verifiedBy: json['verified_by'] as String?,
+      rejectionReason: json['rejection_reason'] as String?,
+      expiresAt: DateTime.parse(json['expires_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      orderCode: orderMap?['order_code'] as String?,
+      buyerName: orderMap?['buyer_name'] as String?,
+    );
+  }
+}
+

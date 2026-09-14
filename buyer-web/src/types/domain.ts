@@ -233,6 +233,10 @@ export interface OrderReceipt {
   store_slug?: string;
   upi_id: string;
   upi_qr_url: string | null;
+  upi_enabled?: boolean;
+  upi_uri?: string | null;
+  payment_instructions?: string | null;
+  active_payment_attempt?: PaymentAttempt | null;
   items: OrderReceiptItem[];
 }
 
@@ -308,4 +312,152 @@ export interface RecordVerifiedPaymentErrorResponse {
 export type RecordVerifiedPaymentResponse =
   | RecordVerifiedPaymentSuccessResponse
   | RecordVerifiedPaymentErrorResponse;
+
+// -----------------------------------------------------------------------------
+// Direct UPI & Payment Attempt Contracts (TASK-2.4B)
+// -----------------------------------------------------------------------------
+
+export type PaymentAttemptStatus =
+  | 'created'
+  | 'awaiting_payment'
+  | 'buyer_claimed'
+  | 'awaiting_seller_verification'
+  | 'verified'
+  | 'rejected'
+  | 'expired';
+
+export interface PaymentAttempt {
+  id: string;
+  order_id: string;
+  payment_type: 'advance' | 'balance' | 'full';
+  payment_method: 'upi';
+  expected_amount_paisa: number;
+  payee_vpa_snapshot: string;
+  payee_display_name_snapshot: string | null;
+  transaction_reference: string;
+  status: PaymentAttemptStatus;
+  buyer_claimed_at: string | null;
+  buyer_submitted_utr: string | null;
+  seller_verified_at: string | null;
+  verified_by: string | null;
+  rejection_reason: string | null;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  upi_uri?: string;
+}
+
+export interface InitiatePaymentAttemptRequest {
+  p_order_id: string;
+  p_order_token: string;
+  p_payment_type?: 'advance' | 'balance' | 'full';
+}
+
+export interface InitiatePaymentAttemptSuccessResponse {
+  success: true;
+  payment_attempt_id: string;
+  order_id: string;
+  payment_type: 'advance' | 'balance' | 'full';
+  expected_amount_paisa: number;
+  payee_vpa: string;
+  payee_display_name: string;
+  transaction_reference: string;
+  status: PaymentAttemptStatus;
+  upi_uri: string;
+  expires_at: string;
+  message?: string;
+}
+
+export interface InitiatePaymentAttemptErrorResponse {
+  success: false;
+  error: string;
+  message?: string;
+}
+
+export type InitiatePaymentAttemptResponse =
+  | InitiatePaymentAttemptSuccessResponse
+  | InitiatePaymentAttemptErrorResponse;
+
+export interface SubmitBuyerPaymentClaimRequest {
+  p_order_id: string;
+  p_order_token: string;
+  p_payment_attempt_id: string;
+  p_utr: string;
+}
+
+export interface SubmitBuyerPaymentClaimSuccessResponse {
+  success: true;
+  payment_attempt_id: string;
+  order_id: string;
+  status: PaymentAttemptStatus;
+  buyer_submitted_utr: string;
+  buyer_claimed_at: string;
+  message: string;
+}
+
+export interface SubmitBuyerPaymentClaimErrorResponse {
+  success: false;
+  error: string;
+  message?: string;
+}
+
+export type SubmitBuyerPaymentClaimResponse =
+  | SubmitBuyerPaymentClaimSuccessResponse
+  | SubmitBuyerPaymentClaimErrorResponse;
+
+export interface VerifyManualUpiPaymentRequest {
+  p_payment_attempt_id: string;
+  p_override_reference?: string | null;
+}
+
+export interface VerifyManualUpiPaymentSuccessResponse {
+  success: true;
+  payment_attempt_id: string;
+  order_id: string;
+  payment_type: 'advance' | 'balance' | 'full';
+  expected_amount_paisa: number;
+  status: OrderStatus;
+  payment_status: OrderPaymentStatus;
+  fulfilment_status: OrderFulfilmentStatus;
+  advance_paid_paisa: number;
+  total_paid_paisa: number;
+  balance_due_paisa: number;
+  idempotent?: boolean;
+  message?: string;
+}
+
+export interface VerifyManualUpiPaymentErrorResponse {
+  success: false;
+  error: string;
+  message?: string;
+}
+
+export type VerifyManualUpiPaymentResponse =
+  | VerifyManualUpiPaymentSuccessResponse
+  | VerifyManualUpiPaymentErrorResponse;
+
+export interface RejectManualUpiPaymentRequest {
+  p_payment_attempt_id: string;
+  p_rejection_reason?: string;
+}
+
+export interface RejectManualUpiPaymentSuccessResponse {
+  success: true;
+  payment_attempt_id: string;
+  order_id: string;
+  status: PaymentAttemptStatus;
+  rejection_reason: string;
+  message?: string;
+}
+
+export interface RejectManualUpiPaymentErrorResponse {
+  success: false;
+  error: string;
+  message?: string;
+}
+
+export type RejectManualUpiPaymentResponse =
+  | RejectManualUpiPaymentSuccessResponse
+  | RejectManualUpiPaymentErrorResponse;
+
 

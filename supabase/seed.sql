@@ -27,6 +27,10 @@ INSERT INTO profiles (
   store_slug,
   phone_number,
   upi_id,
+  upi_vpa,
+  upi_display_name,
+  upi_enabled,
+  payment_instructions,
   upi_qr_url,
   return_address,
   default_shipping_fee_paisa,
@@ -42,6 +46,10 @@ INSERT INTO profiles (
     'mothers-boutique',
     '919830012345',
     'mothersboutique@okaxis',
+    'mothersboutique@okaxis',
+    'Mother''s Boutique Official',
+    true,
+    'Please enter your LiveDrop order code in UPI transaction remarks.',
     'https://storage.livedrop.store/qrs/mb.webp',
     '12A Ballygunge Place, Kolkata - 700019',
     8000,   -- ₹80.00
@@ -57,6 +65,10 @@ INSERT INTO profiles (
     'artisan-silks',
     '919830099999',
     'artisansilks@upi',
+    'artisansilks@upi',
+    'Artisan Silks Handlooms',
+    true,
+    'Scan and pay via any UPI app. Verification completed within 15 minutes.',
     'https://storage.livedrop.store/qrs/artisan.webp',
     '44 Gariahat Road, Kolkata - 700029',
     6000,
@@ -72,6 +84,10 @@ INSERT INTO profiles (
     'craft-weaves',
     '919830077777',
     'craftweaves@icici',
+    'craftweaves@icici',
+    'Craft Weaves Kolkata',
+    false,  -- UPI payments temporarily disabled
+    'Currently accepting payments via alternate channels.',
     NULL,
     '18 Park Street, Kolkata - 700016',
     5000,
@@ -85,6 +101,10 @@ ON CONFLICT (id) DO UPDATE SET
   store_slug = EXCLUDED.store_slug,
   phone_number = EXCLUDED.phone_number,
   upi_id = EXCLUDED.upi_id,
+  upi_vpa = EXCLUDED.upi_vpa,
+  upi_display_name = EXCLUDED.upi_display_name,
+  upi_enabled = EXCLUDED.upi_enabled,
+  payment_instructions = EXCLUDED.payment_instructions,
   upi_qr_url = EXCLUDED.upi_qr_url,
   return_address = EXCLUDED.return_address,
   default_shipping_fee_paisa = EXCLUDED.default_shipping_fee_paisa,
@@ -354,6 +374,31 @@ INSERT INTO orders (
     NOW() + INTERVAL '14 minutes',
     NULL,
     NULL
+  ),
+  -- 7. Seller B Pending Order (Awaiting seller verification of buyer claim)
+  (
+    '7a389156-3477-475b-a977-cb8a657ab078'::uuid,
+    'b2e87c53-5e47-4e3c-8912-c6f2df4e7902'::uuid,
+    'LD-ART404',
+    '3a45b166-9924-4a55-11dd-7a18294bd278'::uuid,
+    'Kavita Verma',
+    '9830100007',
+    '10 Ballygunge Place, Kolkata',
+    '700019',
+    240000,
+    6000,
+    246000,
+    'advance',
+    30000,
+    0,
+    0,
+    246000,
+    'unpaid',
+    'not_ready',
+    'pending',
+    NOW() + INTERVAL '14 minutes',
+    NULL,
+    NULL
   )
 ON CONFLICT (id) DO NOTHING;
 
@@ -433,9 +478,9 @@ INSERT INTO products (
     240000, -- ₹2,400.00
     'Free Size',
     'https://images.livedrop.store/products/d531.webp',
-    'available',
-    NULL,
-    NULL,
+    'reserved',
+    NOW() - INTERVAL '10 minutes',
+    '7a389156-3477-475b-a977-cb8a657ab078'::uuid,
     1
   ),
   -- Seller C Products
@@ -478,6 +523,12 @@ INSERT INTO order_items (
     '7e057823-0144-442e-d644-9e5d324fa045'::uuid,
     'b6415d99-2a33-4188-89bb-d110d2950dc4'::uuid,
     95000
+  ),
+  (
+    '6d452011-4477-4155-c344-1443f4172ed4'::uuid,
+    '7a389156-3477-475b-a977-cb8a657ab078'::uuid,
+    'd5318a22-4e66-4199-a3cc-f112e3061da5'::uuid,
+    240000
   )
 ON CONFLICT (id) DO NOTHING;
 
@@ -499,7 +550,7 @@ INSERT INTO order_payments (
     'advance',
     25000,
     'verified',
-    'UPI-UTR-983010111122',
+    '428739182734',
     NOW() - INTERVAL '1 hour',
     '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
   ),
@@ -510,7 +561,7 @@ INSERT INTO order_payments (
     'full',
     133000,
     'verified',
-    'UPI-UTR-983010333344',
+    '428739182735',
     NOW() - INTERVAL '30 minutes',
     '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
   ),
@@ -521,7 +572,7 @@ INSERT INTO order_payments (
     'full',
     103000,
     'verified',
-    'UPI-UTR-983010444455',
+    '428739182736',
     NOW() - INTERVAL '2 days',
     '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
   ),
@@ -532,8 +583,96 @@ INSERT INTO order_payments (
     'advance',
     25000,
     'verified',
-    'UPI-UTR-983010555566',
+    '428739182737',
     NOW() - INTERVAL '32 days',
     '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid
   )
 ON CONFLICT (id) DO NOTHING;
+
+-- 8. Payment Attempts (TASK-2.4B Direct UPI & Manual Verification Tracking)
+INSERT INTO payment_attempts (
+  id,
+  order_id,
+  payment_type,
+  payment_method,
+  expected_amount_paisa,
+  payee_vpa_snapshot,
+  payee_display_name_snapshot,
+  transaction_reference,
+  status,
+  buyer_claimed_at,
+  buyer_submitted_utr,
+  seller_verified_at,
+  verified_by,
+  expires_at
+) VALUES
+  -- Initial awaiting payment attempt for pending Order 6 (9a279045)
+  (
+    'a1000000-0000-0000-0000-000000000001'::uuid,
+    '9a279045-2366-464a-f866-ba7f546fa067'::uuid,
+    'advance',
+    'upi',
+    25000,
+    'mothersboutique@okaxis',
+    'Mother''s Boutique Official',
+    'LD-PND303-ADV-1001',
+    'awaiting_payment',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NOW() + INTERVAL '14 minutes'
+  ),
+  -- Verified advance payment attempt for confirmed Order 2 (4b724590)
+  (
+    'a1000000-0000-0000-0000-000000000002'::uuid,
+    '4b724590-7811-419b-a311-6b2a091df012'::uuid,
+    'advance',
+    'upi',
+    25000,
+    'mothersboutique@okaxis',
+    'Mother''s Boutique Official',
+    'LD-8F429B-ADV-1002',
+    'verified',
+    NOW() - INTERVAL '1 hour 5 minutes',
+    '428739182734',
+    NOW() - INTERVAL '1 hour',
+    '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid,
+    NOW() + INTERVAL '30 days'
+  ),
+  -- Verified full payment attempt for paid Order 4 (5c835601)
+  (
+    'a1000000-0000-0000-0000-000000000003'::uuid,
+    '5c835601-8922-420c-b422-7c3b102ef023'::uuid,
+    'full',
+    'upi',
+    133000,
+    'mothersboutique@okaxis',
+    'Mother''s Boutique Official',
+    'LD-2C304E-FUL-1003',
+    'verified',
+    NOW() - INTERVAL '35 minutes',
+    '428739182735',
+    NOW() - INTERVAL '30 minutes',
+    '8a329e71-4b10-4055-90d2-df8029d5b512'::uuid,
+    NOW() + INTERVAL '15 minutes'
+  ),
+  -- Awaiting seller verification payment claim for Seller B Order 7 (7a389156)
+  (
+    'a1000000-0000-0000-0000-000000000004'::uuid,
+    '7a389156-3477-475b-a977-cb8a657ab078'::uuid,
+    'advance',
+    'upi',
+    30000,
+    'artisansilks@upi',
+    'Artisan Silks Handlooms',
+    'LD-ART404-ADV-1004',
+    'awaiting_seller_verification',
+    NOW() - INTERVAL '10 minutes',
+    '428739182738',
+    NULL,
+    NULL,
+    NOW() + INTERVAL '14 days'
+  )
+ON CONFLICT (id) DO NOTHING;
+
