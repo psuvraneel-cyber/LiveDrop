@@ -1,0 +1,26 @@
+name: LiveDrop Hold Reaper Cron
+
+on:
+  schedule:
+    # Runs every 5 minutes to release expired 15-minute reservations and 24-hour unverified claims
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-reaper:
+    name: Execute release_expired_holds()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Execute operational reaper
+        run: node scripts/run-reaper.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
