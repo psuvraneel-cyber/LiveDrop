@@ -288,6 +288,7 @@ describe('TASK-2.3: Buyer Checkout & Atomic Reservation (/checkout)', () => {
           p_buyer_phone: '9830112345',
           p_shipping_address: 'Flat 3C, 14 Lake Road, Southern Avenue, Kolkata',
           p_pincode: '700029',
+          p_idempotency_key: expect.any(String),
         }
       );
 

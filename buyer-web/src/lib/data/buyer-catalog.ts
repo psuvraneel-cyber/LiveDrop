@@ -106,14 +106,16 @@ export async function getStorefrontBySlug(
 
   try {
     const { data, error } = await client
-      .from('profiles')
+      .from('public_seller_storefronts')
       .select(
         `
         id,
         store_name,
         store_slug,
-        upi_id,
+        upi_vpa,
+        upi_display_name,
         upi_qr_url,
+        upi_enabled,
         default_shipping_fee_paisa,
         free_shipping_threshold_paisa,
         advance_confirmation_enabled,
@@ -128,7 +130,15 @@ export async function getStorefrontBySlug(
       throw new LiveDropError(`Failed to fetch seller storefront: ${error.message}`, 'UNKNOWN_ERROR');
     }
 
-    return (data as unknown as PublicSellerStorefront) || null;
+    if (!data) return null;
+
+    // Map upi_vpa back to upi_id if needed for interface compatibility
+    const storefront = {
+      ...data,
+      upi_id: (data as any).upi_vpa || (data as any).upi_id || '',
+    };
+
+    return (storefront as unknown as PublicSellerStorefront) || null;
   } catch (err: unknown) {
     if (err instanceof LiveDropError) throw err;
     throw new NetworkError(err instanceof Error ? err.message : String(err));
@@ -148,7 +158,7 @@ export async function getPublicProductsForDrop(
 
   try {
     const { data, error } = await client
-      .from('products')
+      .from('public_products_catalog')
       .select('id, code, title, price_paisa, size, image_url, status, reserved_at, version')
       .eq('drop_id', dropId)
       .order('code', { ascending: true });
@@ -189,6 +199,7 @@ export async function createOrderWithReservation(
       p_shipping_address: request.p_shipping_address,
       p_pincode: request.p_pincode,
       p_confirmation_mode: request.p_confirmation_mode || 'advance',
+      p_idempotency_key: request.p_idempotency_key || null,
     });
 
     if (error) {

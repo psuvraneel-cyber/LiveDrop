@@ -1,13 +1,15 @@
 /**
- * LiveDrop Buyer Webfront — Realtime Catalog Subscription Manager
+ * LiveDrop Buyer Webfront — Realtime Catalog Subscription Manager & Delta Polling Fallback
  *
  * Implements ephemeral low-latency catalog stock updates per docs/14-realtime-contract.md.
  * Defense against out-of-order delivery via monotonic entity versioning.
+ * Includes automatic 3-second HTTP stock-delta polling fallback when WebSocket is disconnected.
  * PostgreSQL remains the sole authoritative source of truth.
  */
 
 import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { ProductStatus, PublicProductView } from '../../types/domain';
+import { getPublicProductsForDrop } from '../data/buyer-catalog';
 
 export interface RealtimeProductEvent {
   eventType: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -15,11 +17,20 @@ export interface RealtimeProductEvent {
   old: Partial<PublicProductView> & { id?: string; version?: number };
 }
 
+export type CatalogSubscriptionStatus =
+  | 'SUBSCRIBED'
+  | 'TIMED_OUT'
+  | 'CLOSED'
+  | 'CHANNEL_ERROR'
+  | 'POLLING';
+
 export interface CatalogRealtimeOptions {
   dropId: string;
   onProductChange: (product: PublicProductView) => void;
-  onStatusChange?: (status: 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR') => void;
+  onStatusChange?: (status: CatalogSubscriptionStatus) => void;
   onReconnectRequired?: () => void;
+  enablePollingFallback?: boolean;
+  pollingIntervalMs?: number;
 }
 
 export class CatalogRealtimeSubscription {
@@ -27,12 +38,18 @@ export class CatalogRealtimeSubscription {
   private readonly localVersions = new Map<string, number>();
   private readonly options: CatalogRealtimeOptions;
   private isSubscribed = false;
+  private pollingTimer: ReturnType<typeof setInterval> | null = null;
+  private isPolling = false;
 
   constructor(
     private readonly client: SupabaseClient,
     options: CatalogRealtimeOptions
   ) {
-    this.options = options;
+    this.options = {
+      enablePollingFallback: true,
+      pollingIntervalMs: 3000,
+      ...options,
+    };
   }
 
   /**
@@ -46,6 +63,7 @@ export class CatalogRealtimeSubscription {
 
   /**
    * Subscribes to the live drop product channel (`drop:{dropId}:products`).
+   * Automatically engages 3-second HTTP stock-delta polling if the WebSocket drops.
    */
   public subscribe(): RealtimeChannel {
     if (this.channel) {
@@ -70,23 +88,76 @@ export class CatalogRealtimeSubscription {
       )
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
+          this.stopPollingFallback();
           this.isSubscribed = true;
           this.options.onStatusChange?.('SUBSCRIBED');
         } else if (status === 'CLOSED') {
           this.isSubscribed = false;
           this.options.onStatusChange?.('CLOSED');
+          this.triggerFallbackIfNeeded();
         } else if (status === 'TIMED_OUT') {
           this.isSubscribed = false;
           this.options.onStatusChange?.('TIMED_OUT');
+          this.triggerFallbackIfNeeded();
           this.options.onReconnectRequired?.();
         } else if (status === 'CHANNEL_ERROR') {
           this.isSubscribed = false;
           this.options.onStatusChange?.('CHANNEL_ERROR');
+          this.triggerFallbackIfNeeded();
           this.options.onReconnectRequired?.();
         }
       });
 
     return this.channel;
+  }
+
+  /**
+   * Starts periodic HTTP delta polling when WebSocket connection fails.
+   */
+  private triggerFallbackIfNeeded(): void {
+    if (this.options.enablePollingFallback && !this.isPolling) {
+      this.startPollingFallback();
+    }
+  }
+
+  /**
+   * Engages 3-second HTTP stock-delta polling.
+   */
+  public startPollingFallback(): void {
+    if (this.isPolling) return;
+    this.isPolling = true;
+    this.options.onStatusChange?.('POLLING');
+
+    const poll = async () => {
+      try {
+        const products = await getPublicProductsForDrop(this.client, this.options.dropId);
+        for (const p of products) {
+          const curVersion = this.localVersions.get(p.id);
+          // If product version advanced or is brand new, emit update
+          if (curVersion === undefined || p.version > curVersion) {
+            this.localVersions.set(p.id, p.version);
+            this.options.onProductChange(p);
+          }
+        }
+      } catch {
+        // Polling network error handled silently; retries on next tick
+      }
+    };
+
+    // Immediate initial poll followed by interval
+    void poll();
+    this.pollingTimer = setInterval(poll, this.options.pollingIntervalMs ?? 3000);
+  }
+
+  /**
+   * Stops HTTP polling when WebSocket connection recovers.
+   */
+  public stopPollingFallback(): void {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
+    }
+    this.isPolling = false;
   }
 
   /**
@@ -128,9 +199,10 @@ export class CatalogRealtimeSubscription {
   }
 
   /**
-   * Gracefully unsubscribes from the realtime channel and clears listeners.
+   * Gracefully unsubscribes from the realtime channel, stops polling, and clears listeners.
    */
   public async unsubscribe(): Promise<void> {
+    this.stopPollingFallback();
     if (this.channel) {
       await this.client.removeChannel(this.channel);
       this.channel = null;
@@ -139,6 +211,10 @@ export class CatalogRealtimeSubscription {
   }
 
   public get active(): boolean {
-    return this.isSubscribed;
+    return this.isSubscribed || this.isPolling;
+  }
+
+  public get pollingActive(): boolean {
+    return this.isPolling;
   }
 }

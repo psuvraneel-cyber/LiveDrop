@@ -11,7 +11,7 @@
  * 5. Safe retry semantics & single-flight submission protection.
  */
 
-import React, { Suspense, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCart, CartProvider, useOptionalCart } from '../../lib/cart/cart-context';
@@ -21,6 +21,7 @@ import {
   createOrderWithReservation,
   getOrderByToken,
 } from '../../lib/data/buyer-catalog';
+import { generateIdempotencyKey } from '../../lib/checkout/idempotency';
 import {
   CheckoutFormErrors,
   CheckoutFormState,
@@ -57,6 +58,9 @@ function CheckoutPageContent() {
   const [submissionStatus, setSubmissionStatus] = useState<CheckoutSubmissionStatus>('idle');
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [collisionError, setCollisionError] = useState<{ message: string; unavailableIds: string[] } | null>(null);
+
+  // Stable single-flight idempotency key per checkout attempt session
+  const idempotencyKeyRef = useRef<string>(generateIdempotencyKey());
 
   // Form State
   const [form, setForm] = useState<CheckoutFormState>({
@@ -236,6 +240,7 @@ function CheckoutPageContent() {
       p_buyer_phone: validation.sanitized.buyer_phone,
       p_shipping_address: validation.sanitized.shipping_address,
       p_pincode: validation.sanitized.pincode,
+      p_idempotency_key: idempotencyKeyRef.current,
     };
 
     try {

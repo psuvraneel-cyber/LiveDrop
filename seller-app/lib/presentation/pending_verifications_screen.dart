@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
+import '../core/theme/bounceable_button.dart';
 import '../data/repositories/seller_repository.dart';
 import '../domain/models/models.dart';
+import 'common/skeleton_loaders.dart';
 
-/// LiveDrop Seller Mobile App — Pending Payment Verifications Screen (TASK-2.4B)
-///
-/// Enables sellers to review unverified buyer payment claims (UTRs), cross-check
-/// their actual bank/UPI transaction history, and submit manual verification or rejection.
+/// Screen 7: Luxury Boutique Payment Verification Screen
 class PendingVerificationsScreen extends StatefulWidget {
   final SellerRepository repository;
 
@@ -21,11 +22,20 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
   String? _errorMessage;
   List<PaymentAttempt> _pendingAttempts = [];
   final Set<String> _processingIds = {};
+  final Map<String, TextEditingController> _remarksControllers = {};
 
   @override
   void initState() {
     super.initState();
     _loadVerifications();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _remarksControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadVerifications() async {
@@ -36,43 +46,59 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
 
     try {
       final attempts = await widget.repository.getPendingVerifications();
-      setState(() {
-        _pendingAttempts = attempts;
-        _isLoading = false;
-      });
+      for (final a in attempts) {
+        if (!_remarksControllers.containsKey(a.id)) {
+          _remarksControllers[a.id] = TextEditingController();
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _pendingAttempts = attempts;
+          _isLoading = false;
+        });
+      }
     } catch (err) {
-      setState(() {
-        _errorMessage = err.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = err.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
   String _formatPaisa(int paisa) {
-    final inr = paisa / 100.0;
-    return '₹${inr.toStringAsFixed(2)}';
+    final inr = (paisa / 100).toStringAsFixed(0);
+    return '₹$inr';
   }
 
   Future<void> _verifyPayment(PaymentAttempt attempt) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Manual Verification'),
+        backgroundColor: AppColors.obsidianSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.cardBorder),
+        ),
+        title: const Text('Confirm Payment Receipt', style: TextStyle(color: Colors.white)),
         content: Text(
-          'Confirm that ${_formatPaisa(attempt.expectedAmountPaisa)} was received in your UPI/bank account for this order.',
+          'Confirm that ${_formatPaisa(attempt.expectedAmountPaisa)} was received in your boutique UPI account for order #${attempt.orderCode ?? "Order"}?',
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A),
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.goldPrimary,
+              foregroundColor: Colors.black,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Verify Payment'),
+            child: const Text('Confirm Receipt'),
           ),
         ],
       ),
@@ -80,17 +106,15 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
 
     if (confirmed != true) return;
 
-    setState(() {
-      _processingIds.add(attempt.id);
-    });
+    setState(() => _processingIds.add(attempt.id));
 
     try {
       await widget.repository.verifyManualUpiPayment(attempt.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment for ${attempt.orderCode ?? 'Order'} verified successfully!'),
-            backgroundColor: const Color(0xFF16A34A),
+            content: Text('Payment verified for Order #${attempt.orderCode ?? "Order"}!'),
+            backgroundColor: AppColors.emerald,
           ),
         );
       }
@@ -100,15 +124,13 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Verification failed: $err'),
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: AppColors.crimson,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _processingIds.remove(attempt.id);
-        });
+        setState(() => _processingIds.remove(attempt.id));
       }
     }
   }
@@ -121,21 +143,27 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Reject Payment Claim'),
+          backgroundColor: AppColors.obsidianSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AppColors.cardBorder),
+          ),
+          title: const Text('Reject Payment Claim', style: TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Please select the reason why this payment claim cannot be verified:',
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: selectedReason,
+                dropdownColor: AppColors.obsidianSurface,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: const InputDecoration(
                   labelText: 'Rejection Reason',
-                  border: OutlineInputBorder(),
                 ),
                 items: const [
                   DropdownMenuItem(
@@ -157,9 +185,7 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                 ],
                 onChanged: (val) {
                   if (val != null) {
-                    setDialogState(() {
-                      selectedReason = val;
-                    });
+                    setDialogState(() => selectedReason = val);
                   }
                 },
               ),
@@ -167,10 +193,8 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                 const SizedBox(height: 12),
                 TextField(
                   controller: customReasonController,
-                  decoration: const InputDecoration(
-                    labelText: 'Specify Reason',
-                    border: OutlineInputBorder(),
-                  ),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(labelText: 'Specify Reason'),
                 ),
               ],
             ],
@@ -178,11 +202,11 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
+                backgroundColor: AppColors.crimson,
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.of(ctx).pop(true),
@@ -199,17 +223,15 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
         ? customReasonController.text.trim()
         : selectedReason;
 
-    setState(() {
-      _processingIds.add(attempt.id);
-    });
+    setState(() => _processingIds.add(attempt.id));
 
     try {
       await widget.repository.rejectManualUpiPayment(attempt.id, finalReason);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment claim for ${attempt.orderCode ?? 'Order'} marked as rejected.'),
-            backgroundColor: const Color(0xFFD97706),
+            content: Text('Payment claim for #${attempt.orderCode ?? "Order"} rejected.'),
+            backgroundColor: AppColors.amber,
           ),
         );
       }
@@ -219,37 +241,73 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Rejection failed: $err'),
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: AppColors.crimson,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _processingIds.remove(attempt.id);
-        });
+        setState(() => _processingIds.remove(attempt.id));
       }
     }
+  }
+
+  void _showScreenshotModal() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.obsidianSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.cardBorder),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Payment Screenshot', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                height: 280,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.obsidianElevated,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.receipt_long_rounded, size: 48, color: AppColors.goldPrimary),
+                      SizedBox(height: 8),
+                      Text('Google Pay / PhonePe UPI Receipt', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify UPI Payments'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
-        elevation: 0.5,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadVerifications,
-            tooltip: 'Refresh Pending Payments',
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.obsidian,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SafeArea(child: VerificationsSkeleton())
           : _errorMessage != null
               ? Center(
                   child: Padding(
@@ -257,17 +315,17 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: Color(0xFFDC2626)),
+                        const Icon(Icons.error_outline, size: 48, color: AppColors.crimson),
                         const SizedBox(height: 16),
                         const Text(
                           'Failed to load verifications',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
@@ -280,266 +338,274 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                   ),
                 )
               : RefreshIndicator(
+                  color: AppColors.goldPrimary,
+                  backgroundColor: AppColors.obsidianSurface,
                   onRefresh: _loadVerifications,
                   child: _pendingAttempts.isEmpty
                       ? const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_circle_outline, size: 64, color: Color(0xFF16A34A)),
+                              Icon(Icons.verified_user_outlined, size: 64, color: AppColors.emerald),
                               SizedBox(height: 16),
                               Text(
                                 'All Payments Verified!',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                               ),
                               SizedBox(height: 8),
                               Text(
                                 'No pending buyer payment claims awaiting verification.',
-                                style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
                               ),
                             ],
                           ),
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.all(16.0),
-                          itemCount: _pendingAttempts.length + 1,
+                          itemCount: _pendingAttempts.length,
                           itemBuilder: (context, index) {
-                            if (index == 0) {
-                              // Instructional Banner
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 16.0),
-                                padding: const EdgeInsets.all(14.0),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF3C7),
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  border: Border.all(color: const Color(0xFFFDE68A)),
-                                ),
-                                child: const Row(
+                            final attempt = _pendingAttempts[index];
+                            final isProcessing = _processingIds.contains(attempt.id);
+                            final remarksCtrl = _remarksControllers[attempt.id] ?? TextEditingController();
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: AppTheme.cardDecoration(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.info_outline, color: Color(0xFF92400E), size: 20),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        'Check your bank account/UPI app before confirming. '
-                                        'Manual verification records an immutable transaction on the order ledger.',
-                                        style: TextStyle(
-                                          color: Color(0xFF92400E),
-                                          fontSize: 13,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                        final attempt = _pendingAttempts[index - 1];
-                        final isProcessing = _processingIds.contains(attempt.id);
-
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 16.0),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          ),
-                          elevation: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Order & Buyer Header
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        attempt.orderCode ?? 'Order',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontFamily: 'monospace',
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: attempt.paymentType == 'advance'
-                                            ? const Color(0xFFFEF3C7)
-                                            : const Color(0xFFDCFCE7),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        attempt.paymentType.toUpperCase(),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
-                                          color: attempt.paymentType == 'advance'
-                                              ? const Color(0xFF78350F)
-                                              : const Color(0xFF14532D),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Buyer & Expected Amount
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Buyer: ${attempt.buyerName ?? 'Customer'}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatPaisa(attempt.expectedAmountPaisa),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: Color(0xFF16A34A),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const Divider(height: 20),
-
-                                // Submitted UTR Details
-                                Row(
-                                  children: [
-                                    const Text(
-                                      'Submitted UTR: ',
-                                      style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                                    ),
-                                    SelectableText(
-                                      attempt.buyerSubmittedUtr ?? 'Pending Submission',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontFamily: 'monospace',
-                                        fontSize: 14,
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      icon: const Icon(Icons.copy, size: 16),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      tooltip: 'Copy UTR',
-                                      onPressed: attempt.buyerSubmittedUtr != null
-                                          ? () {
-                                              Clipboard.setData(
-                                                ClipboardData(text: attempt.buyerSubmittedUtr!),
-                                              );
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('UTR copied to clipboard'),
-                                                  duration: Duration(seconds: 1),
-                                                ),
-                                              );
-                                            }
-                                          : null,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-
-                                // Reference & Timestamp
-                                Text(
-                                  'Reference: ${attempt.transactionReference}',
-                                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                                ),
-                                if (attempt.buyerClaimedAt != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Claimed At: ${attempt.buyerClaimedAt!.toLocal().toString().substring(0, 16)}',
-                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                                  ),
-                                ],
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Verification Deadline: ${(attempt.verificationExpiresAt ?? attempt.expiresAt).toLocal().toString().substring(0, 16)}',
-                                  style: const TextStyle(
-                                    color: Color(0xFFB45309),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-
-                                // Verification Actions
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: const Color(0xFFDC2626),
-                                          side: const BorderSide(color: Color(0xFFDC2626)),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
+                                    // Order Info Card (Thumbnail, Code, Buyer, Amount, Status)
+                                    Row(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            width: 52,
+                                            height: 52,
+                                            color: AppColors.obsidianElevated,
+                                            child: const Icon(
+                                              Icons.checkroom_rounded,
+                                              color: AppColors.goldPrimary,
+                                              size: 26,
+                                            ),
                                           ),
                                         ),
-                                        onPressed: isProcessing
-                                            ? null
-                                            : () => _rejectPayment(attempt),
-                                        child: const Text('Payment Not Found'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF16A34A),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                        ),
-                                        onPressed: isProcessing
-                                            ? null
-                                            : () => _verifyPayment(attempt),
-                                        child: isProcessing
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                attempt.orderCode != null ? '#${attempt.orderCode}' : '#Order',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 15,
+                                                  color: AppColors.textPrimary,
                                                 ),
-                                              )
-                                            : Text(
-                                                'Verify ${_formatPaisa(attempt.expectedAmountPaisa)} received',
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                                textAlign: TextAlign.center,
                                               ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                attempt.buyerName ?? 'Customer',
+                                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '${_formatPaisa(attempt.expectedAmountPaisa)} Advance Payment',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: AppColors.goldPrimary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: AppTheme.pillDecoration(
+                                            color: AppColors.amber,
+                                            tintColor: AppColors.amberTint,
+                                          ),
+                                          child: const Text(
+                                            'Verifying',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.amber,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Divider(color: AppColors.cardBorder, height: 1),
+                                    const SizedBox(height: 14),
+
+                                    // Buyer's UTR Details Section
+                                    const Text(
+                                      "Buyer's UTR Details",
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.obsidianElevated,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: AppColors.cardBorder),
                                       ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('UTR Number', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                                  const SizedBox(height: 2),
+                                                  SelectableText(
+                                                    attempt.buyerSubmittedUtr ?? (attempt.transactionReference.isNotEmpty ? attempt.transactionReference : 'Pending submission'),
+                                                    style: const TextStyle(
+                                                      fontFamily: 'monospace',
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                      color: AppColors.textPrimary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              InkWell(
+                                                onTap: () {
+                                                  final utr = attempt.buyerSubmittedUtr ?? (attempt.transactionReference.isNotEmpty ? attempt.transactionReference : 'N/A');
+                                                  Clipboard.setData(ClipboardData(text: utr));
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('UTR copied to clipboard'),
+                                                      backgroundColor: AppColors.emerald,
+                                                      duration: Duration(seconds: 1),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.goldMuted,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: AppColors.goldPrimary, width: 0.8),
+                                                  ),
+                                                  child: const Row(
+                                                    children: [
+                                                      Icon(Icons.copy, size: 12, color: AppColors.goldPrimary),
+                                                      SizedBox(width: 4),
+                                                      Text('Copy', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.goldPrimary)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('Amount', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    _formatPaisa(attempt.expectedAmountPaisa),
+                                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.emerald),
+                                                  ),
+                                                ],
+                                              ),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  const Text('Paid on', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    attempt.buyerClaimedAt != null
+                                                        ? attempt.buyerClaimedAt!.toLocal().toString().substring(0, 16)
+                                                        : attempt.createdAt.toLocal().toString().substring(0, 16),
+                                                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          // Screenshot Tile
+                                          Row(
+                                            children: [
+                                              const Text('Screenshot: ', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                              InkWell(
+                                                onTap: _showScreenshotModal,
+                                                child: const Row(
+                                                  children: [
+                                                    Icon(Icons.image_outlined, size: 14, color: AppColors.goldPrimary),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'Tap to view',
+                                                      style: TextStyle(fontSize: 12, color: AppColors.goldPrimary, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+
+                                    // Remarks (Optional)
+                                    TextField(
+                                      controller: remarksCtrl,
+                                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Remarks (optional)',
+                                        hintText: 'Add a note...',
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    // Dual Action Buttons: Reject (Red Outline) | Verify Payment (Gold Gradient)
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: BounceableButton(
+                                            onPressed: isProcessing ? null : () => _rejectPayment(attempt),
+                                            variant: ButtonVariant.crimsonOutline,
+                                            height: 44,
+                                            text: 'Reject',
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: BounceableButton(
+                                            onPressed: isProcessing ? null : () => _verifyPayment(attempt),
+                                            isLoading: isProcessing,
+                                            variant: ButtonVariant.goldGradient,
+                                            height: 44,
+                                            text: 'Verify Payment',
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
     );
   }
 }

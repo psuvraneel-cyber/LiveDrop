@@ -3,7 +3,7 @@
     "id": 1,
     "title": "Two buyers reserve same product simultaneously",
     "status": "PASS",
-    "evidence": "Buyer 1 reserved (order: LD-U1IMLS); Buyer 2 blocked with STOCK_UNAVAILABLE",
+    "evidence": "Buyer 1 reserved (order: LD-YJKOI7); Buyer 2 blocked with STOCK_UNAVAILABLE",
     "actual": "Exactly one reservation succeeded; second buyer blocked"
   },
   {
@@ -208,5 +208,33 @@
     "status": "BLOCKED (Staging Credentials)",
     "evidence": "4 race vectors (RACE-01..04) verified in WASM engine; real TCP multi-client test requires live Supabase staging credentials",
     "actual": "Local concurrency verified; remote TCP blocked on credentials"
+  },
+  {
+    "id": 31,
+    "title": "Idempotent Order Creation on Network Retry (create_order_with_reservation)",
+    "status": "PASS",
+    "evidence": "Order LD-6MGBJ8 returned on retry without STOCK_UNAVAILABLE",
+    "actual": "Idempotency verified"
+  },
+  {
+    "id": 32,
+    "title": "Atomic Order Dispatch & Tracking Recording (mark_order_shipped)",
+    "status": "PASS",
+    "evidence": "Order transitioned to shipped with courier Delhivery Surface and tracking TRK-DELHIVERY-001",
+    "actual": "Shipping lifecycle verified"
+  },
+  {
+    "id": 33,
+    "title": "Instant Inventory Release on Payment Rejection (reject_manual_upi_payment)",
+    "status": "PASS",
+    "evidence": "Garment #REJ01 instantly restored to available status upon payment rejection",
+    "actual": "Instant inventory release verified"
+  },
+  {
+    "id": 34,
+    "title": "Public Projection Views Mask Seller PII & Reservation UUIDs",
+    "status": "PASS",
+    "evidence": "Raw tables blocked from anon; projection views mask phone_number, return_address, and reserved_by_order_id",
+    "actual": "Zero PII leak verified"
   }
 ]

@@ -369,6 +369,63 @@ export function DirectUpiPaymentView({
             </span>
           </div>
         </div>
+
+        {order.tracking_number && (
+          <div
+            className="ld-shipping-tracking-box"
+            data-testid="buyer-shipping-tracking-section"
+            style={{
+              marginTop: '16px',
+              padding: '12px 16px',
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderRadius: '8px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '8px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#166534',
+                }}
+                data-testid="buyer-courier-partner"
+              >
+                📦 Dispatched via {order.courier_partner || 'Courier'}
+              </span>
+              <span className="ld-badge-ready" data-testid="buyer-order-shipped-status">
+                Shipped
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '14px',
+              }}
+            >
+              <span style={{ color: '#475569' }}>Tracking Number:</span>
+              <strong
+                style={{
+                  fontFamily: 'monospace',
+                  color: '#0F172A',
+                  letterSpacing: '0.5px',
+                }}
+                data-testid="buyer-tracking-number"
+              >
+                {order.tracking_number}
+              </strong>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

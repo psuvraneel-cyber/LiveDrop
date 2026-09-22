@@ -18,6 +18,7 @@ import { LiveDropError } from '../lib/errors';
 import { useCart, useOptionalCart, CartProvider } from '../lib/cart/cart-context';
 import { StickyCartBar } from './cart/StickyCartBar';
 import { CartDrawer } from './cart/CartDrawer';
+import { InAppBrowserBanner } from './InAppBrowserBanner';
 
 export type DropViewState = 'loading' | 'live' | 'closed' | 'not_found' | 'error';
 
@@ -203,6 +204,8 @@ function PublicDropContent({
       onStatusChange: (status) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeStatus('connected');
+        } else if (status === 'POLLING') {
+          setRealtimeStatus('polling');
         } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
           setRealtimeStatus('disconnected');
         }
@@ -291,6 +294,9 @@ function PublicDropContent({
   // State: Live Catalog
   return (
     <div>
+      {/* Social In-App Browser Guidance Banner */}
+      <InAppBrowserBanner />
+
       {/* Sticky Drop Header */}
       <DropHeader drop={drop} realtimeStatus={realtimeStatus} onOpenCart={openDrawer} />
 

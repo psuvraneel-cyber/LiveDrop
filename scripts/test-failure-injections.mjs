@@ -42,9 +42,33 @@ async function main() {
         (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
       )::uuid
     $$;
+
+    CREATE SCHEMA IF NOT EXISTS storage;
+    CREATE TABLE IF NOT EXISTS storage.buckets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      public BOOLEAN DEFAULT false,
+      file_size_limit BIGINT,
+      allowed_mime_types TEXT[],
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS storage.objects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      bucket_id TEXT REFERENCES storage.buckets(id),
+      name TEXT NOT NULL,
+      owner UUID,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+    CREATE OR REPLACE FUNCTION storage.foldername(name text)
+    RETURNS text[] LANGUAGE sql IMMUTABLE AS $$
+      SELECT string_to_array(name, '/');
+    $$;
   `);
 
-  // 2. Apply Migrations 001 - 014
+  // 2. Apply Migrations 001 - 018
   const migrationsDir = path.resolve(__dirname, '../supabase/migrations');
   const migrationFiles = [
     '001_create_profiles.sql',
@@ -61,6 +85,11 @@ async function main() {
     '012_payment_authority_direct_update_hardening.sql',
     '013_direct_upi_and_manual_payment_verification.sql',
     '014_persistent_payment_claim_window.sql',
+    '015_fulfillment_idempotency_and_rejection_release.sql',
+    '016_public_projection_views.sql',
+    '017_create_performance_indexes.sql',
+    '018_storage_buckets.sql',
+    '019_enable_realtime_publication.sql',
   ];
 
   for (const file of migrationFiles) {
@@ -580,6 +609,172 @@ async function main() {
       evidence: '4 race vectors (RACE-01..04) verified in WASM engine; real TCP multi-client test requires live Supabase staging credentials',
       actual: 'Local concurrency verified; remote TCP blocked on credentials',
     };
+  });
+
+  // --------------------------------------------------------------------------
+  // SCENARIO 31: Order Request Idempotency on Network Retry
+  // --------------------------------------------------------------------------
+  await record(31, 'Idempotent Order Creation on Network Retry (create_order_with_reservation)', async () => {
+    const pRes = await db.query(`
+      INSERT INTO products (drop_id, code, title, price_paisa, image_url, status)
+      VALUES ($1, '#IDEM01', 'Idempotent Saree', 150000, $2, 'available')
+      RETURNING id;
+    `, [dropId, dummyImg]);
+    const pid = pRes.rows[0].id;
+
+    // First attempt
+    const o1 = await db.query(`
+      SELECT create_order_with_reservation(
+        $1, ARRAY[$2::uuid], 'Simran Kaur', '9876543210',
+        '202 Lake Gardens, Kolkata', '700045', 'full_payment', 'IDEMP-FAIL-INJ-001'
+      ) as r;
+    `, [dropId, pid]);
+    const r1 = o1.rows[0].r;
+    if (!r1.success) throw new Error(`Initial order creation failed: ${JSON.stringify(r1)}`);
+
+    // Second attempt with same idempotency_key
+    const o2 = await db.query(`
+      SELECT create_order_with_reservation(
+        $1, ARRAY[$2::uuid], 'Simran Kaur', '9876543210',
+        '202 Lake Gardens, Kolkata', '700045', 'full_payment', 'IDEMP-FAIL-INJ-001'
+      ) as r;
+    `, [dropId, pid]);
+    const r2 = o2.rows[0].r;
+    if (!r2.success || r2.order_id !== r1.order_id || !r2.idempotent_replay) {
+      throw new Error(`Idempotent retry failed or produced duplicate: ${JSON.stringify(r2)}`);
+    }
+    return { evidence: `Order ${r1.order_code} returned on retry without STOCK_UNAVAILABLE`, actual: 'Idempotency verified' };
+  });
+
+  // --------------------------------------------------------------------------
+  // SCENARIO 32: Atomic Order Fulfillment via mark_order_shipped
+  // --------------------------------------------------------------------------
+  await record(32, 'Atomic Order Dispatch & Tracking Recording (mark_order_shipped)', async () => {
+    // Verify that unpaid order cannot be shipped
+    const unpaidShip = await asRole('authenticated', async () => {
+      const res = await db.query(`
+        SELECT mark_order_shipped(
+          '9a279045-2366-464a-f866-ba7f546fa067'::uuid,
+          'TRK-PREMATURE-01',
+          'Delhivery'
+        ) as r;
+      `);
+      return res.rows[0].r;
+    }, { sub: sellerA });
+
+    if (unpaidShip.success || unpaidShip.error !== 'ORDER_NOT_PAID') {
+      throw new Error(`Expected ORDER_NOT_PAID for unpaid order shipping, got: ${JSON.stringify(unpaidShip)}`);
+    }
+
+    // Ship fully paid order
+    const validShip = await asRole('authenticated', async () => {
+      const res = await db.query(`
+        SELECT mark_order_shipped(
+          '5c835601-8922-420c-b422-7c3b102ef023'::uuid,
+          'TRK-DELHIVERY-001',
+          'Delhivery Surface',
+          'Handloom silk gift box'
+        ) as r;
+      `);
+      return res.rows[0].r;
+    }, { sub: sellerA });
+
+    if (!validShip.success || validShip.status !== 'shipped' || validShip.fulfilment_status !== 'shipped') {
+      throw new Error(`Shipping paid order failed: ${JSON.stringify(validShip)}`);
+    }
+
+    return { evidence: `Order transitioned to shipped with courier ${validShip.courier_partner} and tracking ${validShip.tracking_number}`, actual: 'Shipping lifecycle verified' };
+  });
+
+  // --------------------------------------------------------------------------
+  // SCENARIO 33: Instant Inventory Release on Payment Rejection
+  // --------------------------------------------------------------------------
+  await record(33, 'Instant Inventory Release on Payment Rejection (reject_manual_upi_payment)', async () => {
+    // Create new garment and order
+    const pRes = await db.query(`
+      INSERT INTO products (drop_id, code, title, price_paisa, image_url, status)
+      VALUES ($1, '#REJ01', 'Rejection Test Saree', 190000, $2, 'available')
+      RETURNING id;
+    `, [dropId, dummyImg]);
+    const pid = pRes.rows[0].id;
+
+    const ordRes = await db.query(`
+      SELECT create_order_with_reservation(
+        $1, ARRAY[$2::uuid], 'Anjali Gupta', '9876543210',
+        'Flat 101, Salt Lake, Kolkata', '700064', 'full_payment'
+      ) as r;
+    `, [dropId, pid]);
+    const ord = ordRes.rows[0].r;
+
+    const attRes = await db.query(`
+      SELECT initiate_payment_attempt($1, $2, 'full') as r;
+    `, [ord.order_id, ord.order_token]);
+    const attId = attRes.rows[0].r.payment_attempt_id;
+
+    await db.query(`
+      SELECT submit_buyer_payment_claim($1, $2, $3, '999111222333');
+    `, [ord.order_id, ord.order_token, attId]);
+
+    // Reject claim as Seller A with release_hold = true
+    const rejRes = await asRole('authenticated', async () => {
+      const res = await db.query(`
+        SELECT reject_manual_upi_payment($1, 'bogus_utr', true) as r;
+      `, [attId]);
+      return res.rows[0].r;
+    }, { sub: sellerA });
+
+    if (!rejRes.success || !rejRes.hold_released) {
+      throw new Error(`Rejection with hold release failed: ${JSON.stringify(rejRes)}`);
+    }
+
+    const prodCheck = await db.query(`SELECT status, reserved_by_order_id FROM products WHERE id = $1`, [pid]);
+    if (prodCheck.rows[0].status !== 'available' || prodCheck.rows[0].reserved_by_order_id !== null) {
+      throw new Error(`Garment was not unlocked immediately after rejection: ${JSON.stringify(prodCheck.rows[0])}`);
+    }
+
+    return { evidence: 'Garment #REJ01 instantly restored to available status upon payment rejection', actual: 'Instant inventory release verified' };
+  });
+
+  // --------------------------------------------------------------------------
+  // SCENARIO 34: Public PII Data Masking & Projection Isolation
+  // --------------------------------------------------------------------------
+  await record(34, 'Public Projection Views Mask Seller PII & Reservation UUIDs', async () => {
+    // 1. Verify anon cannot read raw profiles
+    let anonBlockedProfiles = false;
+    await asRole('anon', async () => {
+      try {
+        const res = await db.query('SELECT * FROM profiles');
+        if (res.rows.length === 0) anonBlockedProfiles = true;
+      } catch {
+        anonBlockedProfiles = true;
+      }
+    });
+
+    if (!anonBlockedProfiles) {
+      throw new Error('Anon user was able to query profiles table directly!');
+    }
+
+    // 2. Verify public_seller_storefronts hides phone_number and return_address
+    const storefronts = await asRole('anon', async () => {
+      const res = await db.query('SELECT * FROM public_seller_storefronts WHERE store_slug = $1', ['mothers-boutique']);
+      return res.rows[0];
+    });
+
+    if (!storefronts || 'phone_number' in storefronts || 'return_address' in storefronts) {
+      throw new Error(`public_seller_storefronts exposed PII: ${JSON.stringify(storefronts)}`);
+    }
+
+    // 3. Verify public_products_catalog hides reserved_by_order_id
+    const catalogItem = await asRole('anon', async () => {
+      const res = await db.query('SELECT * FROM public_products_catalog LIMIT 1');
+      return res.rows[0];
+    });
+
+    if (!catalogItem || 'reserved_by_order_id' in catalogItem) {
+      throw new Error(`public_products_catalog exposed reserved_by_order_id: ${JSON.stringify(catalogItem)}`);
+    }
+
+    return { evidence: 'Raw tables blocked from anon; projection views mask phone_number, return_address, and reserved_by_order_id', actual: 'Zero PII leak verified' };
   });
 
   console.log('\n================================================================');

@@ -41,17 +41,19 @@ PRD Requirement ──► UX Location ──► Domain Rule ──► DB Entity 
 | **REQ-FR-B4.1** | `02-prd.md` §3.2 | WhatsApp Checkout | RULE-ORD-01..06 | `orders`, `order_items`, `products` | `rpc/create_order_with_reservation` | `WhatsAppCheckout.tsx` | `TC-BUY-07`, `TC-CON-01..06` | `TASK-3.3` | **Mapped** |
 | **REQ-FR-B4.2** | `02-prd.md` §3.2 | WhatsApp Redirect | RULE-INT-01 | N/A (Deep Link) | N/A | `WhatsAppCheckout.tsx` | `TC-BUY-09` | `TASK-3.3` | **Mapped** |
 | **REQ-FR-B4.3** | `02-prd.md` §3.2 | Confirmation Screen | RULE-ORD-07 | `orders`, `profiles` | `rpc/get_order_by_token` | `CheckoutSuccessView.tsx` | `TC-BUY-10` | `TASK-2.3` | **Implemented** |
-| **REQ-FR-S1.1** | `02-prd.md` §4.2 | Ingestion Viewfinder | RULE-CAM-01 | N/A (Hardware) | N/A | `camera_screen.dart` | `TC-SEL-03` | `TASK-5.1` | **Mapped** |
-| **REQ-FR-S1.2** | `02-prd.md` §4.2 | Sub-30s Loop | RULE-CAM-02 | `products` | `POST /storage/v1/object/...` + INSERT | `product_form_overlay.dart` | `TC-SEL-03`, `TC-SEL-04` | `TASK-5.2` | **Mapped** |
-| **REQ-FR-S1.3** | `02-prd.md` §4.2 | Drop Publishing | RULE-DRP-01..05 | `drops` | `POST /rest/v1/drops` | `create_drop_screen.dart` | `TC-SEL-02`, `TC-SEL-05` | `TASK-4.2` | **Mapped** |
-| **REQ-FR-S2.1** | `02-prd.md` §4.2 | Live Dashboard Grid | RULE-PRD-05 | `products` | Realtime `products` channel | `live_dashboard_screen.dart` | `TC-SEL-06` | `TASK-4.2`, `TASK-6.1` | **Mapped** |
-| **REQ-FR-S2.2** | `02-prd.md` §4.2 | Metric Counters | RULE-DRP-04 | `products`, `orders` | Aggregate Query / Realtime | `live_dashboard_screen.dart` | `TC-SEL-06` | `TASK-6.1` | **Mapped** |
-| **REQ-FR-S2.3** | `02-prd.md` §4.2 | Manual Overrides | RULE-PRD-06 | `products` | `rpc/mark_product_sold_offline` | `product_action_sheet.dart` | `TC-SEL-10` | `TASK-1.2`, `TASK-6.1` | **Mapped** |
-| **REQ-FR-S3.1** | `02-prd.md` §4.2 | Kanban Pipeline | RULE-ORD-08..10 | `orders` | Realtime `orders` channel | `kanban_board_screen.dart` | `TC-SEL-06` | `TASK-6.1` | **Mapped** |
-| **REQ-FR-S3.2** | `02-prd.md` §4.2 | Order Card Actions | RULE-ORD-07 | `orders`, `products` | `rpc/mark_order_paid` | `order_card.dart` | `TC-SEL-07`, `TC-REC-03` | `TASK-6.2` | **Mapped** |
-| **REQ-FR-S4.1** | `02-prd.md` §4.2 | 4×6 Thermal Label | RULE-LBL-01 | N/A (Client PDF) | N/A | `shipping_label_view.dart` | `TC-SEL-08` | `TASK-7.1` | **Mapped** |
-| **REQ-FR-S4.2** | `02-prd.md` §4.2 | Label Content & Barcode | RULE-LBL-02 | `orders`, `profiles` | Client Render | `shipping_label_view.dart` | `TC-SEL-08` | `TASK-7.1` | **Mapped** |
-| **REQ-FR-S4.3** | `02-prd.md` §4.2 | Print & Share Dispatch | RULE-LBL-03 | `orders` | `PATCH /rest/v1/orders` | `shipping_label_view.dart` | `TC-SEL-09` | `TASK-7.2` | **Mapped** |
+| **REQ-FR-S1.1** | `02-prd.md` §4.2 | Ingestion Viewfinder | RULE-CAM-01 | N/A (Hardware) | N/A | `camera_intake_screen.dart` | `TC-SEL-03`, `sprint2_seller_operations_test.dart` | `TASK-5.1` | **Implemented** |
+| **REQ-FR-S1.2** | `02-prd.md` §4.2 | Sub-30s Loop | RULE-CAM-02 | `products` | `POST /storage/v1/object/...` + INSERT | `camera_intake_screen.dart`, `image_service.dart` | `TC-SEL-03`, `TC-SEL-04`, `sprint2_seller_operations_test.dart` | `TASK-5.2` | **Implemented** |
+| **REQ-FR-S1.3** | `02-prd.md` §4.2 | Drop Publishing | RULE-DRP-01..05 | `drops` | `POST /rest/v1/drops` | `drops_list_screen.dart`, `create_drop_screen.dart` | `TC-SEL-02`, `TC-SEL-05`, `seller_repository_test.dart` | `TASK-4.2` | **Implemented** |
+| **REQ-FR-S2.1** | `02-prd.md` §4.2 | Live Dashboard Grid | RULE-PRD-05 | `products` | Realtime `products` channel | `seller_dashboard_screen.dart` | `TC-SEL-06`, `luxury_ui_and_motion_test.dart` | `TASK-4.2`, `TASK-6.1` | **Implemented** |
+| **REQ-FR-S2.2** | `02-prd.md` §4.2 | Metric Counters | RULE-DRP-04 | `products`, `orders` | Aggregate Query / Realtime | `seller_dashboard_screen.dart` | `TC-SEL-06`, `luxury_ui_and_motion_test.dart` | `TASK-6.1` | **Implemented** |
+| **REQ-FR-S2.3** | `02-prd.md` §4.2 | Manual Overrides | RULE-PRD-06 | `products` | `rpc/mark_product_sold_offline` | `product_details_screen.dart`, `products_inventory_screen.dart` | `TC-SEL-10`, `seller_repository_test.dart` | `TASK-1.2`, `TASK-6.1` | **Implemented** |
+| **REQ-FR-S3.1** | `02-prd.md` §4.2 | Kanban Pipeline | RULE-ORD-08..10 | `orders` | Realtime `orders` channel | `kanban_board_screen.dart` | `TC-SEL-06`, `sprint2_seller_operations_test.dart` | `TASK-6.1` | **Implemented** |
+| **REQ-FR-S3.2** | `02-prd.md` §4.2 | Order Card Actions | RULE-ORD-07 | `orders`, `products` | `rpc/mark_order_paid`, `rpc/mark_order_shipped` | `order_card.dart`, `order_details_screen.dart` | `TC-SEL-07`, `TC-REC-03`, `sprint2_seller_operations_test.dart` | `TASK-6.2` | **Implemented** |
+| **REQ-FR-S4.1** | `02-prd.md` §4.2 | 4×6 Thermal Label | RULE-LBL-01 | N/A (Client PDF) | N/A | `shipping_label_screen.dart`, `pdf_label_service.dart` | `TC-SEL-08`, `sprint2_seller_operations_test.dart` | `TASK-7.1` | **Implemented** |
+| **REQ-FR-S4.2** | `02-prd.md` §4.2 | Label Content & Barcode | RULE-LBL-02 | `orders`, `profiles` | Client Render | `shipping_label_screen.dart`, `pdf_label_service.dart` | `TC-SEL-08`, `sprint2_seller_operations_test.dart` | `TASK-7.1` | **Implemented** |
+| **REQ-FR-S4.3** | `02-prd.md` §4.2 | Print & Share Dispatch | RULE-LBL-03 | `orders` | `rpc/mark_order_shipped` | `shipping_label_screen.dart`, `shipping_dialog.dart` | `TC-SEL-09`, `sprint2_seller_operations_test.dart` | `TASK-7.2` | **Implemented** |
+| **REQ-FR-S1.4** | User Override | In-App Seller Registration & Onboarding Fee | RULE-PRD-01..03, RULE-PAY-01 | `auth.users`, `profiles` | `auth.signUp`, `trg_on_auth_user_created` | `seller_registration_screen.dart` | `seller_auth_registration_test.dart` | `TASK-4.1A` | **Implemented** |
+| **REQ-FR-S1.5** | User Override | Admin WhatsApp Support & Password Reset | RULE-INT-01 | `auth.users` | `auth.resetPasswordForEmail`, WhatsApp Intent | `seller_login_screen.dart`, `admin_config.dart` | `seller_auth_registration_test.dart` | `TASK-4.1B` | **Implemented** |
 
 ---
 

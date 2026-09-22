@@ -171,6 +171,7 @@ export interface CreateOrderRequest {
   p_shipping_address: string;
   p_pincode: string;
   p_confirmation_mode?: OrderConfirmationMode;
+  p_idempotency_key?: string | null;
 }
 
 export interface CreateOrderSuccessResponse {
@@ -189,6 +190,10 @@ export interface CreateOrderSuccessResponse {
   payment_status: OrderPaymentStatus;
   fulfilment_status: OrderFulfilmentStatus;
   hold_expires_at: string;
+  shipped_at?: string | null;
+  tracking_number?: string | null;
+  courier_partner?: string | null;
+  idempotent_replay?: boolean;
 }
 
 export interface CreateOrderErrorResponse {
@@ -229,6 +234,10 @@ export interface OrderReceipt {
   fulfilment_status: OrderFulfilmentStatus;
   status: OrderStatus;
   hold_expires_at: string | null;
+  shipped_at?: string | null;
+  tracking_number?: string | null;
+  courier_partner?: string | null;
+  notes?: string | null;
   store_name: string;
   store_slug?: string;
   upi_id: string;

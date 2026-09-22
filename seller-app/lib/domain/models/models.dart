@@ -582,3 +582,67 @@ class PaymentAttempt {
   }
 }
 
+class TopProductStat {
+  final String productCode;
+  final String title;
+  final int soldCount;
+  final int revenuePaisa;
+  final String? imageUrl;
+
+  const TopProductStat({
+    required this.productCode,
+    required this.title,
+    required this.soldCount,
+    required this.revenuePaisa,
+    this.imageUrl,
+  });
+}
+
+class DailySalesStat {
+  final DateTime date;
+  final String dayLabel;
+  final int totalPaisa;
+
+  const DailySalesStat({
+    required this.date,
+    required this.dayLabel,
+    required this.totalPaisa,
+  });
+}
+
+class SellerAnalytics {
+  final int totalRevenuePaisa;
+  final int itemsSoldCount;
+  final int activeHoldsCount;
+  final int paymentClaimsCount;
+  final int peakRevenuePaisa;
+  final List<DailySalesStat> dailySales;
+  final List<TopProductStat> topProducts;
+
+  const SellerAnalytics({
+    required this.totalRevenuePaisa,
+    required this.itemsSoldCount,
+    required this.activeHoldsCount,
+    required this.paymentClaimsCount,
+    required this.peakRevenuePaisa,
+    required this.dailySales,
+    required this.topProducts,
+  });
+}
+
+class SellerActivityItem {
+  final String id;
+  final String title;
+  final String subtitle;
+  final DateTime timestamp;
+  final String type;
+
+  const SellerActivityItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.timestamp,
+    required this.type,
+  });
+}
+

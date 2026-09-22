@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
-import { PublicDropView } from '../../../components/PublicDropView';
-import { getLiveDropBySlug } from '../../../lib/data/buyer-catalog';
+import { PublicDropView, DropViewState } from '../../../components/PublicDropView';
+import { getLiveDropBySlug, getPublicProductsForDrop } from '../../../lib/data/buyer-catalog';
 import { createBuyerClient } from '../../../lib/supabase/client';
+import { PublicDropCatalog, PublicProductView } from '../../../types/domain';
 
 export async function generateMetadata({
   params,
@@ -38,5 +39,37 @@ export default async function DropPage({
 }) {
   const { slug } = await params;
 
-  return <PublicDropView slug={slug} />;
+  let initialDrop: PublicDropCatalog | null = null;
+  let initialProducts: PublicProductView[] = [];
+  let initialState: DropViewState = 'loading';
+  let initialError: string | null = null;
+
+  try {
+    const client = createBuyerClient();
+    const drop = await getLiveDropBySlug(client, slug.trim());
+
+    if (!drop) {
+      initialState = 'not_found';
+    } else if (drop.status !== 'live') {
+      initialDrop = drop;
+      initialState = 'closed';
+    } else {
+      initialDrop = drop;
+      initialState = 'live';
+      initialProducts = await getPublicProductsForDrop(client, drop.id);
+    }
+  } catch (err) {
+    initialError = err instanceof Error ? err.message : String(err);
+    initialState = 'error';
+  }
+
+  return (
+    <PublicDropView
+      slug={slug}
+      initialDrop={initialDrop}
+      initialProducts={initialProducts}
+      initialState={initialState}
+      initialError={initialError}
+    />
+  );
 }

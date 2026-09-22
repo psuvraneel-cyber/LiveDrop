@@ -3,10 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/env_config.dart';
 import 'core/services/supabase_service.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/app_theme.dart';
 import 'data/repositories/seller_repository.dart';
+import 'domain/models/models.dart';
+import 'presentation/analytics/seller_analytics_screen.dart';
+import 'presentation/auth/seller_login_screen.dart';
 import 'presentation/configuration_error_screen.dart';
-import 'presentation/payment_settings_screen.dart';
+import 'presentation/dashboard/seller_dashboard_screen.dart';
+import 'presentation/drops/create_drop_screen.dart';
+import 'presentation/drops/drops_list_screen.dart';
+import 'presentation/intake/camera_intake_screen.dart';
+import 'presentation/orders/kanban_board_screen.dart';
+import 'presentation/orders/shipping_label_screen.dart';
 import 'presentation/pending_verifications_screen.dart';
+import 'presentation/products/products_inventory_screen.dart';
+import 'presentation/settings/seller_settings_screen.dart';
+import 'presentation/splash/animated_splash_screen.dart';
+
+export 'presentation/auth/seller_login_screen.dart' show SellerLoginScreen;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,48 +42,29 @@ Future<void> main() async {
 class LiveDropSellerApp extends StatelessWidget {
   final SellerRepository? repository;
   final String? initializationError;
+  final bool? enableSplash;
 
   const LiveDropSellerApp({
     super.key,
     this.repository,
     this.initializationError,
+    this.enableSplash,
   });
+
+  bool get _shouldShowSplash {
+    if (enableSplash != null) return enableSplash!;
+    // In widget tests, avoid holding the test pump with splash timer
+    final binding = WidgetsBinding.instance;
+    final isTest = binding.runtimeType.toString().contains('TestWidgetsFlutterBinding');
+    return !isTest;
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LiveDrop Seller',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5), // Indigo primary
-          primary: const Color(0xFF4F46E5),
-          secondary: const Color(0xFF10B981), // Emerald accent
-          surface: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          backgroundColor: Color(0xFF4F46E5),
-          foregroundColor: Colors.white,
-        ),
-        cardTheme: const CardThemeData(
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-            side: BorderSide(color: Color(0xFFE5E7EB)),
-          ),
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(8)),
-            borderSide: BorderSide(color: Color(0xFFD1D5DB)),
-          ),
-          filled: true,
-          fillColor: Color(0xFFF9FAFB),
-        ),
-      ),
+      theme: AppTheme.darkTheme,
       home: initializationError != null
           ? ConfigurationErrorScreen(
               errorMessage: initializationError!,
@@ -82,7 +78,12 @@ class LiveDropSellerApp extends StatelessWidget {
                 }
               },
             )
-          : SellerAuthGate(customRepository: repository),
+          : _shouldShowSplash
+              ? AnimatedSplashScreen(
+                  onNavigationTarget: (isAuth) =>
+                      SellerAuthGate(customRepository: repository),
+                )
+              : SellerAuthGate(customRepository: repository),
     );
   }
 }
@@ -107,7 +108,6 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
     super.initState();
     _checkAuth();
 
-    // Listen to Supabase auth state changes safely via SupabaseService
     if (SupabaseService.instance.isInitialized) {
       _authSubscription = SupabaseService.instance.authStateChanges.listen((data) {
         if (mounted) {
@@ -144,8 +144,9 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
   Widget build(BuildContext context) {
     if (_isChecking) {
       return const Scaffold(
+        backgroundColor: AppColors.obsidian,
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: AppColors.goldPrimary),
         ),
       );
     }
@@ -165,204 +166,7 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
   }
 }
 
-/// Seller Login Screen
-class SellerLoginScreen extends StatefulWidget {
-  final VoidCallback onLoginSuccess;
-
-  const SellerLoginScreen({super.key, required this.onLoginSuccess});
-
-  @override
-  State<SellerLoginScreen> createState() => _SellerLoginScreenState();
-}
-
-class _SellerLoginScreenState extends State<SellerLoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleLogin() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter both email and password.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    if (!SupabaseService.instance.isInitialized) {
-      setState(() {
-        _errorMessage = 'Supabase client is not initialized. Please verify environment configuration.';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    try {
-      final client = SupabaseService.instance.client;
-      final res = await client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!mounted) return;
-
-      if (res.session != null) {
-        widget.onLoginSuccess();
-      } else {
-        setState(() {
-          _errorMessage = 'Authentication failed. Please check credentials.';
-          _isLoading = false;
-        });
-      }
-    } catch (err) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = err.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Card(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Brand Header
-                    const Icon(
-                      Icons.storefront_rounded,
-                      size: 56,
-                      color: Color(0xFF4F46E5),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'LiveDrop Seller',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF111827),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Live-Stream Commerce & UPI Verification',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    if (_errorMessage != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
-                        ),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            color: Color(0xFF991B1B),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Email Field
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Seller Email',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Password Field
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Sign In Button
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Sign In to Boutique',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Seller Main Navigation Shell (Verifications & Payment Settings)
+/// Seller Main Navigation Shell (5-Tab Luxury Boutique Operations)
 class SellerHomeScreen extends StatefulWidget {
   final SellerRepository repository;
 
@@ -375,74 +179,188 @@ class SellerHomeScreen extends StatefulWidget {
 class _SellerHomeScreenState extends State<SellerHomeScreen> {
   int _currentIndex = 0;
 
-  Future<void> _handleSignOut() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out of the seller app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
+  void _navigateToTab(int index) {
+    setState(() => _currentIndex = index);
+  }
+
+  void _openAddProduct() async {
+    try {
+      final drops = await widget.repository.getDrops();
+      final active = drops.where((d) => d.status == DropStatus.live).firstOrNull ??
+          drops.where((d) => d.status == DropStatus.draft).firstOrNull ??
+          drops.firstOrNull;
+
+      if (!mounted) return;
+
+      if (active != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => CameraIntakeScreen(
+              drop: active,
+              repository: widget.repository,
             ),
-            child: const Text('Sign Out'),
           ),
-        ],
+        );
+      } else {
+        final created = await Navigator.push<SellerDrop?>(
+          context,
+          MaterialPageRoute<SellerDrop?>(
+            builder: (_) => CreateDropScreen(repository: widget.repository),
+          ),
+        );
+        if (!mounted || created == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => CameraIntakeScreen(
+              drop: created,
+              repository: widget.repository,
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      _navigateToTab(1);
+    }
+  }
+
+  void _openManageDrops() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => DropsListScreen(repository: widget.repository),
       ),
     );
+  }
 
-    if (confirm == true) {
-      await SupabaseService.instance.signOut();
+  void _openAnalytics() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => SellerAnalyticsScreen(repository: widget.repository),
+      ),
+    );
+  }
+
+  void _openShipping() async {
+    try {
+      final orders = await widget.repository.getAllOrders();
+      final profile = await widget.repository.getProfile();
+      final paidOrShipped = orders.firstOrNull;
+
+      if (!mounted) return;
+
+      if (paidOrShipped != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => ShippingLabelScreen(
+              order: paidOrShipped,
+              profile: profile,
+              repository: widget.repository,
+            ),
+          ),
+        );
+      } else {
+        _navigateToTab(2); // Orders tab
+      }
+    } catch (_) {
+      _navigateToTab(2);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _currentIndex == 0 ? 'Pending Verifications' : 'Payment Settings',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign Out',
-            onPressed: _handleSignOut,
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.obsidian,
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          PendingVerificationsScreen(repository: widget.repository),
-          PaymentSettingsScreen(repository: widget.repository),
+          // Tab 0: Home / Live Dashboard (Screen 2)
+          SellerDashboardScreen(
+            repository: widget.repository,
+            onNavigateToAddProduct: _openAddProduct,
+            onNavigateToOrders: () => _navigateToTab(2),
+            onNavigateToPayments: () => _navigateToTab(3),
+            onNavigateToAnalytics: _openAnalytics,
+            onNavigateToShipping: _openShipping,
+            onManageDrop: _openManageDrops,
+          ),
+          // Tab 1: Products & Inventory (Screen 3)
+          ProductsInventoryScreen(repository: widget.repository),
+          // Tab 2: Orders Kanban (Screen 6)
+          KanbanBoardScreen(repository: widget.repository),
+          // Tab 3: Payment Verifications (Screen 7)
+          Scaffold(
+            backgroundColor: AppColors.obsidian,
+            appBar: AppBar(
+              title: const Text('Verify Payments', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            body: PendingVerificationsScreen(repository: widget.repository),
+          ),
+          // Tab 4: Settings & More (Screen 11)
+          SellerSettingsScreen(repository: widget.repository),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: const Color(0xFF4F46E5),
-        unselectedItemColor: const Color(0xFF6B7280),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.verified_outlined),
-            activeIcon: Icon(Icons.verified),
-            label: 'Verifications',
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.obsidianSurface,
+          border: Border(top: BorderSide(color: AppColors.cardBorder, width: 1)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
+                _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Products'),
+                _buildNavItem(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
+                _buildNavItem(3, Icons.verified_outlined, Icons.verified_rounded, 'Payments'),
+                _buildNavItem(4, Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
+              ],
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.payment_outlined),
-            activeIcon: Icon(Icons.payment),
-            label: 'Payment Settings',
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData unselectedIcon, IconData selectedIcon, String label) {
+    final isSelected = _currentIndex == index;
+
+    return InkWell(
+      onTap: () => _navigateToTab(index),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.goldMuted : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? selectedIcon : unselectedIcon,
+              color: isSelected ? AppColors.goldPrimary : AppColors.textMuted,
+              size: 22,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                color: isSelected ? AppColors.goldPrimary : AppColors.textMuted,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

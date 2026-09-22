@@ -157,7 +157,7 @@ describe('TASK-1.4: Catalog Data Access Operations', () => {
 
     const products = await getPublicProductsForDrop(mockClient, 'drop-123');
 
-    expect(mockFrom).toHaveBeenCalledWith('products');
+    expect(mockFrom).toHaveBeenCalledWith('public_products_catalog');
     expect(mockEq).toHaveBeenCalledWith('drop_id', 'drop-123');
     expect(mockOrder).toHaveBeenCalledWith('code', { ascending: true });
     expect(products.length).toBe(2);
@@ -185,7 +185,7 @@ describe('TASK-1.4: Catalog Data Access Operations', () => {
 
     const storefront = await getStorefrontBySlug(mockClient, 'mothers-boutique');
 
-    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(mockFrom).toHaveBeenCalledWith('public_seller_storefronts');
     expect(mockEqSlug).toHaveBeenCalledWith('store_slug', 'mothers-boutique');
     expect(storefront?.store_name).toBe("Mother's Boutique");
     expect(storefront?.store_slug).toBe('mothers-boutique');
@@ -239,6 +239,7 @@ describe('TASK-1.4: Atomic Order RPC & Price Authority', () => {
     expect(mockRpc).toHaveBeenCalledWith('create_order_with_reservation', {
       ...req,
       p_confirmation_mode: 'advance',
+      p_idempotency_key: null,
     });
     expect(res.success).toBe(true);
     expect(res.order_code).toBe('LD-8F429B');

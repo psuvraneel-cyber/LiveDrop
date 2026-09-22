@@ -3,7 +3,7 @@ import { PublicDropCatalog } from '../types/domain';
 import { formatPaisaToINR } from '../lib/utils/currency';
 import { useOptionalCart } from '../lib/cart/cart-context';
 
-export type RealtimeStatus = 'connected' | 'connecting' | 'disconnected';
+export type RealtimeStatus = 'connected' | 'connecting' | 'polling' | 'disconnected';
 
 export interface DropHeaderProps {
   drop: PublicDropCatalog;
@@ -24,7 +24,7 @@ export function DropHeader({ drop, realtimeStatus, onOpenCart }: DropHeaderProps
   const avatarLetter = storeName.charAt(0).toUpperCase() || 'L';
 
   return (
-    <header className="ld-header" role="banner">
+    <header className="ld-header" data-testid="drop-header" role="banner">
       <div className="ld-header-inner">
         <div className="ld-header-top">
           {/* Boutique Store Branding */}
@@ -51,13 +51,21 @@ export function DropHeader({ drop, realtimeStatus, onOpenCart }: DropHeaderProps
                 title={
                   realtimeStatus === 'connected'
                     ? 'Realtime live inventory updates active'
+                    : realtimeStatus === 'polling'
+                    ? 'Live inventory updates via backup polling'
                     : realtimeStatus === 'connecting'
                     ? 'Connecting to live updates...'
                     : 'Live updates temporarily disconnected (catalog current)'
                 }
               >
                 <span className={`ld-realtime-indicator ${realtimeStatus}`} aria-hidden="true" />
-                {realtimeStatus === 'connected' ? 'Live updates' : realtimeStatus === 'connecting' ? 'Connecting...' : 'Offline'}
+                {realtimeStatus === 'connected'
+                  ? 'Live updates'
+                  : realtimeStatus === 'polling'
+                  ? 'Backup Polling'
+                  : realtimeStatus === 'connecting'
+                  ? 'Connecting...'
+                  : 'Offline'}
               </span>
             </div>
 
