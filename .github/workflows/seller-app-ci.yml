@@ -51,6 +51,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          SUPABASE_URL=$(printf '%s' "$SUPABASE_URL" | tr -d '\r\n')
+          SUPABASE_ANON_KEY=$(printf '%s' "$SUPABASE_ANON_KEY" | tr -d '\r\n')
           if [ -n "$SUPABASE_ANON_KEY" ]; then
             echo "::add-mask::$SUPABASE_ANON_KEY"
           fi
