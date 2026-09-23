@@ -3,7 +3,7 @@
     "id": 1,
     "title": "Two buyers reserve same product simultaneously",
     "status": "PASS",
-    "evidence": "Buyer 1 reserved (order: LD-YJKOI7); Buyer 2 blocked with STOCK_UNAVAILABLE",
+    "evidence": "Buyer 1 reserved (order: LD-036UET); Buyer 2 blocked with STOCK_UNAVAILABLE",
     "actual": "Exactly one reservation succeeded; second buyer blocked"
   },
   {
@@ -213,7 +213,7 @@
     "id": 31,
     "title": "Idempotent Order Creation on Network Retry (create_order_with_reservation)",
     "status": "PASS",
-    "evidence": "Order LD-6MGBJ8 returned on retry without STOCK_UNAVAILABLE",
+    "evidence": "Order LD-2CDRSO returned on retry without STOCK_UNAVAILABLE",
     "actual": "Idempotency verified"
   },
   {
