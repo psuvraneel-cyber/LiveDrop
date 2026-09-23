@@ -1,0 +1,17 @@
+const token = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjM0M2M3OTZlLWE3Y2MtNDA4NS1hN2Q4LWMxMGFiNDMzYTA2NyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FvYWdxZHRucmJtYXlmb2FqemVzLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI0OGQyYWRhZi0wY2E3LTRlOGYtODhiZi01MWQwZjMyYzNhZjIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzkwMTk0NDEwLCJpYXQiOjE3OTAxOTA4MTAsImVtYWlsIjoic3V2cmFuZWVscEBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsIjoic3V2cmFuZWVscEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGhvbmVfbnVtYmVyIjoiNzQzOTU4Mzg4NCIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwicmV0dXJuX2FkZHJlc3MiOiJkanNqaGVuc2p3dXIiLCJzdG9yZV9uYW1lIjoic29hbmxpZG5zbiIsInN0b3JlX3NsdWciOiJzb2FubGlkbnNuIiwic3ViIjoiNDhkMmFkYWYtMGNhNy00ZThmLTg4YmYtNTFkMGYzMmMzYWYyIiwidXBpX2lkIjoicHN1dnJhbmVlbEBva2F4aXMiLCJ1dHJfbnVtYmVyIjoicmhzamdqZm51IGVuZmgifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc5MDE5MDgxMH1dLCJzZXNzaW9uX2lkIjoiZmFlMzc3MTMtNTExNC00M2IyLThmMTUtOTEyMjc4ZDQ3ODAyIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.EeuXf-zqEkld9Kj4L8luOJM3uCXN8qjbNiu1zYbuXJWBMdQjZWPYIodKlCu9CP8J6WMp8PT603YwvIe2PFAWAw";
+const anonKey = 'sb_publishable_7jbVHNR-o2ZTQZJzapUctg_uHil0B15';
+const selectFields = 'id,drop_id,order_code,buyer_name,buyer_phone,shipping_address,pincode,subtotal_paisa,shipping_paisa,total_paisa,status,confirmation_mode,advance_required_paisa,advance_paid_paisa,total_paid_paisa,balance_due_paisa,payment_status,fulfilment_status,advance_paid_at,hold_expires_at,paid_at,shipped_at,tracking_number,courier_partner,created_at,order_items(id,order_id,product_id,price_at_purchase_paisa,products(code,title,image_url))';
+const url = `https://aoagqdtnrbmayfoajzes.supabase.co/rest/v1/orders?select=${encodeURIComponent(selectFields)}`;
+
+async function test() {
+  const r = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: 'Bearer ' + token,
+    },
+  });
+  console.log('HTTP', r.status);
+  console.log(await r.text());
+}
+
+test().catch(console.error);

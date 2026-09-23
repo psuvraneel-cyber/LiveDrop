@@ -167,6 +167,48 @@ describe('TASK-2.1: ProductCard Presentation', () => {
     expect(screen.getByTestId('fallback-image-prod-01')).toBeInTheDocument();
     expect(screen.getByText('#A01', { selector: '.ld-image-fallback-text' })).toBeInTheDocument();
   });
+
+  it('renders multi-angle image carousel with navigation and dots when image_urls has multiple photos', () => {
+    const multiAngleProduct: PublicProductView = {
+      ...mockProducts[0],
+      id: 'prod-multi',
+      image_urls: [
+        'https://example.com/angle1.jpg',
+        'https://example.com/angle2.jpg',
+        'https://example.com/angle3.jpg',
+      ],
+    };
+
+    render(<ProductCard product={multiAngleProduct} />);
+
+    // Renders navigation buttons and dots
+    const prevBtn = screen.getByTestId('carousel-prev-prod-multi');
+    const nextBtn = screen.getByTestId('carousel-next-prod-multi');
+    const dotsContainer = screen.getByTestId('carousel-dots-prod-multi');
+    expect(prevBtn).toBeInTheDocument();
+    expect(nextBtn).toBeInTheDocument();
+    expect(dotsContainer).toBeInTheDocument();
+
+    // Initial image is angle 1
+    const img = screen.getByRole('img');
+    expect(img).toHaveAttribute('src', 'https://example.com/angle1.jpg');
+
+    // Click next -> switches to angle 2
+    fireEvent.click(nextBtn);
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/angle2.jpg');
+
+    // Click next -> switches to angle 3
+    fireEvent.click(nextBtn);
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/angle3.jpg');
+
+    // Click next -> wraps around to angle 1
+    fireEvent.click(nextBtn);
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/angle1.jpg');
+
+    // Click prev -> wraps backwards to angle 3
+    fireEvent.click(prevBtn);
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://example.com/angle3.jpg');
+  });
 });
 
 describe('TASK-2.1: Public Drop Resolution & Visibility States', () => {

@@ -2,15 +2,23 @@ import React, { useState } from 'react';
 import { PublicProductView } from '../types/domain';
 import { formatPaisaToINR } from '../lib/utils/currency';
 import { useOptionalCart } from '../lib/cart/cart-context';
+import { ProductDetailModal } from './ProductDetailModal';
 
 export interface ProductCardProps {
   product: PublicProductView;
   dropId?: string;
+  storeName?: string;
   onAddToCart?: (product: PublicProductView) => void;
 }
 
-export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) {
-  const [imageError, setImageError] = useState(false);
+export function ProductCard({ product, dropId, storeName, onAddToCart }: ProductCardProps) {
+  const images = (product.image_urls && product.image_urls.length > 0)
+    ? product.image_urls
+    : (product.image_url ? [product.image_url] : []);
+
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const cart = useOptionalCart();
 
   const isAvailable = product.status === 'available';
@@ -18,6 +26,20 @@ export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) 
   const isSold = product.status === 'sold';
 
   const inCart = cart ? cart.isInCart(product.id) : false;
+  const hasMultipleImages = images.length > 1;
+
+  const currentImageUrl = images[activeImageIndex] || product.image_url;
+  const isCurrentError = imageErrors[activeImageIndex] || (!currentImageUrl);
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
 
   // Status badge label and class
   let statusText = 'AVAILABLE';
@@ -44,11 +66,13 @@ export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) 
   };
 
   return (
-    <article
-      className={`ld-product-card ${!isAvailable ? 'unavailable' : ''}`}
-      data-testid={`product-card-${product.id}`}
-      aria-label={`${product.code}: ${product.title} - ${formatPaisaToINR(product.price_paisa)} - ${statusText}`}
-    >
+    <>
+      <article
+        className={`ld-product-card ${!isAvailable ? 'unavailable' : ''}`}
+        data-testid={`product-card-${product.id}`}
+        aria-label={`${product.code}: ${product.title} - ${formatPaisaToINR(product.price_paisa)} - ${statusText}`}
+        onClick={() => setIsDetailOpen(true)}
+      >
       {/* Media Thumbnail Container (1:1 aspect ratio) */}
       <div className="ld-card-media">
         {/* Flash Code Badge (Top-Left, High Contrast Monospace) */}
@@ -69,15 +93,15 @@ export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) 
         </span>
 
         {/* Product Image or Fallback */}
-        {product.image_url && !imageError ? (
+        {currentImageUrl && !isCurrentError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.image_url}
-            alt={`${product.code} - ${product.title}`}
+            src={currentImageUrl}
+            alt={`${product.code} - ${product.title}${hasMultipleImages ? ` (Angle ${activeImageIndex + 1})` : ''}`}
             className="ld-product-image"
             loading="lazy"
             decoding="async"
-            onError={() => setImageError(true)}
+            onError={() => setImageErrors((prev) => ({ ...prev, [activeImageIndex]: true }))}
           />
         ) : (
           <div className="ld-image-fallback" data-testid={`fallback-image-${product.id}`}>
@@ -96,6 +120,48 @@ export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) 
               <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
             </svg>
             <span className="ld-image-fallback-text">{product.code}</span>
+          </div>
+        )}
+
+        {/* Multi-angle Navigation Arrows */}
+        {hasMultipleImages && (
+          <>
+            <button
+              type="button"
+              className="ld-carousel-nav ld-carousel-prev"
+              onClick={handlePrevImage}
+              aria-label="Previous image"
+              data-testid={`carousel-prev-${product.id}`}
+            >
+              &#8249;
+            </button>
+            <button
+              type="button"
+              className="ld-carousel-nav ld-carousel-next"
+              onClick={handleNextImage}
+              aria-label="Next image"
+              data-testid={`carousel-next-${product.id}`}
+            >
+              &#8250;
+            </button>
+          </>
+        )}
+
+        {/* Multi-angle Dot Indicators */}
+        {hasMultipleImages && (
+          <div className="ld-carousel-dots" data-testid={`carousel-dots-${product.id}`}>
+            {images.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`ld-carousel-dot ${idx === activeImageIndex ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImageIndex(idx);
+                }}
+                aria-label={`View angle ${idx + 1} of ${images.length}`}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -163,5 +229,14 @@ export function ProductCard({ product, dropId, onAddToCart }: ProductCardProps) 
         </div>
       </div>
     </article>
+    <ProductDetailModal
+      product={product}
+      isOpen={isDetailOpen}
+      onClose={() => setIsDetailOpen(false)}
+      dropId={dropId}
+      storeName={storeName}
+      onAddToCart={onAddToCart}
+    />
+  </>
   );
 }

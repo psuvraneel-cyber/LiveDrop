@@ -315,4 +315,35 @@ describe('TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX', () => {
     // initiatePaymentAttempt must NOT have been called because active attempt already exists
     expect(buyerCatalog.initiatePaymentAttempt).not.toHaveBeenCalled();
   });
+
+  it('UI-09: adaptive bounded polling refreshes order while awaiting_seller_verification', async () => {
+    vi.useFakeTimers();
+    try {
+      const orderWithPendingClaim: OrderReceipt = {
+        ...baseOrder,
+        payment_attempt: {
+          ...activeAttempt,
+          status: 'awaiting_seller_verification',
+          buyer_submitted_utr: '428739182799',
+          buyer_claimed_at: new Date().toISOString(),
+          verification_expires_at: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
+        },
+      };
+
+      const getOrderSpy = vi.spyOn(buyerCatalog, 'getOrderByToken').mockResolvedValue(orderWithPendingClaim);
+
+      render(<DirectUpiPaymentView order={orderWithPendingClaim} orderToken={mockOrderToken} />);
+
+      // Initial call count
+      const initialCalls = getOrderSpy.mock.calls.length;
+
+      // Advance timers past the first 5s + jitter poll tick (e.g. 7000ms)
+      await vi.advanceTimersByTimeAsync(7000);
+
+      expect(getOrderSpy.mock.calls.length).toBeGreaterThan(initialCalls);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
+

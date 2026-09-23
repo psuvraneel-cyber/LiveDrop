@@ -425,15 +425,23 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: AppTheme.pillDecoration(
-                                            color: AppColors.amber,
-                                            tintColor: AppColors.amberTint,
+                                            color: attempt.status == PaymentAttemptStatus.lateClaimPendingReview
+                                                ? AppColors.crimson
+                                                : AppColors.amber,
+                                            tintColor: attempt.status == PaymentAttemptStatus.lateClaimPendingReview
+                                                ? AppColors.crimsonTint
+                                                : AppColors.amberTint,
                                           ),
-                                          child: const Text(
-                                            'Verifying',
+                                          child: Text(
+                                            attempt.status == PaymentAttemptStatus.lateClaimPendingReview
+                                                ? 'Late Claim'
+                                                : 'Verifying',
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
-                                              color: AppColors.amber,
+                                              color: attempt.status == PaymentAttemptStatus.lateClaimPendingReview
+                                                  ? AppColors.crimson
+                                                  : AppColors.amber,
                                             ),
                                           ),
                                         ),

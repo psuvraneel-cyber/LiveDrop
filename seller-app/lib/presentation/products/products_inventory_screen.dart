@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/services/offline_intake_queue.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/seller_repository.dart';
@@ -12,8 +13,13 @@ import 'product_details_screen.dart';
 /// Screen 3: Luxury Boutique Products & Inventory Screen
 class ProductsInventoryScreen extends StatefulWidget {
   final SellerRepository repository;
+  final OfflineIntakeQueue? intakeQueue;
 
-  const ProductsInventoryScreen({super.key, required this.repository});
+  const ProductsInventoryScreen({
+    super.key,
+    required this.repository,
+    this.intakeQueue,
+  });
 
   @override
   State<ProductsInventoryScreen> createState() => _ProductsInventoryScreenState();
@@ -30,7 +36,20 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
   @override
   void initState() {
     super.initState();
+    widget.intakeQueue?.pendingCountNotifier.addListener(_onQueueChanged);
     _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    widget.intakeQueue?.pendingCountNotifier.removeListener(_onQueueChanged);
+    super.dispose();
+  }
+
+  void _onQueueChanged() {
+    if (mounted) {
+      _loadProducts();
+    }
   }
 
   Future<void> _loadProducts() async {
@@ -47,9 +66,33 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
 
       if (active != null) {
         final products = await widget.repository.getProducts(active.id);
+        final queuedProducts = <SellerProduct>[];
+        if (widget.intakeQueue != null) {
+          final pending = widget.intakeQueue!.items.where(
+            (i) => i.dropId == active.id && i.status != IntakeQueueStatus.completed,
+          );
+          for (final q in pending) {
+            if (!products.any((p) => p.code == q.code)) {
+              queuedProducts.add(
+                SellerProduct(
+                  id: q.id,
+                  dropId: q.dropId,
+                  code: q.code,
+                  title: q.title,
+                  pricePaisa: q.pricePaisa,
+                  size: q.size,
+                  imageUrl: q.localImagePath,
+                  imageUrls: q.localImagePaths,
+                  status: ProductStatus.available,
+                  version: 1,
+                ),
+              );
+            }
+          }
+        }
         if (mounted) {
           setState(() {
-            _allProducts = products;
+            _allProducts = [...queuedProducts, ...products];
             _applyFilters();
             _isLoading = false;
           });
@@ -177,6 +220,86 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
               ),
             ),
 
+            // Sync & Failure Banners
+            if (widget.intakeQueue != null && widget.intakeQueue!.failedCount > 0)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.crimson.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.crimson),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: AppColors.crimson, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${widget.intakeQueue!.failedCount} upload(s) failed',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 13),
+                          ),
+                          const Text(
+                            'Storage or network error. Tap to retry.',
+                            style: TextStyle(
+                                color: AppColors.textMuted, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await widget.intakeQueue!.retryFailed(widget.repository);
+                        _loadProducts();
+                      },
+                      icon: const Icon(Icons.refresh,
+                          size: 16, color: AppColors.goldPrimary),
+                      label: const Text('Retry',
+                          style: TextStyle(
+                              color: AppColors.goldPrimary,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              )
+            else if (widget.intakeQueue != null && widget.intakeQueue!.pendingCount > 0)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.obsidianElevated,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.goldPrimary.withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.goldPrimary),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Syncing ${widget.intakeQueue!.pendingCount} piece(s) to cloud...',
+                        style: const TextStyle(
+                            color: AppColors.goldPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // 4 Filter Chips: All, Available, Reserved, Sold
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -274,6 +397,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
                 builder: (_) => CameraIntakeScreen(
                   repository: widget.repository,
                   drop: _activeDrop,
+                  intakeQueue: widget.intakeQueue,
                 ),
               ),
             ).then((_) => _loadProducts());
@@ -291,6 +415,7 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
                 builder: (_) => CameraIntakeScreen(
                   repository: widget.repository,
                   drop: created,
+                  intakeQueue: widget.intakeQueue,
                 ),
               ),
             ).then((_) => _loadProducts());

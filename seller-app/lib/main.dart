@@ -7,8 +7,10 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/seller_repository.dart';
 import 'domain/models/models.dart';
+import 'core/services/offline_intake_queue.dart';
 import 'presentation/analytics/seller_analytics_screen.dart';
 import 'presentation/auth/seller_login_screen.dart';
+import 'presentation/auth/seller_pending_approval_screen.dart';
 import 'presentation/configuration_error_screen.dart';
 import 'presentation/dashboard/seller_dashboard_screen.dart';
 import 'presentation/drops/create_drop_screen.dart';
@@ -178,6 +180,34 @@ class SellerHomeScreen extends StatefulWidget {
 
 class _SellerHomeScreenState extends State<SellerHomeScreen> {
   int _currentIndex = 0;
+  SellerProfile? _profile;
+  final OfflineIntakeQueue _sharedIntakeQueue = OfflineIntakeQueue();
+
+  @override
+  void initState() {
+    super.initState();
+    _sharedIntakeQueue.initialize();
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _sharedIntakeQueue.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final p = await widget.repository.getProfile();
+      if (mounted) {
+        setState(() {
+          _profile = p;
+        });
+      }
+    } catch (_) {
+      // Profile fetch error handled gracefully
+    }
+  }
 
   void _navigateToTab(int index) {
     setState(() => _currentIndex = index);
@@ -199,6 +229,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
             builder: (_) => CameraIntakeScreen(
               drop: active,
               repository: widget.repository,
+              intakeQueue: _sharedIntakeQueue,
             ),
           ),
         );
@@ -216,6 +247,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
             builder: (_) => CameraIntakeScreen(
               drop: created,
               repository: widget.repository,
+              intakeQueue: _sharedIntakeQueue,
             ),
           ),
         );
@@ -229,7 +261,10 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => DropsListScreen(repository: widget.repository),
+        builder: (_) => DropsListScreen(
+          repository: widget.repository,
+          intakeQueue: _sharedIntakeQueue,
+        ),
       ),
     );
   }
@@ -272,6 +307,15 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_profile != null && !_profile!.isApproved) {
+      return SellerPendingApprovalScreen(
+        onRefreshStatus: _loadProfile,
+        onSignOut: () async {
+          await SupabaseService.instance.signOut();
+        },
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.obsidian,
       body: IndexedStack(
@@ -288,7 +332,10 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
             onManageDrop: _openManageDrops,
           ),
           // Tab 1: Products & Inventory (Screen 3)
-          ProductsInventoryScreen(repository: widget.repository),
+          ProductsInventoryScreen(
+            repository: widget.repository,
+            intakeQueue: _sharedIntakeQueue,
+          ),
           // Tab 2: Orders Kanban (Screen 6)
           KanbanBoardScreen(repository: widget.repository),
           // Tab 3: Payment Verifications (Screen 7)

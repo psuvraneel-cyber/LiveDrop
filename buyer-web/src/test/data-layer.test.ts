@@ -103,8 +103,8 @@ describe('TASK-1.4: Catalog Data Access Operations', () => {
     expect(result).toBeNull();
   });
 
-  it('queries live drop by slug with joined boutique profile', async () => {
-    const mockSingle = vi.fn().mockResolvedValue({
+  it('queries live drop by slug with sanitized boutique storefront from public projection', async () => {
+    const mockDropSingle = vi.fn().mockResolvedValue({
       data: {
         id: 'c1f76d42-4f36-4d2b-9801-b5e1cf3e6801',
         title: 'Friday Silk Special',
@@ -113,32 +113,64 @@ describe('TASK-1.4: Catalog Data Access Operations', () => {
         shipping_fee_paisa: 8000,
         free_shipping_threshold_paisa: 200000,
         seller_id: '8a329e71-4b10-4055-90d2-df8029d5b512',
-        profiles: {
-          store_name: "Mother's Boutique",
-          phone_number: '919830012345',
-          upi_id: 'mothersboutique@okaxis',
-          upi_qr_url: 'https://storage.livedrop.store/qrs/mb.webp',
-          default_shipping_fee_paisa: 8000,
-          free_shipping_threshold_paisa: 200000,
-        },
       },
       error: null,
     });
 
-    const mockEqStatus = vi.fn().mockReturnValue({ maybeSingle: mockSingle });
-    const mockEqSlug = vi.fn().mockReturnValue({ eq: mockEqStatus });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEqSlug });
-    const mockFrom = vi.fn().mockReturnValue({ select: mockSelect });
+    const mockStorefrontSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: '8a329e71-4b10-4055-90d2-df8029d5b512',
+        store_name: "Mother's Boutique",
+        store_slug: 'mothers-boutique',
+        upi_vpa: 'mothersboutique@okaxis',
+        upi_display_name: "Mother's Boutique",
+        upi_qr_url: 'https://storage.livedrop.store/qrs/mb.webp',
+        upi_enabled: true,
+        default_shipping_fee_paisa: 8000,
+        free_shipping_threshold_paisa: 200000,
+        advance_confirmation_enabled: true,
+        advance_amount_paisa: 25000,
+        hold_duration_days: 2,
+      },
+      error: null,
+    });
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'drops') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: mockDropSingle,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'public_seller_storefronts') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: mockStorefrontSingle,
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table query: ${table}`);
+    });
+
     const mockClient = { from: mockFrom } as unknown as SupabaseClient;
 
     const drop = await getLiveDropBySlug(mockClient, 'mothers-boutique');
 
     expect(mockFrom).toHaveBeenCalledWith('drops');
-    expect(mockEqSlug).toHaveBeenCalledWith('slug', 'mothers-boutique');
-    expect(mockEqStatus).toHaveBeenCalledWith('status', 'live');
+    expect(mockFrom).toHaveBeenCalledWith('public_seller_storefronts');
+    expect(mockFrom).not.toHaveBeenCalledWith('profiles');
     expect(drop).toBeDefined();
     expect(drop?.title).toBe('Friday Silk Special');
     expect(drop?.profiles.store_name).toBe("Mother's Boutique");
+    expect((drop?.profiles as unknown as Record<string, unknown>).phone_number).toBeUndefined();
+    expect((drop?.profiles as unknown as Record<string, unknown>).return_address).toBeUndefined();
   });
 
   it('queries public products for drop ordered by flash code ascending', async () => {

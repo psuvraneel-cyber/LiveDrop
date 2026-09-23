@@ -123,6 +123,10 @@ class _ShippingDialogState extends State<ShippingDialog> {
       final courier = _courierController.text.trim();
       final notes = _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null;
 
+      if (widget.order.fulfilmentStatus == OrderFulfilmentStatus.notReady) {
+        await widget.repository.markOrderReadyToShip(widget.order.id);
+      }
+
       await widget.repository.markOrderShipped(
         orderId: widget.order.id,
         trackingNumber: tracking,

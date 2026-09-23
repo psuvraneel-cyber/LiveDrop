@@ -199,6 +199,7 @@ const server = http.createServer((req, res) => {
 
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
+  console.log(`[DevMockSupabase] ${req.method} ${req.url}`);
 
   // POST /reset-state
   if (req.method === 'POST' && pathname === '/reset-state') {
@@ -208,8 +209,40 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // GET /rest/v1/drops or /rest/v1/public_seller_storefronts
-  if (pathname === '/rest/v1/drops' || pathname === '/rest/v1/public_seller_storefronts') {
+  // GET /rest/v1/public_seller_storefronts
+  if (pathname === '/rest/v1/public_seller_storefronts') {
+    const idParam = parsedUrl.searchParams.get('id');
+    const storeSlugParam = parsedUrl.searchParams.get('store_slug');
+    const cleanId = idParam ? idParam.replace(/^eq\./, '') : null;
+    const cleanStoreSlug = storeSlugParam ? storeSlugParam.replace(/^eq\./, '') : null;
+
+    let matched = null;
+    if (cleanId && mockProfile.id === cleanId) {
+      matched = mockProfile;
+    } else if (cleanStoreSlug && mockProfile.store_slug === cleanStoreSlug) {
+      matched = mockProfile;
+    } else if (!cleanId && !cleanStoreSlug) {
+      matched = mockProfile;
+    }
+
+    const acceptHeader = req.headers['accept'] || '';
+    if (acceptHeader.includes('application/vnd.pgrst.object+json')) {
+      if (matched) {
+        res.writeHead(200, { 'Content-Type': 'application/vnd.pgrst.object+json' });
+        res.end(JSON.stringify(matched));
+      } else {
+        res.writeHead(406, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'JSON object requested, multiple (or no) rows returned' }));
+      }
+    } else {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(matched ? [matched] : []));
+    }
+    return;
+  }
+
+  // GET /rest/v1/drops
+  if (pathname === '/rest/v1/drops') {
     const slug = parsedUrl.searchParams.get('slug');
     const status = parsedUrl.searchParams.get('status');
 

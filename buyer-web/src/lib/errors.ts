@@ -30,6 +30,7 @@ export type ErrorCode =
   | 'REFERENCE_USED_ON_ANOTHER_ORDER'
   | 'PAYMENT_NOT_FOUND'
   | 'AMOUNT_MISMATCH'
+  | 'CHECKOUT_IDEMPOTENCY_CONFLICT'
   | 'NETWORK_ERROR'
   | 'UNKNOWN_ERROR';
 
@@ -117,6 +118,13 @@ export class InvalidBuyerInputError extends LiveDropError {
   }
 }
 
+export class CheckoutIdempotencyConflictError extends LiveDropError {
+  constructor(message: string = 'This checkout request conflict with a prior order submitted under the same key.') {
+    super(message, 'CHECKOUT_IDEMPOTENCY_CONFLICT');
+    this.name = 'CheckoutIdempotencyConflictError';
+  }
+}
+
 /**
  * Classifies an RPC failure response into a typed LiveDropError instance.
  */
@@ -128,6 +136,8 @@ export function classifyRpcError(errPayload: {
   const code = (errPayload.error || 'UNKNOWN_ERROR').toUpperCase() as ErrorCode;
 
   switch (code) {
+    case 'CHECKOUT_IDEMPOTENCY_CONFLICT':
+      return new CheckoutIdempotencyConflictError(errPayload.message);
     case 'STOCK_UNAVAILABLE':
       return new StockUnavailableError(
         errPayload.unavailable_product_ids || [],

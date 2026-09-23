@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/errors/exceptions.dart';
@@ -329,7 +330,7 @@ class SellerRepository {
               buyer_name
             )
           ''')
-          .inFilter('status', ['buyer_claimed', 'awaiting_seller_verification'])
+          .inFilter('status', ['buyer_claimed', 'awaiting_seller_verification', 'late_claim_pending_review'])
           .order('buyer_claimed_at', ascending: true);
 
       return (response as List<dynamic>)
@@ -432,6 +433,35 @@ class SellerRepository {
       final map = response as Map<String, dynamic>;
       if (map['success'] != true) {
         final error = map['error'] as String? ?? 'SHIPPING_FAILED';
+        throw LiveDropException(
+          map['message'] as String? ?? error,
+          code: error,
+        );
+      }
+
+      return map;
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Authoritatively transitions an order from 'not_ready' to 'ready_to_ship'
+  /// and records packing timestamp (`packed_at`).
+  Future<Map<String, dynamic>> markOrderReadyToShip(String orderId) async {
+    _requireSellerId();
+
+    try {
+      final response = await _client.rpc<dynamic>(
+        'mark_order_ready_to_ship',
+        params: {'p_order_id': orderId},
+      );
+
+      final map = response is String
+          ? jsonDecode(response) as Map<String, dynamic>
+          : (response as Map).cast<String, dynamic>();
+
+      if (map['success'] != true) {
+        final error = map['error'] as String? ?? 'READY_TO_SHIP_FAILED';
         throw LiveDropException(
           map['message'] as String? ?? error,
           code: error,
@@ -549,6 +579,7 @@ class SellerRepository {
 
   /// Transitions drop status (draft -> live -> closed).
   /// Enforces RULE-DRP-03: Only 1 live drop per seller at a time.
+  /// Uses atomic close_drop RPC when transitioning to closed.
   Future<SellerDrop> updateDropStatus({
     required String dropId,
     required DropStatus status,
@@ -556,13 +587,21 @@ class SellerRepository {
     _requireSellerId();
 
     try {
+      if (status == DropStatus.closed) {
+        await _client.rpc<void>('close_drop', params: {'p_drop_id': dropId});
+        final response = await _client
+            .from('drops')
+            .select()
+            .eq('id', dropId)
+            .single();
+        return SellerDrop.fromJson(response);
+      }
+
       final updateData = <String, dynamic>{'status': status.toDbValue()};
       if (status == DropStatus.live) {
         updateData['live_started_at'] = DateTime.now()
             .toUtc()
             .toIso8601String();
-      } else if (status == DropStatus.closed) {
-        updateData['closed_at'] = DateTime.now().toUtc().toIso8601String();
       }
 
       final response = await _client
@@ -585,6 +624,12 @@ class SellerRepository {
     }
   }
 
+  /// Closes an active live drop safely via the atomic `close_drop` RPC.
+  /// Gracefully unfreezes unclaimed reservations and preserves confirmed holds.
+  Future<SellerDrop> closeDrop(String dropId) async {
+    return updateDropStatus(dropId: dropId, status: DropStatus.closed);
+  }
+
   /// Creates a new product for a drop.
   Future<SellerProduct> createProduct({
     required String dropId,
@@ -593,8 +638,13 @@ class SellerRepository {
     required int pricePaisa,
     required String size,
     required String imageUrl,
+    List<String>? imageUrls,
   }) async {
     _requireSellerId();
+
+    final allImageUrls = (imageUrls != null && imageUrls.isNotEmpty)
+        ? imageUrls
+        : [imageUrl.trim()];
 
     try {
       final response = await _client
@@ -606,6 +656,7 @@ class SellerRepository {
             'price_paisa': pricePaisa,
             'size': size.trim(),
             'image_url': imageUrl.trim(),
+            'image_urls': allImageUrls,
             'status': 'available',
           })
           .select()
@@ -619,6 +670,46 @@ class SellerRepository {
           code: 'DUPLICATE_PRODUCT_CODE',
         );
       }
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Authoritatively updates product attributes (title, price in Paisa, size)
+  /// using the PostgreSQL `update_product` RPC.
+  /// Rejects modifications on reserved or sold items.
+  Future<SellerProduct> updateProduct({
+    required String productId,
+    required String title,
+    required int pricePaisa,
+    required String size,
+  }) async {
+    _requireSellerId();
+
+    try {
+      final dynamic response = await _client.rpc<dynamic>(
+        'update_product',
+        params: {
+          'p_product_id': productId,
+          'p_title': title.trim(),
+          'p_price_paisa': pricePaisa,
+          'p_size': size.trim(),
+        },
+      );
+
+      final Map<String, dynamic> result = response is String
+          ? jsonDecode(response) as Map<String, dynamic>
+          : (response as Map<dynamic, dynamic>).cast<String, dynamic>();
+
+      if (result['success'] != true) {
+        throw LiveDropException(
+          result['message'] as String? ?? 'Failed to update product',
+          code: result['error'] as String? ?? 'UPDATE_FAILED',
+        );
+      }
+
+      final productJson = (result['product'] as Map).cast<String, dynamic>();
+      return SellerProduct.fromJson(productJson);
+    } on PostgrestException catch (e) {
       throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
     }
   }

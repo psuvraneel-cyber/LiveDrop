@@ -8,6 +8,7 @@
 import { spawn } from 'child_process';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +49,9 @@ async function run() {
   console.log('🚀 LiveDrop Phase 10: Multi-Role Playwright E2E Test Runner');
   console.log('================================================================');
 
+  const envLocal = path.resolve(buyerWebDir, '.env.local');
+  const envLocalTmp = path.resolve(buyerWebDir, '.env.local.e2etmp');
+  let renamedEnv = false;
   let mockServerProcess = null;
   let nextServerProcess = null;
 
@@ -61,6 +65,15 @@ async function run() {
       nextServerProcess.kill();
       nextServerProcess = null;
     }
+    if (renamedEnv && fs.existsSync(envLocalTmp)) {
+      try {
+        fs.renameSync(envLocalTmp, envLocal);
+        renamedEnv = false;
+        console.log('  ✓ Restored .env.local');
+      } catch (e) {
+        console.error('Failed to restore .env.local:', e);
+      }
+    }
   };
 
   process.on('SIGINT', () => {
@@ -73,6 +86,12 @@ async function run() {
   });
 
   try {
+    if (fs.existsSync(envLocal)) {
+      fs.renameSync(envLocal, envLocalTmp);
+      renamedEnv = true;
+      console.log('📦 Isolated .env.local for local mock E2E testing.');
+    }
+
     // 1. Start Dev Mock Supabase Gateway
     console.log('📦 [1/3] Launching Supabase Mock Gateway on http://127.0.0.1:54321 ...');
     mockServerProcess = spawn('node', ['scripts/dev-mock-supabase.mjs'], {
@@ -80,6 +99,11 @@ async function run() {
       stdio: 'pipe',
       env: { ...process.env, PORT: '54321' },
       shell: true,
+    });
+
+    mockServerProcess.stdout.on('data', (d) => {
+      const msg = d.toString().trim();
+      if (msg) console.log(`[MockGateway] ${msg}`);
     });
 
     mockServerProcess.stderr.on('data', (d) => {
@@ -92,7 +116,7 @@ async function run() {
 
     // 2. Start Next.js Buyer Web Server
     console.log('🌐 [2/3] Launching Next.js Buyer Web on http://127.0.0.1:3000 ...');
-    nextServerProcess = spawn('npm', ['run', 'start'], {
+    nextServerProcess = spawn('npx', ['next', 'dev', '-p', '3000'], {
       cwd: buyerWebDir,
       stdio: 'pipe',
       env: {
@@ -100,8 +124,14 @@ async function run() {
         PORT: '3000',
         NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321',
         NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
+        NEXT_PUBLIC_APP_ENV: 'development',
       },
       shell: true,
+    });
+
+    nextServerProcess.stdout.on('data', (d) => {
+      const msg = d.toString().trim();
+      if (msg) console.log(`[NextJS] ${msg}`);
     });
 
     nextServerProcess.stderr.on('data', (d) => {

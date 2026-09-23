@@ -41,7 +41,7 @@ export async function getLiveDropBySlug(
   }
 
   try {
-    const { data, error } = await client
+    const { data: dropData, error: dropError } = await client
       .from('drops')
       .select(
         `
@@ -58,35 +58,74 @@ export async function getLiveDropBySlug(
         live_started_at,
         closed_at,
         created_at,
-        updated_at,
-        profiles (
-          store_name,
-          store_slug,
-          phone_number,
-          upi_id,
-          upi_qr_url,
-          default_shipping_fee_paisa,
-          free_shipping_threshold_paisa,
-          advance_confirmation_enabled,
-          advance_amount_paisa,
-          hold_duration_days
-        )
+        updated_at
       `
       )
       .eq('slug', slug)
       .eq('status', 'live')
       .maybeSingle();
 
-    if (error) {
-      throw new LiveDropError(`Failed to fetch catalog drop: ${error.message}`, 'UNKNOWN_ERROR');
+    if (dropError) {
+      throw new LiveDropError(`Failed to fetch catalog drop: ${dropError.message}`, 'UNKNOWN_ERROR');
     }
 
-    if (!data) {
+    if (!dropData) {
       return null;
     }
 
-    // Supabase returns profiles as an object when joined on foreign key
-    return data as unknown as PublicDropCatalog;
+    const { data: storefrontData, error: storefrontError } = await client
+      .from('public_seller_storefronts')
+      .select(
+        `
+        id,
+        store_name,
+        store_slug,
+        upi_vpa,
+        upi_display_name,
+        upi_qr_url,
+        upi_enabled,
+        default_shipping_fee_paisa,
+        free_shipping_threshold_paisa,
+        advance_confirmation_enabled,
+        advance_amount_paisa,
+        hold_duration_days
+      `
+      )
+      .eq('id', dropData.seller_id)
+      .maybeSingle();
+
+    if (storefrontError) {
+      throw new LiveDropError(`Failed to fetch seller storefront: ${storefrontError.message}`, 'UNKNOWN_ERROR');
+    }
+
+    const profiles = storefrontData
+      ? {
+          store_name: storefrontData.store_name,
+          store_slug: storefrontData.store_slug,
+          upi_id: storefrontData.upi_vpa || ((storefrontData as Record<string, unknown>).upi_id as string) || '',
+          upi_qr_url: storefrontData.upi_qr_url,
+          default_shipping_fee_paisa: storefrontData.default_shipping_fee_paisa,
+          free_shipping_threshold_paisa: storefrontData.free_shipping_threshold_paisa,
+          advance_confirmation_enabled: storefrontData.advance_confirmation_enabled,
+          advance_amount_paisa: storefrontData.advance_amount_paisa,
+          hold_duration_days: storefrontData.hold_duration_days,
+        }
+      : {
+          store_name: 'LiveDrop Boutique',
+          store_slug: '',
+          upi_id: '',
+          upi_qr_url: null,
+          default_shipping_fee_paisa: 0,
+          free_shipping_threshold_paisa: null,
+          advance_confirmation_enabled: false,
+          advance_amount_paisa: 0,
+          hold_duration_days: 2,
+        };
+
+    return {
+      ...dropData,
+      profiles,
+    } as unknown as PublicDropCatalog;
   } catch (err: unknown) {
     if (err instanceof LiveDropError) throw err;
     throw new NetworkError(err instanceof Error ? err.message : String(err));
@@ -133,9 +172,10 @@ export async function getStorefrontBySlug(
     if (!data) return null;
 
     // Map upi_vpa back to upi_id if needed for interface compatibility
+    const rawData = data as Record<string, unknown>;
     const storefront = {
       ...data,
-      upi_id: (data as any).upi_vpa || (data as any).upi_id || '',
+      upi_id: (rawData.upi_vpa as string) || (rawData.upi_id as string) || '',
     };
 
     return (storefront as unknown as PublicSellerStorefront) || null;

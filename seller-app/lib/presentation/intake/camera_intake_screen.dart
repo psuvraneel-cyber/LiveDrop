@@ -1,9 +1,12 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/services/image_service.dart';
+import '../../core/services/offline_intake_queue.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/bounceable_button.dart';
 import '../../data/repositories/seller_repository.dart';
@@ -16,6 +19,7 @@ class CameraIntakeScreen extends StatefulWidget {
   final String? dropId;
   final SellerRepository repository;
   final ImageService imageService;
+  final OfflineIntakeQueue? intakeQueue;
 
   const CameraIntakeScreen({
     super.key,
@@ -23,6 +27,7 @@ class CameraIntakeScreen extends StatefulWidget {
     this.dropId,
     required this.repository,
     this.imageService = const ImageService(),
+    this.intakeQueue,
   }) : assert(drop != null || dropId != null, 'Either drop or dropId must be provided');
 
   @override
@@ -49,16 +54,30 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
   int _nextCodeNumber = 1;
   String _codePrefix = 'A';
   final List<SellerProduct> _recentProducts = [];
+  late final OfflineIntakeQueue _queue;
+
+  // Multi-Angle Garment Draft State
+  final List<ProcessedImage> _capturedAngles = [];
+  final TextEditingController _draftCodeCtrl = TextEditingController();
+  final TextEditingController _draftTitleCtrl = TextEditingController();
+  final TextEditingController _draftPriceCtrl = TextEditingController();
+  String _draftSelectedSize = 'Free Size';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _resolvedDrop = widget.drop;
+    _queue = widget.intakeQueue ?? OfflineIntakeQueue();
     _initialize();
   }
 
   Future<void> _initialize() async {
+    await _queue.initialize();
+    if (mounted) {
+      unawaited(_queue.processQueue(widget.repository));
+    }
+
     if (_resolvedDrop == null && widget.dropId != null) {
       try {
         final drops = await widget.repository.getDrops();
@@ -193,6 +212,12 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _cameraController?.dispose();
+    _draftCodeCtrl.dispose();
+    _draftTitleCtrl.dispose();
+    _draftPriceCtrl.dispose();
+    if (widget.intakeQueue == null) {
+      _queue.dispose();
+    }
     super.dispose();
   }
 
@@ -225,9 +250,16 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
 
       final processed = await widget.imageService.processIntakeImage(rawBytes);
 
+      if (_capturedAngles.length < 4) {
+        _capturedAngles.add(processed);
+      }
+      if (_draftCodeCtrl.text.isEmpty) {
+        _draftCodeCtrl.text = _currentFlashCode;
+      }
+
       if (mounted) {
         setState(() => _isProcessing = false);
-        await _showIntakeBottomSheet(processed);
+        await _showIntakeBottomSheet();
       }
     } catch (e) {
       if (mounted) {
@@ -254,9 +286,16 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
       final rawBytes = await picked.readAsBytes();
       final processed = await widget.imageService.processIntakeImage(rawBytes);
 
+      if (_capturedAngles.length < 4) {
+        _capturedAngles.add(processed);
+      }
+      if (_draftCodeCtrl.text.isEmpty) {
+        _draftCodeCtrl.text = _currentFlashCode;
+      }
+
       if (mounted) {
         setState(() => _isProcessing = false);
-        await _showIntakeBottomSheet(processed);
+        await _showIntakeBottomSheet();
       }
     } catch (e) {
       if (mounted) {
@@ -271,13 +310,13 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
     }
   }
 
-  Future<void> _showIntakeBottomSheet(ProcessedImage processed) async {
-    final codeCtrl = TextEditingController(text: _currentFlashCode);
-    final titleCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    String selectedSize = 'Free Size';
-    bool isSaving = false;
+  Future<void> _showIntakeBottomSheet() async {
+    if (_capturedAngles.isEmpty) return;
+    if (_draftCodeCtrl.text.isEmpty) {
+      _draftCodeCtrl.text = _currentFlashCode;
+    }
 
+    bool isSaving = false;
     final sizes = ['Free Size', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
     await showModalBottomSheet<void>(
@@ -290,6 +329,118 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            Future<void> handleSave({required bool finish}) async {
+              final title = _draftTitleCtrl.text.trim().isEmpty
+                  ? 'Item ${_draftCodeCtrl.text.trim()}'
+                  : _draftTitleCtrl.text.trim();
+              final priceNum = int.tryParse(_draftPriceCtrl.text.trim()) ?? 0;
+              if (priceNum <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid price in ₹'),
+                    backgroundColor: AppColors.crimson,
+                  ),
+                );
+                return;
+              }
+
+              final dropId = _resolvedDrop?.id ?? widget.dropId;
+              if (dropId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No active drop found to attach garment'),
+                    backgroundColor: AppColors.crimson,
+                  ),
+                );
+                return;
+              }
+
+              setSheetState(() => isSaving = true);
+
+              try {
+                final imageBytesList =
+                    _capturedAngles.map((p) => p.bytes).toList();
+                final queuedItem = await _queue.enqueue(
+                  dropId: dropId,
+                  code: _draftCodeCtrl.text.trim(),
+                  title: title,
+                  pricePaisa: priceNum * 100,
+                  size: _draftSelectedSize,
+                  imageBytesList: imageBytesList,
+                );
+
+                final optimisticProduct = SellerProduct(
+                  id: queuedItem.id,
+                  dropId: dropId,
+                  code: queuedItem.code,
+                  title: queuedItem.title,
+                  pricePaisa: queuedItem.pricePaisa,
+                  size: queuedItem.size,
+                  status: ProductStatus.available,
+                  imageUrl: queuedItem.localImagePath,
+                  imageUrls: queuedItem.localImagePaths,
+                  version: 1,
+                );
+
+                if (!mounted) return;
+                setState(() {
+                  _recentProducts.insert(0, optimisticProduct);
+                  _nextCodeNumber++;
+                  _capturedAngles.clear();
+                  _draftTitleCtrl.clear();
+                  _draftPriceCtrl.clear();
+                  _draftCodeCtrl.text = _currentFlashCode;
+                });
+
+                if (!context.mounted) return;
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final screenNavigator = Navigator.of(context);
+
+                if (finish) {
+                  Navigator.of(ctx).pop();
+                  screenNavigator.pop(true);
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Piece #${queuedItem.code} (${imageBytesList.length} angle${imageBytesList.length > 1 ? "s" : ""}) saved! Syncing to cloud...',
+                      ),
+                      backgroundColor: AppColors.emerald,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                } else {
+                  Navigator.of(ctx).pop();
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Piece #${queuedItem.code} saved! (#$_currentFlashCode ready)',
+                      ),
+                      backgroundColor: AppColors.emerald,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+
+                // Process upload in background
+                unawaited(_queue.processQueue(widget.repository).then((_) {
+                  if (mounted) _loadExistingProducts();
+                }));
+              } catch (err) {
+                setSheetState(() => isSaving = false);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      err is LiveDropException
+                          ? err.message
+                          : 'Error saving piece: $err',
+                    ),
+                    backgroundColor: AppColors.crimson,
+                  ),
+                );
+              }
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
@@ -302,49 +453,143 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header with Image Thumbnail & Code
+                    // Header with Drop info & Code
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(
-                            processed.bytes,
-                            width: 76,
-                            height: 76,
-                            fit: BoxFit.cover,
+                        Text(
+                          'Intake Piece — ${_resolvedDrop?.title ?? "Active Drop"}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Intake Piece — ${_resolvedDrop?.title ?? "Active Drop"}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textMuted,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '#${codeCtrl.text}',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.goldPrimary,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          '#${_draftCodeCtrl.text}',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.goldPrimary,
+                            letterSpacing: 1.1,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    const Divider(color: AppColors.cardBorder),
                     const SizedBox(height: 12),
+
+                    // Multi-Angle Thumbnail Row
+                    SizedBox(
+                      height: 84,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _capturedAngles.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 10),
+                        itemBuilder: (context, idx) {
+                          return Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.memory(
+                                  _capturedAngles[idx].bytes,
+                                  width: 76,
+                                  height: 76,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 4,
+                                left: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.75),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Angle ${idx + 1}',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.goldPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (_capturedAngles.length > 1)
+                                Positioned(
+                                  top: 2,
+                                  right: 2,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setSheetState(() {
+                                        _capturedAngles.removeAt(idx);
+                                      });
+                                      setState(() {});
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.crimson,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        size: 11,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Add Another Angle Button (when < 4 captured)
+                    if (_capturedAngles.length < 4)
+                      BounceableButton(
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Angle ${_capturedAngles.length + 1} of 4: Align garment & tap shutter',
+                              ),
+                              backgroundColor: AppColors.goldPrimary,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        variant: ButtonVariant.darkCard,
+                        height: 38,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.add_a_photo_outlined,
+                              color: AppColors.goldPrimary,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Add Another Angle (${_capturedAngles.length}/4)',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.goldPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 12),
+                    const Divider(color: AppColors.cardBorder),
+                    const SizedBox(height: 10),
 
                     // Flash Code & Title Fields
                     Row(
@@ -352,7 +597,7 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                         SizedBox(
                           width: 96,
                           child: TextField(
-                            controller: codeCtrl,
+                            controller: _draftCodeCtrl,
                             textCapitalization: TextCapitalization.characters,
                             style: const TextStyle(
                               color: AppColors.textPrimary,
@@ -367,8 +612,9 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
-                            controller: titleCtrl,
-                            style: const TextStyle(color: AppColors.textPrimary),
+                            controller: _draftTitleCtrl,
+                            style:
+                                const TextStyle(color: AppColors.textPrimary),
                             decoration: const InputDecoration(
                               labelText: 'Item Title',
                               hintText: 'e.g. Banarasi Silk Saree',
@@ -381,7 +627,7 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
 
                     // Price Field
                     TextField(
-                      controller: priceCtrl,
+                      controller: _draftPriceCtrl,
                       keyboardType: TextInputType.number,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
@@ -414,19 +660,23 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                       spacing: 8,
                       runSpacing: 8,
                       children: sizes.map((s) {
-                        final isSelected = selectedSize == s;
+                        final isSelected = _draftSelectedSize == s;
                         return ChoiceChip(
                           label: Text(s),
                           selected: isSelected,
                           selectedColor: AppColors.goldPrimary,
                           backgroundColor: AppColors.obsidianElevated,
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : AppColors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.black
+                                : AppColors.textSecondary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                           onSelected: (selected) {
                             if (selected) {
-                              setSheetState(() => selectedSize = s);
+                              setSheetState(() => _draftSelectedSize = s);
                             }
                           },
                         );
@@ -434,94 +684,49 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                     ),
                     const SizedBox(height: 24),
 
-                    // Save Button
+                    // Primary: Save & Finish (Returns to Inventory)
                     BounceableButton(
-                      onPressed: isSaving
-                          ? null
-                          : () async {
-                              final title = titleCtrl.text.trim().isEmpty
-                                  ? 'Item ${codeCtrl.text.trim()}'
-                                  : titleCtrl.text.trim();
-                              final priceNum = int.tryParse(priceCtrl.text.trim()) ?? 0;
-                              if (priceNum <= 0) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please enter a valid price in ₹'),
-                                    backgroundColor: AppColors.crimson,
-                                  ),
-                                );
-                                return;
-                              }
-
-                              final dropId = _resolvedDrop?.id ?? widget.dropId;
-                              if (dropId == null) return;
-
-                              setSheetState(() => isSaving = true);
-
-                              try {
-                                final timestamp = DateTime.now().millisecondsSinceEpoch;
-                                final fileName = '${codeCtrl.text.trim()}_$timestamp.jpg';
-
-                                final imageUrl = await widget.repository.uploadProductImage(
-                                  dropId: dropId,
-                                  fileName: fileName,
-                                  imageBytes: processed.bytes,
-                                  contentType: 'image/jpeg',
-                                );
-
-                                final product = await widget.repository.createProduct(
-                                  dropId: dropId,
-                                  code: codeCtrl.text.trim(),
-                                  title: title,
-                                  pricePaisa: priceNum * 100,
-                                  size: selectedSize,
-                                  imageUrl: imageUrl,
-                                );
-
-                                if (!mounted || !ctx.mounted) return;
-                                setState(() {
-                                  _recentProducts.insert(0, product);
-                                  _nextCodeNumber++;
-                                });
-                                Navigator.of(ctx).pop();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Piece #${product.code} saved! (#$_currentFlashCode ready)',
-                                    ),
-                                    backgroundColor: AppColors.emerald,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              } catch (err) {
-                                setSheetState(() => isSaving = false);
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      err is LiveDropException
-                                          ? err.message
-                                          : 'Error saving piece: $err',
-                                    ),
-                                    backgroundColor: AppColors.crimson,
-                                  ),
-                                );
-                              }
-                            },
+                      onPressed: isSaving ? null : () => handleSave(finish: true),
                       isLoading: isSaving,
                       variant: ButtonVariant.goldGradient,
-                      height: 50,
+                      height: 48,
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check_circle_outline, color: Colors.black, size: 20),
+                          Icon(Icons.check_circle_outline,
+                              color: Colors.black, size: 20),
                           SizedBox(width: 8),
                           Text(
-                            'Save & Next Piece (→)',
+                            'Save & Finish',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Secondary: Save & Next Garment (Stays in Camera)
+                    BounceableButton(
+                      onPressed: isSaving ? null : () => handleSave(finish: false),
+                      isLoading: false,
+                      variant: ButtonVariant.darkCard,
+                      height: 46,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.arrow_forward,
+                              color: AppColors.goldPrimary, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Save & Next Garment (→)',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.goldPrimary,
                             ),
                           ),
                         ],
@@ -565,6 +770,48 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                   ),
                   Row(
                     children: [
+                      ValueListenableBuilder<int>(
+                        valueListenable: _queue.pendingCountNotifier,
+                        builder: (context, count, _) {
+                          if (count == 0) return const SizedBox.shrink();
+                          return GestureDetector(
+                            onTap: () {
+                              _queue.processQueue(widget.repository);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Syncing queued intake pieces...'),
+                                  backgroundColor: AppColors.obsidianElevated,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.goldMuted,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.goldPrimary, width: 1),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.cloud_upload_outlined, size: 14, color: AppColors.goldPrimary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Queue: $count',
+                                    style: const TextStyle(
+                                      color: AppColors.goldPrimary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       IconButton(
                         icon: Icon(
                           _isFlashOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
@@ -658,7 +905,9 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                                     border: Border.all(color: AppColors.goldPrimary, width: 0.8),
                                   ),
                                   child: Text(
-                                    'Next: #$_currentFlashCode',
+                                    _capturedAngles.isNotEmpty
+                                        ? '#${_draftCodeCtrl.text.isNotEmpty ? _draftCodeCtrl.text : _currentFlashCode} (Angle ${_capturedAngles.length + 1}/4)'
+                                        : 'Next: #$_currentFlashCode',
                                     style: const TextStyle(
                                       color: AppColors.goldPrimary,
                                       fontWeight: FontWeight.bold,
@@ -667,6 +916,35 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                                   ),
                                 ),
                               ),
+                              if (_capturedAngles.isNotEmpty)
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _capturedAngles.clear();
+                                        _draftTitleCtrl.clear();
+                                        _draftPriceCtrl.clear();
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.crimson.withValues(alpha: 0.85),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Reset Angles',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -745,11 +1023,19 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                           child: _recentProducts.isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    _recentProducts.first.imageUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.photo, color: Colors.white54),
-                                  ),
+                                  child: _recentProducts.first.imageUrl.startsWith('http')
+                                      ? Image.network(
+                                          _recentProducts.first.imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) =>
+                                              const Icon(Icons.photo, color: Colors.white54),
+                                        )
+                                      : Image.file(
+                                          File(_recentProducts.first.imageUrl),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) =>
+                                              const Icon(Icons.photo, color: Colors.white54),
+                                        ),
                                 )
                               : const Icon(Icons.photo, color: Colors.white54),
                         ),

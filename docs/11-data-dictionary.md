@@ -34,6 +34,7 @@ Stores boutique seller operational credentials and default fulfillment rules.
 | `return_address`| `TEXT` | No | None | `CHECK (char_length(return_address) BETWEEN 10 AND 500)` | Physical return address printed on 4×6 courier labels. |
 | `default_shipping_fee_paisa` | `INT` | No | `8000` | `CHECK (default_shipping_fee_paisa >= 0)` | Standard flat shipping rate in Paisa (8000 = ₹80.00). |
 | `free_shipping_threshold_paisa` | `INT` | Yes | `200000` | `CHECK (free_shipping_threshold_paisa >= 0)` | Subtotal order threshold in Paisa for free shipping (200000 = ₹2,000.00). |
+| `is_approved` | `BOOLEAN` | No | `false` | None | Administrative approval flag for publishing live drops (SEC-01). |
 | `created_at` | `TIMESTAMPTZ` | No | `NOW()` | None | Record creation timestamp. |
 | `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | None | Last modification timestamp. |
 
@@ -99,6 +100,8 @@ Customer orders created during checkout.
 | `total_paisa` | `INT` | No | None | `CHECK (total_paisa = subtotal_paisa + shipping_paisa)` | Authoritative total payable in Paisa. |
 | `status` | `TEXT` | No | `'pending'` | `CHECK (status IN ('pending', 'paid', 'shipped', 'cancelled'))` | Fulfillment lifecycle status. |
 | `hold_expires_at`| `TIMESTAMPTZ`| No | `NOW() + INTERVAL '15 minutes'` | None | Absolute timestamp when 15-minute hold expires. |
+| `idempotency_key`| `TEXT` | Yes | `NULL` | None | Client-generated UUID ensuring single-flight checkout idempotency. |
+| `packed_at` | `TIMESTAMPTZ` | Yes | `NULL` | None | Timestamp when seller packed order and marked ready_to_ship. |
 | `paid_at` | `TIMESTAMPTZ` | Yes | `NULL` | None | Timestamp when seller marked order paid. |
 | `shipped_at` | `TIMESTAMPTZ` | Yes | `NULL` | None | Timestamp when seller marked order dispatched. |
 | `tracking_number`| `TEXT` | Yes | `NULL` | None | Courier tracking / AWB number. |

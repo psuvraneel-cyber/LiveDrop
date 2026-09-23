@@ -74,6 +74,10 @@ When developing or reviewing specific subsystems, refer to the authoritative doc
 | **Implementation Plan** | [`docs/32-implementation-plan.md`](file:///c:/LiveDrop/docs/32-implementation-plan.md) | [`docs/34-definition-of-done.md`](file:///c:/LiveDrop/docs/34-definition-of-done.md) |
 | **Engineering Rules & Conventions** | [`docs/35-engineering-conventions.md`](file:///c:/LiveDrop/docs/35-engineering-conventions.md) | [`docs/36-ai-agent-development-rules.md`](file:///c:/LiveDrop/docs/36-ai-agent-development-rules.md) |
 | **AI Coding Agent Guardrails** | [`AGENTS.md`](file:///c:/LiveDrop/AGENTS.md) | [`docs/36-ai-agent-development-rules.md`](file:///c:/LiveDrop/docs/36-ai-agent-development-rules.md) |
+| **Phase 0 Audit & Architecture Reconciliation** | [`docs/PHASE-0-ARCHITECTURE-RECONCILIATION.md`](file:///c:/LiveDrop/docs/PHASE-0-ARCHITECTURE-RECONCILIATION.md) | [`docs/PHASE-0-IMPLEMENTATION-TRUTH-MATRIX.md`](file:///c:/LiveDrop/docs/PHASE-0-IMPLEMENTATION-TRUTH-MATRIX.md) |
+| **Phase 1 Critical Blocker Remediation** | [`docs/PHASE-1-BLOCKER-REMEDIATION-REPORT.md`](file:///c:/LiveDrop/docs/PHASE-1-BLOCKER-REMEDIATION-REPORT.md) | [`docs/PHASE-1-VALIDATION-REPORT.md`](file:///c:/LiveDrop/docs/PHASE-1-VALIDATION-REPORT.md) |
+| **Phase 1 Security & Fulfillment Controls** | [`docs/PHASE-1-SECURITY-REMEDIATION.md`](file:///c:/LiveDrop/docs/PHASE-1-SECURITY-REMEDIATION.md) | [`docs/PHASE-1-FULFILLMENT-STATE-MACHINE.md`](file:///c:/LiveDrop/docs/PHASE-1-FULFILLMENT-STATE-MACHINE.md) |
+| **Phase 1 Payment & Mobile Resilience** | [`docs/PHASE-1-PAYMENT-RECOVERY.md`](file:///c:/LiveDrop/docs/PHASE-1-PAYMENT-RECOVERY.md) | [`docs/PHASE-1-OFFLINE-RELIABILITY.md`](file:///c:/LiveDrop/docs/PHASE-1-OFFLINE-RELIABILITY.md) |
 
 ---
 

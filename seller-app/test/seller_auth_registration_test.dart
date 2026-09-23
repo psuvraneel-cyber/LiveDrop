@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:seller_app/core/config/admin_config.dart';
 import 'package:seller_app/presentation/auth/seller_login_screen.dart';
+import 'package:seller_app/presentation/auth/seller_pending_approval_screen.dart';
 import 'package:seller_app/presentation/auth/seller_registration_screen.dart';
 
 void main() {
@@ -50,6 +51,36 @@ void main() {
       expect(find.text('Password'), findsOneWidget);
       expect(find.text('Confirm Password'), findsOneWidget);
       expect(find.text('Next: Boutique Profile'), findsOneWidget);
+    });
+
+    testWidgets('SellerPendingApprovalScreen renders pending review and action buttons', (tester) async {
+      bool refreshed = false;
+      bool signedOut = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SellerPendingApprovalScreen(
+            onRefreshStatus: () => refreshed = true,
+            onSignOut: () => signedOut = true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Account Under Review'), findsOneWidget);
+      expect(find.text('Check Approval Status'), findsOneWidget);
+      expect(find.text('Contact Support on WhatsApp'), findsOneWidget);
+      expect(find.text('Sign Out'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Check Approval Status'));
+      await tester.tap(find.text('Check Approval Status'));
+      await tester.pump();
+      expect(refreshed, isTrue);
+
+      await tester.ensureVisible(find.text('Sign Out'));
+      await tester.tap(find.text('Sign Out'));
+      await tester.pump();
+      expect(signedOut, isTrue);
     });
 
     testWidgets('AdminConfig contains correct contact and payment details', (tester) async {

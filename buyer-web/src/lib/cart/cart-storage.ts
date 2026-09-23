@@ -195,3 +195,39 @@ export function saveStoredCart(cart: CartStorageSchema): boolean {
 export function clearStoredCart(): void {
   removeRawStorage();
 }
+
+/**
+ * Cache an authentic order token strictly associated with an order ID.
+ */
+export function cacheOrderToken(orderId: string, orderToken: string): void {
+  if (!orderId || !orderToken || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(`livedrop_order_token_${orderId.trim()}`, orderToken.trim());
+  } catch {
+    // LocalStorage quota or access exception handled gracefully
+  }
+}
+
+/**
+ * Retrieves the cached order token strictly for the given order ID.
+ */
+export function getCachedOrderToken(orderId: string): string | null {
+  if (!orderId || typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(`livedrop_order_token_${orderId.trim()}`);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Purges a cached order token when validation fails or order completes.
+ */
+export function clearCachedOrderToken(orderId: string): void {
+  if (!orderId || typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(`livedrop_order_token_${orderId.trim()}`);
+  } catch {
+    // Ignore error
+  }
+}

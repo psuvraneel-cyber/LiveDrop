@@ -3,7 +3,7 @@
     "id": 1,
     "title": "Two buyers reserve same product simultaneously",
     "status": "PASS",
-    "evidence": "Buyer 1 reserved (order: LD-036UET); Buyer 2 blocked with STOCK_UNAVAILABLE",
+    "evidence": "Buyer 1 reserved (order: LD-6QGYOL); Buyer 2 blocked with STOCK_UNAVAILABLE",
     "actual": "Exactly one reservation succeeded; second buyer blocked"
   },
   {
@@ -213,8 +213,8 @@
     "id": 31,
     "title": "Idempotent Order Creation on Network Retry (create_order_with_reservation)",
     "status": "PASS",
-    "evidence": "Order LD-2CDRSO returned on retry without STOCK_UNAVAILABLE",
-    "actual": "Idempotency verified"
+    "evidence": "Order LD-STPKK0 returned on retry; mismatched cart rejected with CHECKOUT_IDEMPOTENCY_CONFLICT",
+    "actual": "Idempotency and conflict detection verified"
   },
   {
     "id": 32,
@@ -236,5 +236,19 @@
     "status": "PASS",
     "evidence": "Raw tables blocked from anon; projection views mask phone_number, return_address, and reserved_by_order_id",
     "actual": "Zero PII leak verified"
+  },
+  {
+    "id": 35,
+    "title": "Authoritative update_product RPC with Immutability on Reserved/Sold Items",
+    "status": "PASS",
+    "evidence": "update_product RPC permits owner editing of available items with version bump, blocks non-owner, blocks reserved/sold items, enforces validation, and DB trigger prevents direct SQL mutation",
+    "actual": "SEC-02 and Blocker 1H fully remediated"
+  },
+  {
+    "id": 36,
+    "title": "Authoritative mark_order_ready_to_ship and Enforced Packaging Before Dispatch",
+    "status": "PASS",
+    "evidence": "Premature dispatch blocked with ORDER_NOT_READY_TO_SHIP, mark_order_ready_to_ship sets packed_at, cross-seller blocked with FORBIDDEN, mark_order_shipped transitions to shipped, terminal status immutable",
+    "actual": "SEC-05 and Blocker 1I fully remediated"
   }
 ]

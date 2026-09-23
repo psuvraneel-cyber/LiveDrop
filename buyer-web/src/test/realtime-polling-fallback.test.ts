@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { CatalogRealtimeSubscription } from '../lib/realtime/catalog-realtime';
 import { PublicProductView } from '../types/domain';
 import * as buyerCatalog from '../lib/data/buyer-catalog';
@@ -13,16 +14,16 @@ describe('SPRINT 3: Realtime Graceful Fallback to 3-Second HTTP Stock-Delta Poll
     vi.useRealTimers();
   });
 
-  const mockClient: any = {
+  const mockClient = {
     channel: vi.fn().mockReturnValue({
       on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn((cb: (status: string) => void) => {
+      subscribe: vi.fn(() => {
         // Will be triggered manually in tests
         return { unsubscribe: vi.fn() };
       }),
     }),
     removeChannel: vi.fn().mockResolvedValue('ok'),
-  };
+  } as unknown as SupabaseClient;
 
   const initialProducts: PublicProductView[] = [
     {

@@ -1,29 +1,34 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { detectInAppBrowser, getExternalBrowserIntentUrl, InAppBrowserInfo } from '../lib/utils/in-app-browser';
 
 export function InAppBrowserBanner() {
-  const [iabInfo, setIabInfo] = useState<InAppBrowserInfo | null>(null);
-  const [isDismissed, setIsDismissed] = useState(true);
+  const [iabInfo] = useState<InAppBrowserInfo | null>(() => {
+    const info = detectInAppBrowser();
+    if (!info.isInApp) return null;
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('ld_dismiss_iab_banner')) {
+        return null;
+      }
+    } catch {
+      // Ignored
+    }
+    return info;
+  });
+  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('ld_dismiss_iab_banner')) {
+        return true;
+      }
+    } catch {
+      // Ignored
+    }
+    const info = detectInAppBrowser();
+    return !info.isInApp;
+  });
   const [showIosGuide, setShowIosGuide] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const info = detectInAppBrowser();
-    if (info.isInApp) {
-      try {
-        const dismissed = sessionStorage.getItem('ld_dismiss_iab_banner');
-        if (!dismissed) {
-          setIabInfo(info);
-          setIsDismissed(false);
-        }
-      } catch {
-        setIabInfo(info);
-        setIsDismissed(false);
-      }
-    }
-  }, []);
 
   if (isDismissed || !iabInfo || !iabInfo.isInApp) {
     return null;

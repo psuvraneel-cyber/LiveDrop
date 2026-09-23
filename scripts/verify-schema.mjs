@@ -23,6 +23,7 @@ async function run() {
     CREATE TABLE IF NOT EXISTS auth.users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       email TEXT UNIQUE,
+      raw_user_meta_data JSONB DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
@@ -60,27 +61,9 @@ async function run() {
   `);
 
   const migrationsDir = path.resolve(__dirname, '../supabase/migrations');
-  const migrationFiles = [
-    '001_create_profiles.sql',
-    '002_create_drops.sql',
-    '003_create_products.sql',
-    '004_create_orders.sql',
-    '005_create_order_items.sql',
-    '006_create_indexes.sql',
-    '007_create_triggers.sql',
-    '008_enable_rls_and_policies.sql',
-    '009_create_core_business_rpcs.sql',
-    '010_seller_storefront_and_order_state_machine.sql',
-    '011_domain_consistency_and_payment_authority_hardening.sql',
-    '012_payment_authority_direct_update_hardening.sql',
-    '013_direct_upi_and_manual_payment_verification.sql',
-    '014_persistent_payment_claim_window.sql',
-    '015_fulfillment_idempotency_and_rejection_release.sql',
-    '016_public_projection_views.sql',
-    '017_create_performance_indexes.sql',
-    '018_storage_buckets.sql',
-    '019_enable_realtime_publication.sql',
-  ];
+  const migrationFiles = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
 
   console.log(`📦 Applying ${migrationFiles.length} migrations sequentially:`);
   for (const file of migrationFiles) {
@@ -524,6 +507,102 @@ async function run() {
     throw new Error(`Product status was not reset to available after rejection: ${JSON.stringify(prodCheck.rows[0])}`);
   }
   console.log('  ✓ Verified: Payment rejection instantly released reserved products back to available status (0 orphaned holds).');
+
+  console.log('🛡️ Verifying Seller Provisioning Security & Approval Gate (Migration 021):');
+  // 1. Verify profiles.is_approved column
+  const appColRes = await db.query(`
+    SELECT column_name, data_type, column_default 
+    FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'is_approved';
+  `);
+  if (appColRes.rows.length === 0) throw new Error('Missing profiles.is_approved column');
+  console.log('  ✓ Verified: profiles.is_approved column exists.');
+
+  // 2. Insert new unapproved seller as authenticated user
+  const newSellerId = 'd0000000-0000-0000-0000-000000000099';
+  await db.exec(`
+    SET ROLE postgres;
+    RESET request.jwt.claims;
+  `);
+  await db.query(`
+    INSERT INTO auth.users (id, email) VALUES ('${newSellerId}'::uuid, 'fraud@livedrop.test');
+  `);
+  await db.exec(`
+    SET ROLE authenticated;
+    SET request.jwt.claims = '{"sub": "${newSellerId}", "role": "authenticated"}';
+  `);
+  await db.query(`
+    INSERT INTO profiles (id, store_name, store_slug, phone_number, upi_id, upi_vpa, return_address, default_shipping_fee_paisa)
+    VALUES ('${newSellerId}'::uuid, 'Fraud Boutique', 'fraud-boutique', '919999999999', 'fraud@okhdfc', 'fraud@okhdfc', '123 Fake Street, Kolkata 700001', 8000);
+  `);
+  const checkNewSeller = await db.query(`SELECT is_approved FROM profiles WHERE id = '${newSellerId}'::uuid;`);
+  if (checkNewSeller.rows[0].is_approved !== false) {
+    throw new Error('New seller did not default to is_approved = false');
+  }
+  console.log('  ✓ Verified: New seller defaults to is_approved = false.');
+
+  // 3. Attempt direct UPDATE of is_approved by authenticated seller (MUST FAIL 42501)
+  await db.exec(`
+    SET ROLE authenticated;
+    SET request.jwt.claims = '{"sub": "${newSellerId}", "role": "authenticated"}';
+  `);
+  let selfApproveBlocked = false;
+  try {
+    await db.query(`UPDATE profiles SET is_approved = TRUE WHERE id = '${newSellerId}'::uuid;`);
+  } catch (err) {
+    selfApproveBlocked = err.message.includes('restricted to platform administrators') || err.code === '42501';
+  }
+  if (!selfApproveBlocked) throw new Error('Self-approval by seller was not blocked with 42501!');
+  console.log('  ✓ Verified: Direct UPDATE of is_approved by authenticated seller blocked with 42501.');
+
+  // 4. Attempt to publish a drop with status = 'live' while unapproved (MUST FAIL 42501)
+  let unapprovedPublishBlocked = false;
+  try {
+    await db.query(`
+      INSERT INTO drops (seller_id, title, slug, status, shipping_fee_paisa)
+      VALUES ('${newSellerId}'::uuid, 'Unapproved Drop', 'unapproved-drop', 'live', 8000);
+    `);
+  } catch (err) {
+    unapprovedPublishBlocked = err.message.includes('Unapproved sellers cannot publish live drops') || err.code === '42501';
+  }
+  if (!unapprovedPublishBlocked) throw new Error('Unapproved seller publishing live drop was not blocked with 42501!');
+  console.log('  ✓ Verified: Unapproved seller cannot publish a live drop (Blocked 42501).');
+
+  // 5. Unapproved seller CAN create a draft drop
+  await db.query(`
+    INSERT INTO drops (id, seller_id, title, slug, status, shipping_fee_paisa)
+    VALUES ('a0000000-0000-0000-0000-000000000099'::uuid, '${newSellerId}'::uuid, 'Draft Drop', 'draft-drop', 'draft', 8000);
+  `);
+  console.log('  ✓ Verified: Unapproved seller can prepare draft drop.');
+
+  // 6. Admin approves seller via admin_approve_seller RPC
+  await db.exec(`
+    SET ROLE postgres;
+    RESET request.jwt.claims;
+  `);
+  const approveRes = await db.query(`
+    SELECT admin_approve_seller('${newSellerId}'::uuid, true) as r;
+  `);
+  if (!approveRes.rows[0].r.success || !approveRes.rows[0].r.is_approved) {
+    throw new Error('admin_approve_seller RPC failed');
+  }
+  console.log('  ✓ Verified: admin_approve_seller RPC approves seller.');
+
+  // 7. Approved seller can now transition draft drop to live
+  await db.exec(`
+    SET ROLE authenticated;
+    SET request.jwt.claims = '{"sub": "${newSellerId}", "role": "authenticated"}';
+  `);
+  await db.query(`
+    UPDATE drops SET status = 'live' WHERE id = 'a0000000-0000-0000-0000-000000000099'::uuid;
+  `);
+  console.log('  ✓ Verified: Approved seller can publish live drop.');
+
+  // Reset to postgres superuser
+  await db.exec(`
+    SET ROLE postgres;
+    RESET request.jwt.claims;
+  `);
 
   await db.close();
   console.log('✅ ALL RELATIONAL DATABASE SCHEMA, STOREFRONT INVARIANTS, RLS POLICIES, PROJECTION VIEWS, PERFORMANCE INDEXES, BUSINESS RPCS & MULTI-SELLER SEED DATA VERIFIED.');

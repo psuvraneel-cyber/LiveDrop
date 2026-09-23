@@ -147,7 +147,44 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
         } catch (_) {}
 
         if (mounted) {
-          widget.onRegistrationSuccess();
+          setState(() => _isLoading = false);
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: AppColors.obsidianSurface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: AppColors.goldPrimary.withValues(alpha: 0.4)),
+              ),
+              title: const Text(
+                'Application Under Review',
+                style: TextStyle(
+                  color: AppColors.goldPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                'Your boutique account ($email) and onboarding payment reference (${_utrController.text.trim()}) have been recorded for administrative verification.\n\nAll boutique accounts require administrator approval before publishing live drops.',
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    'Go to Sign In',
+                    style: TextStyle(
+                      color: AppColors.goldPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
       } else {
         // Confirmation email required

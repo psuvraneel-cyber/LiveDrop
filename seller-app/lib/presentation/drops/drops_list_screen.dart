@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import '../../core/errors/exceptions.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../../core/services/offline_intake_queue.dart';
 import '../intake/camera_intake_screen.dart';
 import 'create_drop_screen.dart';
 
 /// LiveDrop Seller Mobile App — Drops List & Drop Lifecycle Management Screen
 class DropsListScreen extends StatefulWidget {
   final SellerRepository repository;
+  final OfflineIntakeQueue? intakeQueue;
 
   const DropsListScreen({
     super.key,
     required this.repository,
+    this.intakeQueue,
   });
 
   @override
@@ -151,6 +154,7 @@ class _DropsListScreenState extends State<DropsListScreen> {
         builder: (_) => CameraIntakeScreen(
           drop: drop,
           repository: widget.repository,
+          intakeQueue: widget.intakeQueue,
         ),
       ),
     );

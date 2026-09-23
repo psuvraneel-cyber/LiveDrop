@@ -308,17 +308,71 @@ LiveDrop isolates API interactions into two strict surfaces:
 
 ---
 
-### 3.9 Dispatch Order & Attach Courier Tracking
-* **Endpoint:** `PATCH /rest/v1/orders?id=eq.{order_id}`
+### 3.9 Mark Order Ready to Ship (RPC)
+* **Endpoint:** `POST /rest/v1/rpc/mark_order_ready_to_ship`
 * **Actor:** Owning Seller.
 * **Authentication:** Bearer JWT.
 * **Request Body:**
   ```json
   {
-    "status": "shipped",
-    "tracking_number": "DTDC19284711",
-    "courier_partner": "DTDC",
-    "shipped_at": "2026-09-12T10:00:00Z"
+    "p_order_id": "4b724590-7811-419b-a311-6b2a091df012"
   }
   ```
-* **Response (200 OK):** Updated order record.
+* **Success Response (200 OK):** `{"success": true}`
+* **Error Response:**
+  - `{"success": false, "error": "ORDER_NOT_FULLY_PAID"}`: Order has balance due or payment is unverified.
+  - `{"success": false, "error": "FORBIDDEN"}`: Caller does not own the drop.
+
+---
+
+### 3.10 Dispatch Order & Attach Courier Tracking (RPC)
+* **Endpoint:** `POST /rest/v1/rpc/mark_order_shipped`
+* **Actor:** Owning Seller.
+* **Authentication:** Bearer JWT.
+* **Request Body:**
+  ```json
+  {
+    "p_order_id": "4b724590-7811-419b-a311-6b2a091df012",
+    "p_tracking_number": "DTDC19284711",
+    "p_courier_name": "DTDC Express"
+  }
+  ```
+* **Success Response (200 OK):** `{"success": true}`
+* **Error Response:**
+  - `{"success": false, "error": "ORDER_NOT_READY_TO_SHIP"}`: Order has not been marked ready to ship (SEC-05).
+  - `{"success": false, "error": "INVALID_SHIPPING_DETAILS"}`: Empty tracking or courier name.
+  - `{"success": false, "error": "FORBIDDEN"}`: Caller does not own the drop.
+
+---
+
+### 3.11 Update Product Details (RPC)
+* **Endpoint:** `POST /rest/v1/rpc/update_product`
+* **Actor:** Owning Seller.
+* **Authentication:** Bearer JWT.
+* **Request Body:**
+  ```json
+  {
+    "p_product_id": "e9314c99-7f55-4089-a2bb-b001d2950df1",
+    "p_title": "Pure Handloom Tussar Silk Saree",
+    "p_price_paisa": 195000,
+    "p_size": "Free Size"
+  }
+  ```
+* **Success Response (200 OK):** `{"success": true, "version": 2}`
+* **Error Response:**
+  - `{"success": false, "error": "CANNOT_EDIT_RESERVED_OR_SOLD"}`: Item is in `reserved` or `sold` status.
+  - `{"success": false, "error": "FORBIDDEN"}`: Caller does not own the drop.
+
+---
+
+### 3.12 Admin Approve Seller (RPC)
+* **Endpoint:** `POST /rest/v1/rpc/admin_approve_seller`
+* **Actor:** Platform Administrator (`service_role`).
+* **Authentication:** Service Role Secret.
+* **Request Body:**
+  ```json
+  {
+    "p_seller_id": "11111111-1111-1111-1111-111111111111"
+  }
+  ```
+* **Success Response (200 OK):** `{"success": true}`

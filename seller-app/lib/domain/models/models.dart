@@ -181,6 +181,7 @@ class SellerProfile {
   final String? upiVpa;
   final String? upiDisplayName;
   final String? paymentInstructions;
+  final bool isApproved;
 
   const SellerProfile({
     required this.id,
@@ -199,6 +200,7 @@ class SellerProfile {
     this.upiVpa,
     this.upiDisplayName,
     this.paymentInstructions,
+    this.isApproved = false,
   });
 
   factory SellerProfile.fromJson(Map<String, dynamic> json) {
@@ -219,6 +221,7 @@ class SellerProfile {
       upiVpa: json['upi_vpa'] as String? ?? json['upi_id'] as String?,
       upiDisplayName: json['upi_display_name'] as String?,
       paymentInstructions: json['payment_instructions'] as String?,
+      isApproved: json['is_approved'] as bool? ?? false,
     );
   }
 }
@@ -276,6 +279,7 @@ class SellerProduct {
   final int pricePaisa;
   final String size;
   final String imageUrl;
+  final List<String> imageUrls;
   final ProductStatus status;
   final DateTime? reservedAt;
   final String? reservedByOrderId;
@@ -289,6 +293,7 @@ class SellerProduct {
     required this.pricePaisa,
     required this.size,
     required this.imageUrl,
+    this.imageUrls = const [],
     required this.status,
     this.reservedAt,
     this.reservedByOrderId,
@@ -296,6 +301,17 @@ class SellerProduct {
   });
 
   factory SellerProduct.fromJson(Map<String, dynamic> json) {
+    final rawImageUrls = json['image_urls'];
+    List<String> parsedImageUrls = [];
+    if (rawImageUrls is List) {
+      parsedImageUrls = rawImageUrls.map((e) => e.toString()).toList();
+    }
+    final primaryImageUrl = json['image_url'] as String? ??
+        (parsedImageUrls.isNotEmpty ? parsedImageUrls.first : '');
+    if (parsedImageUrls.isEmpty && primaryImageUrl.isNotEmpty) {
+      parsedImageUrls = [primaryImageUrl];
+    }
+
     return SellerProduct(
       id: json['id'] as String,
       dropId: json['drop_id'] as String,
@@ -303,7 +319,8 @@ class SellerProduct {
       title: json['title'] as String,
       pricePaisa: json['price_paisa'] as int,
       size: json['size'] as String,
-      imageUrl: json['image_url'] as String,
+      imageUrl: primaryImageUrl,
+      imageUrls: parsedImageUrls,
       status: ProductStatus.fromString(json['status'] as String),
       reservedAt: json['reserved_at'] != null
           ? DateTime.parse(json['reserved_at'] as String)
@@ -312,6 +329,21 @@ class SellerProduct {
       version: json['version'] as int? ?? 1,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'drop_id': dropId,
+    'code': code,
+    'title': title,
+    'price_paisa': pricePaisa,
+    'size': size,
+    'image_url': imageUrl,
+    'image_urls': imageUrls.isNotEmpty ? imageUrls : [imageUrl],
+    'status': status.toDbValue(),
+    'reserved_at': reservedAt?.toIso8601String(),
+    'reserved_by_order_id': reservedByOrderId,
+    'version': version,
+  };
 }
 
 class SellerOrderItem {
@@ -370,6 +402,7 @@ class SellerOrder {
   final DateTime? advancePaidAt;
   final DateTime? holdExpiresAt;
   final DateTime? paidAt;
+  final DateTime? packedAt;
   final DateTime? shippedAt;
   final String? trackingNumber;
   final String? courierPartner;
@@ -398,6 +431,7 @@ class SellerOrder {
     this.advancePaidAt,
     this.holdExpiresAt,
     this.paidAt,
+    this.packedAt,
     this.shippedAt,
     this.trackingNumber,
     this.courierPartner,
@@ -446,6 +480,9 @@ class SellerOrder {
       paidAt: json['paid_at'] != null
           ? DateTime.parse(json['paid_at'] as String)
           : null,
+      packedAt: json['packed_at'] != null
+          ? DateTime.parse(json['packed_at'] as String)
+          : null,
       shippedAt: json['shipped_at'] != null
           ? DateTime.parse(json['shipped_at'] as String)
           : null,
@@ -462,6 +499,7 @@ enum PaymentAttemptStatus {
   awaitingPayment,
   buyerClaimed,
   awaitingSellerVerification,
+  lateClaimPendingReview,
   verified,
   rejected,
   expired;
@@ -474,6 +512,8 @@ enum PaymentAttemptStatus {
         return PaymentAttemptStatus.buyerClaimed;
       case 'awaiting_seller_verification':
         return PaymentAttemptStatus.awaitingSellerVerification;
+      case 'late_claim_pending_review':
+        return PaymentAttemptStatus.lateClaimPendingReview;
       case 'verified':
         return PaymentAttemptStatus.verified;
       case 'rejected':
@@ -494,6 +534,8 @@ enum PaymentAttemptStatus {
         return 'buyer_claimed';
       case PaymentAttemptStatus.awaitingSellerVerification:
         return 'awaiting_seller_verification';
+      case PaymentAttemptStatus.lateClaimPendingReview:
+        return 'late_claim_pending_review';
       case PaymentAttemptStatus.verified:
         return 'verified';
       case PaymentAttemptStatus.rejected:

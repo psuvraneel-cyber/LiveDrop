@@ -6,12 +6,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#16A34A",
+  themeColor: "#0C0C0E",
 };
 
 export const metadata: Metadata = {
-  title: "LiveDrop — Flash Sale Drops",
-  description: "Browse live boutique drops and discover exclusive flash sales in real time.",
+  title: "LiveDrop — Boutique Fashion. Live Stories. Real People.",
+  description: "Browse live boutique drops, discover exclusive artisan sarees and kurtis, and reserve single-piece fashion in real time.",
 };
 
 export default function RootLayout({
@@ -21,6 +21,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -37,7 +37,8 @@ INSERT INTO profiles (
   free_shipping_threshold_paisa,
   advance_confirmation_enabled,
   advance_amount_paisa,
-  hold_duration_days
+  hold_duration_days,
+  is_approved
 ) VALUES 
   -- Seller A: Mother's Boutique (Default advance ₹250.00, 30 days hold)
   (
@@ -56,7 +57,8 @@ INSERT INTO profiles (
     200000, -- ₹2,000.00
     true,
     25000,  -- ₹250.00
-    30      -- 30 days hold
+    30,     -- 30 days hold
+    true
   ),
   -- Seller B: Artisan Silks (Custom advance ₹500.00, 14 days hold)
   (
@@ -75,7 +77,8 @@ INSERT INTO profiles (
     150000,
     true,
     50000,  -- ₹500.00
-    14      -- 14 days hold
+    14,     -- 14 days hold
+    true
   ),
   -- Seller C: Craft Weaves (Advance confirmation disabled - full payment only)
   (
@@ -94,7 +97,8 @@ INSERT INTO profiles (
     NULL,
     false,  -- Advance disabled!
     25000,
-    7
+    7,
+    true
   )
 ON CONFLICT (id) DO UPDATE SET
   store_name = EXCLUDED.store_name,
@@ -108,6 +112,7 @@ ON CONFLICT (id) DO UPDATE SET
   upi_qr_url = EXCLUDED.upi_qr_url,
   return_address = EXCLUDED.return_address,
   default_shipping_fee_paisa = EXCLUDED.default_shipping_fee_paisa,
+  is_approved = EXCLUDED.is_approved,
   free_shipping_threshold_paisa = EXCLUDED.free_shipping_threshold_paisa,
   advance_confirmation_enabled = EXCLUDED.advance_confirmation_enabled,
   advance_amount_paisa = EXCLUDED.advance_amount_paisa,

@@ -44,6 +44,7 @@ export interface PublicSellerStorefront {
   advance_confirmation_enabled: boolean;
   advance_amount_paisa: number;
   hold_duration_days: number;
+  whatsapp_number?: string | null;
 }
 
 export interface Drop {
@@ -64,19 +65,18 @@ export interface Drop {
 }
 
 export interface PublicDropCatalog extends Drop {
-  profiles: Pick<
-    Profile,
-    | 'store_name'
-    | 'store_slug'
-    | 'phone_number'
-    | 'upi_id'
-    | 'upi_qr_url'
-    | 'default_shipping_fee_paisa'
-    | 'free_shipping_threshold_paisa'
-    | 'advance_confirmation_enabled'
-    | 'advance_amount_paisa'
-    | 'hold_duration_days'
-  >;
+  profiles: {
+    store_name: string;
+    store_slug: string;
+    phone_number?: string;
+    upi_id: string;
+    upi_qr_url: string | null;
+    default_shipping_fee_paisa: number;
+    free_shipping_threshold_paisa: number | null;
+    advance_confirmation_enabled: boolean;
+    advance_amount_paisa: number;
+    hold_duration_days: number;
+  };
 }
 
 export interface Product {
@@ -87,6 +87,9 @@ export interface Product {
   price_paisa: number; // Integer Paisa (e.g., 185000 = ₹1,850.00)
   size: string;
   image_url: string;
+  image_urls?: string[];
+  description?: string;
+  quantity_available?: number;
   status: ProductStatus;
   reserved_at: string | null;
   reserved_by_order_id: string | null;
@@ -102,6 +105,9 @@ export interface PublicProductView {
   price_paisa: number;
   size: string;
   image_url: string;
+  image_urls?: string[];
+  description?: string;
+  quantity_available?: number;
   status: ProductStatus;
   reserved_at: string | null;
   version: number;
@@ -245,6 +251,7 @@ export interface OrderReceipt {
   upi_enabled?: boolean;
   upi_uri?: string | null;
   payment_instructions?: string | null;
+  whatsapp_number?: string | null;
   active_payment_attempt?: PaymentAttempt | null;
   payment_attempt?: PaymentAttempt | null;
   items: OrderReceiptItem[];
@@ -332,6 +339,7 @@ export type PaymentAttemptStatus =
   | 'awaiting_payment'
   | 'buyer_claimed'
   | 'awaiting_seller_verification'
+  | 'late_claim_pending_review'
   | 'verified'
   | 'rejected'
   | 'expired';

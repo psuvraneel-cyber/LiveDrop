@@ -11,7 +11,7 @@
  * 5. Safe retry semantics & single-flight submission protection.
  */
 
-import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react';
+import React, { Suspense, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCart, CartProvider, useOptionalCart } from '../../lib/cart/cart-context';
@@ -21,7 +21,11 @@ import {
   createOrderWithReservation,
   getOrderByToken,
 } from '../../lib/data/buyer-catalog';
-import { generateIdempotencyKey } from '../../lib/checkout/idempotency';
+import {
+  getOrCreateCheckoutIdempotencyKey,
+  clearCheckoutIdempotencyKey,
+} from '../../lib/checkout/idempotency';
+import { cacheOrderToken } from '../../lib/cart/cart-storage';
 import {
   CheckoutFormErrors,
   CheckoutFormState,
@@ -32,7 +36,12 @@ import {
   PublicProductView,
 } from '../../types/domain';
 import { validateCheckoutForm, validateBuyerName, validateBuyerPhone, validatePincode, validateShippingAddress } from '../../lib/checkout/checkout-validator';
-import { StockUnavailableError, NetworkError, LiveDropError } from '../../lib/errors';
+import {
+  StockUnavailableError,
+  CheckoutIdempotencyConflictError,
+  NetworkError,
+  LiveDropError,
+} from '../../lib/errors';
 import { EmptyCheckoutState } from '../../components/checkout/EmptyCheckoutState';
 import { CheckoutForm } from '../../components/checkout/CheckoutForm';
 import { CheckoutReview } from '../../components/checkout/CheckoutReview';
@@ -58,9 +67,6 @@ function CheckoutPageContent() {
   const [submissionStatus, setSubmissionStatus] = useState<CheckoutSubmissionStatus>('idle');
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [collisionError, setCollisionError] = useState<{ message: string; unavailableIds: string[] } | null>(null);
-
-  // Stable single-flight idempotency key per checkout attempt session
-  const idempotencyKeyRef = useRef<string>(generateIdempotencyKey());
 
   // Form State
   const [form, setForm] = useState<CheckoutFormState>({
@@ -233,14 +239,17 @@ function CheckoutPageContent() {
     // 3. Initiate Atomic Reservation Transaction
     setSubmissionStatus('submitting');
 
+    const productIds = items.map((i) => i.productId);
+    const idempotencyKey = getOrCreateCheckoutIdempotencyKey(dropId, productIds);
+
     const requestPayload: CreateOrderRequest = {
       p_drop_id: dropId,
-      p_product_ids: items.map((i) => i.productId),
+      p_product_ids: productIds,
       p_buyer_name: validation.sanitized.buyer_name,
       p_buyer_phone: validation.sanitized.buyer_phone,
       p_shipping_address: validation.sanitized.shipping_address,
       p_pincode: validation.sanitized.pincode,
-      p_idempotency_key: idempotencyKeyRef.current,
+      p_idempotency_key: idempotencyKey,
     };
 
     try {
@@ -249,10 +258,14 @@ function CheckoutPageContent() {
 
       // Snapshot items before clearing cart
       setReservedSnapshot([...items]);
+      clearCheckoutIdempotencyKey(dropId);
       clearCart();
 
       setSubmittedOrder(response);
       setSubmissionStatus('success');
+
+      // Cache token strictly for this order ID in localStorage for resume-safe tracking
+      cacheOrderToken(response.order_id, response.order_token);
 
       // Update URL safely without full page reload for bookmarkability & back-button safety
       if (typeof window !== 'undefined') {
@@ -268,6 +281,10 @@ function CheckoutPageContent() {
         });
         // Refresh catalog to update availability indicators in UI
         void fetchCatalogData();
+      } else if (err instanceof CheckoutIdempotencyConflictError) {
+        clearCheckoutIdempotencyKey(dropId);
+        setSubmissionStatus('failure');
+        setGeneralError('Your cart items have changed since a prior submission attempt. Please review and try again.');
       } else if (err instanceof NetworkError) {
         setSubmissionStatus('network_ambiguous');
         setGeneralError(
@@ -347,6 +364,22 @@ function CheckoutPageContent() {
           </div>
         </header>
         <main className="ld-container ld-checkout-main" role="main">
+          <div className="ld-checkout-breadcrumbs" aria-label="Checkout Progress">
+            <div className="ld-step-item completed">
+              <span className="ld-step-dot">✓</span>
+              <span className="ld-step-label">Details</span>
+            </div>
+            <div className="ld-step-connector" />
+            <div className="ld-step-item active">
+              <span className="ld-step-dot">2</span>
+              <span className="ld-step-label">Payment</span>
+            </div>
+            <div className="ld-step-connector" />
+            <div className="ld-step-item">
+              <span className="ld-step-dot">3</span>
+              <span className="ld-step-label">Review</span>
+            </div>
+          </div>
           <CheckoutSuccessView
             order={submittedOrder}
             reservedItems={reservedSnapshot}
@@ -405,6 +438,24 @@ function CheckoutPageContent() {
       </header>
 
       <main className="ld-container ld-checkout-main" role="main">
+        {/* Breadcrumb Steps matching luxury template */}
+        <div className="ld-checkout-breadcrumbs" aria-label="Checkout Progress">
+          <div className="ld-step-item active">
+            <span className="ld-step-dot">1</span>
+            <span className="ld-step-label">Details</span>
+          </div>
+          <div className="ld-step-connector" />
+          <div className="ld-step-item">
+            <span className="ld-step-dot">2</span>
+            <span className="ld-step-label">Payment</span>
+          </div>
+          <div className="ld-step-connector" />
+          <div className="ld-step-item">
+            <span className="ld-step-dot">3</span>
+            <span className="ld-step-label">Review</span>
+          </div>
+        </div>
+
         <div className="ld-checkout-title-row">
           <h1 className="ld-checkout-title">Checkout & Reserve</h1>
           <span className="ld-checkout-step-badge">Step 1 of 2</span>

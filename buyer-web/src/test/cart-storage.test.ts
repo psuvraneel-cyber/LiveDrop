@@ -14,6 +14,9 @@ import {
   clearStoredCart,
   isValidCartItem,
   createEmptyCart,
+  cacheOrderToken,
+  getCachedOrderToken,
+  clearCachedOrderToken,
 } from '../lib/cart/cart-storage';
 import { CartItem, CartStorageSchema } from '../types/cart';
 
@@ -256,5 +259,18 @@ describe('TASK-2.2: Cart Storage & Schema Validation', () => {
 
     clearStoredCart();
     expect(window.localStorage.getItem(CART_STORAGE_KEY)).toBeNull();
+  });
+
+  describe('Order Token Caching', () => {
+    it('caches, retrieves, and clears order token strictly by order ID', () => {
+      expect(getCachedOrderToken('order-1')).toBeNull();
+
+      cacheOrderToken('order-1', 'tok-abc');
+      expect(getCachedOrderToken('order-1')).toBe('tok-abc');
+      expect(getCachedOrderToken('order-2')).toBeNull(); // No cross-order contamination
+
+      clearCachedOrderToken('order-1');
+      expect(getCachedOrderToken('order-1')).toBeNull();
+    });
   });
 });

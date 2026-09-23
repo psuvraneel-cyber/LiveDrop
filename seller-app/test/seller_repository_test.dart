@@ -272,6 +272,7 @@ void main() {
       expect(PaymentAttemptStatus.fromString('awaiting_payment').toDbValue(), 'awaiting_payment');
       expect(PaymentAttemptStatus.fromString('buyer_claimed').toDbValue(), 'buyer_claimed');
       expect(PaymentAttemptStatus.fromString('awaiting_seller_verification').toDbValue(), 'awaiting_seller_verification');
+      expect(PaymentAttemptStatus.fromString('late_claim_pending_review').toDbValue(), 'late_claim_pending_review');
       expect(PaymentAttemptStatus.fromString('verified').toDbValue(), 'verified');
       expect(PaymentAttemptStatus.fromString('rejected').toDbValue(), 'rejected');
       expect(PaymentAttemptStatus.fromString('expired').toDbValue(), 'expired');
