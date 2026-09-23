@@ -69,10 +69,13 @@ jobs:
     defaults:
       run:
         working-directory: buyer-web
+    outputs:
+      preview_url: ${{ steps.deploy-preview.outputs.preview_url }}
+      prod_url: ${{ steps.deploy-prod.outputs.prod_url }}
     env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: "q2sL66F6xJd8H07oVZZ9b90a"
+      VERCEL_PROJECT_ID: "prj_IyYtkVSrnoBwq0AY62fDJU9x6RFy"
+      VERCEL_TOKEN: "${{ secrets.VERCEL_TOKEN }}"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,25 +94,27 @@ jobs:
         run: npm install --no-save vercel@latest
 
       - name: Deploy Preview (Pull Requests)
-        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'preview')
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'preview')
         id: deploy-preview
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
-          echo "Deploying preview build for branch ${{ github.head_ref || github.ref_name }}..."
-          npx vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-          npx vercel build --token=${{ secrets.VERCEL_TOKEN }}
-          PREVIEW_URL=$(npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "Deploying preview build for branch $BRANCH_NAME..."
+          npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          npx vercel build --token="$VERCEL_TOKEN"
+          PREVIEW_URL=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Preview deployment successful: $PREVIEW_URL"
 
       - name: Deploy Production (Main Branch / LiveDrop.in)
-        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'production')
+        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'production')
         id: deploy-prod
         run: |
           echo "Deploying production build for LiveDrop.in..."
-          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          PROD_URL=$(npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-          echo "prod_url=$PROD_URL" >> $GITHUB_OUTPUT
+          npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx vercel build --prod --token="$VERCEL_TOKEN"
+          PROD_URL=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "prod_url=$PROD_URL" >> "$GITHUB_OUTPUT"
           echo "Production deployment successful: $PROD_URL"
 
   # ----------------------------------------------------------------------------
@@ -118,16 +123,17 @@ jobs:
   verify-production:
     name: Verify Production Health
     needs: deploy-vercel
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'production')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'production')
     runs-on: ubuntu-latest
     steps:
       - name: Smoke Test LiveDrop.in Health
         run: |
           TARGET_URL="https://livedrop.in"
           echo "Pinging $TARGET_URL to verify availability..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$TARGET_URL" || true)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$TARGET_URL" || echo "000")
+          STATUS="${STATUS:-000}"
           echo "HTTP response status from $TARGET_URL: $STATUS"
-          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+          if [ "$STATUS" -ge 200 ] 2>/dev/null && [ "$STATUS" -lt 400 ] 2>/dev/null; then
             echo "Verification PASSED: Storefront is responding normally."
           else
             echo "Warning: Direct domain returned status $STATUS (DNS propagation may be pending). Checking Vercel project deployment status."
