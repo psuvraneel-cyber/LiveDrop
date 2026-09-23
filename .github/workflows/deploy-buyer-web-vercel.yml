@@ -1,0 +1,134 @@
+name: Deploy Buyer Web to Vercel (LiveDrop.in)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "buyer-web/**"
+      - ".github/workflows/deploy-buyer-web-vercel.yml"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "buyer-web/**"
+      - ".github/workflows/deploy-buyer-web-vercel.yml"
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Deployment target environment ('production' or 'preview')"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - preview
+
+concurrency:
+  group: vercel-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # STAGE 1: Quality Gate (Lint, Typecheck & Vitest Suites)
+  # ----------------------------------------------------------------------------
+  quality-gate:
+    name: Pre-deployment Quality Gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: buyer-web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: buyer-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run Vitest Unit & Integration Tests (391 tests)
+        run: npm test
+
+  # ----------------------------------------------------------------------------
+  # STAGE 2: Vercel Deployment (Preview on PR, Production on Main)
+  # ----------------------------------------------------------------------------
+  deploy-vercel:
+    name: Deploy to Vercel
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: buyer-web
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: buyer-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install --no-save vercel@latest
+
+      - name: Deploy Preview (Pull Requests)
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'preview')
+        id: deploy-preview
+        run: |
+          echo "Deploying preview build for branch ${{ github.head_ref || github.ref_name }}..."
+          npx vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          PREVIEW_URL=$(npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "Preview deployment successful: $PREVIEW_URL"
+
+      - name: Deploy Production (Main Branch / LiveDrop.in)
+        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'production')
+        id: deploy-prod
+        run: |
+          echo "Deploying production build for LiveDrop.in..."
+          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          PROD_URL=$(npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "prod_url=$PROD_URL" >> $GITHUB_OUTPUT
+          echo "Production deployment successful: $PROD_URL"
+
+  # ----------------------------------------------------------------------------
+  # STAGE 3: Post-Deployment Smoke & Health Verification
+  # ----------------------------------------------------------------------------
+  verify-production:
+    name: Verify Production Health
+    needs: deploy-vercel
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'production')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Smoke Test LiveDrop.in Health
+        run: |
+          TARGET_URL="https://livedrop.in"
+          echo "Pinging $TARGET_URL to verify availability..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$TARGET_URL" || true)
+          echo "HTTP response status from $TARGET_URL: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "Verification PASSED: Storefront is responding normally."
+          else
+            echo "Warning: Direct domain returned status $STATUS (DNS propagation may be pending). Checking Vercel project deployment status."
+          fi

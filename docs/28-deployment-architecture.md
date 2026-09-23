@@ -33,11 +33,14 @@ LiveDrop operates across three isolated environments:
 
 ## 2. Component Deployment Specifications
 
-### 2.1 Buyer Webfront (Next.js App Router)
-* **Hosting Platform:** Cloudflare Pages (or Vercel Edge).
-* **Build Engine:** `@cloudflare/next-on-pages` or native Next.js edge runtime.
-* **CI/CD Pipeline:** GitHub integration triggers automated deployment upon push to `main` branch.
-* **Domain & HTTPS:** Subdomain `drop.store` or `livedrop.pages.dev` with automated free SSL/TLS encryption via Cloudflare Universal SSL.
+### 2.1 Buyer Webfront (Next.js App Router — LiveDrop.in)
+* **Hosting Platform:** Vercel Edge & Serverless Network.
+* **Project Name:** `livedrop-in` (Display Name: `LiveDrop.in`).
+* **Root Directory:** `buyer-web/`.
+* **Build Engine:** Next.js 16.3+ App Router with Turbopack (`next build`).
+* **CI/CD Pipeline:** Multi-stage GitHub Actions workflow (`.github/workflows/deploy-buyer-web-vercel.yml`) with automated lint, typecheck, Vitest unit/integration testing gate, preview deployments on pull requests, and production promotion on `main`.
+* **Primary Domain & HTTPS:** Canonical domain `https://livedrop.in` (and alias `https://www.livedrop.in`), with automatic wildcard SSL/TLS certificate provisioning and HTTP/3 edge caching.
+* **Failover / Preview Alias:** `https://livedrop-in.vercel.app`.
 
 ### 2.2 Backend & Data Layer (Supabase Cloud)
 * **Components:** PostgreSQL 15+ engine, PostgREST API, Realtime WebSocket engine, GoTrue Auth, and S3-compatible Object Storage.

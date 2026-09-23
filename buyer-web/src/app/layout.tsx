@@ -10,8 +10,17 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "LiveDrop — Boutique Fashion. Live Stories. Real People.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://livedrop.in'),
+  title: {
+    default: "LiveDrop.in — Boutique Fashion. Live Stories. Real People.",
+    template: "%s | LiveDrop.in",
+  },
   description: "Browse live boutique drops, discover exclusive artisan sarees and kurtis, and reserve single-piece fashion in real time.",
+  openGraph: {
+    siteName: "LiveDrop.in",
+    type: "website",
+    locale: "en_IN",
+  },
 };
 
 export default function RootLayout({
