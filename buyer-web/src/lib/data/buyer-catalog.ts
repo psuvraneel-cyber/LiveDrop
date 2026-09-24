@@ -547,7 +547,28 @@ export async function getAllActiveLiveDrops(
       } as unknown as PublicDropCatalog;
     });
 
-    return enriched;
+    // Deterministically remove drops from test / seed accounts or with test drop patterns
+    const productionDrops = enriched.filter((drop) => {
+      if (!drop.profiles?.store_slug || !drop.profiles?.store_name) return false;
+      const storeSlug = drop.profiles.store_slug.toLowerCase();
+      const storeName = drop.profiles.store_name.toLowerCase();
+      const dropSlug = (drop.slug || '').toLowerCase();
+      const dropTitle = (drop.title || '').toLowerCase();
+
+      for (const pattern of TEST_STORE_PATTERNS) {
+        if (
+          pattern.test(storeSlug) ||
+          pattern.test(storeName) ||
+          pattern.test(dropSlug) ||
+          pattern.test(dropTitle)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    return productionDrops;
   } catch (err: unknown) {
     if (err instanceof LiveDropError) throw err;
     throw new NetworkError(err instanceof Error ? err.message : String(err));
