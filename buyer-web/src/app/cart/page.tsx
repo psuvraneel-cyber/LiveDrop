@@ -16,6 +16,7 @@ import { CartEmptyState } from '../../components/cart/CartEmptyState';
 import { getBuyerClient } from '../../lib/supabase/client';
 import { getPublicProductsForDrop } from '../../lib/data/buyer-catalog';
 import { PublicProductView } from '../../types/domain';
+import { MobileBottomDock } from '../../components/navigation/MobileBottomDock';
 
 function CartPageContent() {
   const router = useRouter();
@@ -58,7 +59,7 @@ function CartPageContent() {
   const hasUnavailableItems = reconciledItems.some((item) => !item.isAvailable);
 
   return (
-    <div className="ld-cart-page" data-testid="cart-page">
+    <div className="ld-cart-page ld-has-bottom-dock" data-testid="cart-page">
       {/* Top Navigation */}
       <header className="ld-cart-page-header">
         <div className="ld-cart-page-nav">
@@ -86,7 +87,11 @@ function CartPageContent() {
         {/* Informational Stock Notice */}
         {items.length > 0 && (
           <div className="ld-cart-disclaimer" data-testid="page-cart-disclaimer">
-            <span className="ld-cart-disclaimer-icon" aria-hidden="true">⚡</span>
+            <span className="ld-cart-disclaimer-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </span>
             <span>Items are not reserved until checkout. Flash sale stock remains live.</span>
           </div>
         )}
@@ -231,6 +236,7 @@ function CartPageContent() {
           </div>
         )}
       </main>
+      <MobileBottomDock />
     </div>
   );
 }

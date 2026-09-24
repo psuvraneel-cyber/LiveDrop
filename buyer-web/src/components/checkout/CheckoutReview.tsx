@@ -147,7 +147,7 @@ export function CheckoutReview({
       {/* Pre-checkout Breakdown */}
       <div className="ld-checkout-pricing-card">
         <div className="ld-checkout-estimate-notice">
-          <span>⚡ Pre-checkout estimate • Final total verified by server</span>
+          <span>Pre-checkout estimate • Final total verified by server</span>
         </div>
 
         <div className="ld-summary-row">
@@ -179,9 +179,14 @@ export function CheckoutReview({
 
         {/* Hold Explanation Notice */}
         <div className="ld-cart-disclaimer ld-checkout-hold-notice" data-testid="checkout-hold-notice">
-          <span className="ld-cart-disclaimer-icon" aria-hidden="true">🔒</span>
+          <span className="ld-cart-disclaimer-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
           <span>
-            Placing your order creates an atomic <strong>15-minute hold</strong> on your selected pieces. Payment is completed in the next step.
+            Placing your order reserves a <strong>15-minute hold</strong> on your selected pieces. Payment is completed in the next step.
           </span>
         </div>
 

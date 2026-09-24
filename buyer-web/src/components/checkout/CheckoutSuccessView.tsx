@@ -155,7 +155,7 @@ export function CheckoutSuccessView({
         </div>
         <h1 className="ld-success-title">Thank You!</h1>
         <p className="ld-success-subtitle">
-          Your order has been placed. Garments are atomically reserved for you.
+          Your order has been placed. Your pieces are exclusively reserved for you.
         </p>
       </div>
 

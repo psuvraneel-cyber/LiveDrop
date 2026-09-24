@@ -108,7 +108,11 @@ export function CartDrawer({
         {/* Informational Stock Notice */}
         {items.length > 0 && (
           <div className="ld-cart-disclaimer" data-testid="cart-disclaimer">
-            <span className="ld-cart-disclaimer-icon" aria-hidden="true">⚡</span>
+            <span className="ld-cart-disclaimer-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+            </span>
             <span>Items are not reserved until checkout. Inventory remains live for other buyers.</span>
           </div>
         )}

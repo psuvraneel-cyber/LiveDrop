@@ -19,6 +19,7 @@ import {
   createOrderWithReservation,
   getOrderByToken,
   getStorefrontBySlug,
+  filterProductionStorefronts,
 } from '../lib/data/buyer-catalog';
 import {
   classifyRpcError,
@@ -377,3 +378,97 @@ describe('TASK-1.4: Error Model Classification', () => {
     expect(classifyRpcError({ error: 'UNAUTHORIZED' })).toBeInstanceOf(UnauthorizedError);
   });
 });
+
+describe('Production Storefront Deterministic Hygiene (filterProductionStorefronts)', () => {
+  const dummyStore = (slug: string, name: string) => ({
+    id: `id-${slug}`,
+    store_name: name,
+    store_slug: slug,
+    upi_qr_url: null,
+    default_shipping_fee_paisa: 5000,
+    free_shipping_threshold_paisa: null,
+    advance_confirmation_enabled: false,
+    advance_amount_paisa: 0,
+    hold_duration_days: 2,
+  });
+
+  it('removes known test/seed accounts and preserves authentic production boutiques', () => {
+    const input = [
+      dummyStore('suv-s', "Suv's"),
+      dummyStore('racestore_test_1', 'RaceStore 1'),
+      dummyStore('anita-silks', 'Anita Silks'),
+      dummyStore('race-store-2', 'Race Store 2'),
+      dummyStore('soanlidnsn', 'soanlidnsn'),
+      dummyStore('dheh', 'dheh'),
+      dummyStore('varanasi-weaves', 'Varanasi Weaves'),
+      dummyStore('staging-boutique', 'Staging Store'),
+      dummyStore('dummy-store', 'Dummy Store'),
+    ];
+
+    const result = filterProductionStorefronts(input);
+
+    expect(result.map((s) => s.store_slug)).toEqual(['suv-s', 'anita-silks', 'varanasi-weaves']);
+  });
+
+  it('preserves input order without sorting side-effects', () => {
+    const input = [
+      dummyStore('varanasi-weaves', 'Varanasi Weaves'),
+      dummyStore('anita-silks', 'Anita Silks'),
+      dummyStore('suv-s', "Suv's"),
+    ];
+
+    const result = filterProductionStorefronts(input);
+    expect(result.map((s) => s.store_slug)).toEqual(['varanasi-weaves', 'anita-silks', 'suv-s']);
+  });
+
+  it('rejects invalid, short, or placeholder stores', () => {
+    const input = [
+      dummyStore('a', 'A'),
+      dummyStore('valid-store', 'Test Store'),
+      dummyStore('seller-a', 'Seller A'),
+      dummyStore('real-atelier', 'Real Atelier'),
+    ];
+
+    const result = filterProductionStorefronts(input);
+    expect(result.map((s) => s.store_slug)).toEqual(['real-atelier']);
+  });
+
+  it('strictly respects explicit verification and publication boolean properties', () => {
+    const input = [
+      { ...dummyStore('approved-store', 'Approved Boutique'), is_approved: true },
+      { ...dummyStore('unapproved-store', 'Unapproved Boutique'), is_approved: false },
+      { ...dummyStore('unpublished-store', 'Unpublished Boutique'), is_published: false },
+      { ...dummyStore('nonprod-store', 'Non-Production Boutique'), is_production: false },
+      { ...dummyStore('unverified-store', 'Unverified Boutique'), is_verified: false },
+      { ...dummyStore('draft-store', 'Draft Boutique'), status: 'draft' },
+      { ...dummyStore('suspended-store', 'Suspended Boutique'), status: 'suspended' },
+    ];
+
+    const result = filterProductionStorefronts(input);
+    expect(result.map((s) => s.store_slug)).toEqual(['approved-store']);
+  });
+
+  it('rejects additional CI, automated, and null/undefined test patterns', () => {
+    const input = [
+      dummyStore('e2e-storefront', 'E2E Boutique'),
+      dummyStore('cypress-test', 'Cypress Studio'),
+      dummyStore('temp-boutique', 'Temp Boutique'),
+      dummyStore('fake-seller', 'Fake Seller'),
+      dummyStore('sample-silks', 'Sample Silks'),
+      dummyStore('null', 'Null Store'),
+      dummyStore('undefined', 'Undefined Store'),
+      { ...dummyStore('empty-id-store', 'Empty ID Store'), id: '   ' },
+      dummyStore('authentic-craft', 'Authentic Craft'),
+    ];
+
+    const result = filterProductionStorefronts(input);
+    expect(result.map((s) => s.store_slug)).toEqual(['authentic-craft']);
+  });
+
+  it('handles empty or malformed inputs defensively', () => {
+    expect(filterProductionStorefronts([])).toEqual([]);
+    expect(filterProductionStorefronts(null as unknown as [])).toEqual([]);
+    expect(filterProductionStorefronts(undefined as unknown as [])).toEqual([]);
+  });
+});
+

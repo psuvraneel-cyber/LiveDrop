@@ -40,7 +40,10 @@ export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
   if (secondsRemaining <= 0) {
     return (
       <div className="ld-hold-timer-pill expired" data-testid="hold-countdown-expired">
-        <span className="ld-hold-timer-icon" aria-hidden="true">⏱️</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ld-hold-timer-icon" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
         <span>Hold period has expired</span>
       </div>
     );
@@ -52,7 +55,10 @@ export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
 
   return (
     <div className="ld-hold-timer-pill" data-testid="hold-countdown">
-      <span className="ld-hold-timer-icon" aria-hidden="true">⏱️</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ld-hold-timer-icon" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
       <span>
         Hold expires in <strong className="ld-countdown-clock">{formatted}</strong>
       </span>

@@ -3,7 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { PublicDropCatalog, PublicProductView, PublicSellerStorefront } from '../types/domain';
+import { filterProductionStorefronts } from '../lib/data/buyer-catalog';
 import { normalizeIndianPhoneNumber } from './BoutiqueStorefrontView';
+import { LuxuryTopHeader } from './navigation/LuxuryTopHeader';
+import { MobileBottomDock } from './navigation/MobileBottomDock';
 
 export interface HomeStorefrontProps {
   activeDrops?: PublicDropCatalog[];
@@ -13,6 +16,15 @@ export interface HomeStorefrontProps {
   recentDrops?: PublicDropCatalog[];
 }
 
+const CATEGORIES = [
+  { id: 'all', label: 'All Collections' },
+  { id: 'banarasi', label: 'Banarasi Silks' },
+  { id: 'bridal', label: 'Bridal Lehengas' },
+  { id: 'handloom', label: 'Handloom Weaves' },
+  { id: 'designer', label: 'Designer Kurtis' },
+  { id: 'jewellery', label: 'Artisanal Jewellery' },
+];
+
 export function HomeStorefront({
   activeDrops = [],
   storefronts = [],
@@ -20,6 +32,7 @@ export function HomeStorefront({
   recentDrops = [],
 }: HomeStorefrontProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   // Resolved active live drops: either passed in or inferred from initialLiveDrop
   const resolvedActiveDrops = useMemo(() => {
@@ -28,43 +41,69 @@ export function HomeStorefront({
     return [];
   }, [activeDrops, initialLiveDrop]);
 
-  // Resolved storefronts: either passed in or extracted from recentDrops
+  // Resolved storefronts: extract, then filter production deterministically
   const resolvedStorefronts = useMemo(() => {
-    if (storefronts && storefronts.length > 0) return storefronts;
-    const extracted: PublicSellerStorefront[] = [];
-    const seen = new Set<string>();
+    let raw: PublicSellerStorefront[] = [];
 
-    for (const drop of recentDrops) {
-      if (drop.profiles && !seen.has(drop.seller_id)) {
-        seen.add(drop.seller_id);
-        extracted.push({
-          id: drop.seller_id,
-          store_name: drop.profiles.store_name,
-          store_slug: drop.profiles.store_slug || 'boutique',
-          phone_number: drop.profiles.phone_number || null,
-          upi_id: drop.profiles.upi_id,
-          upi_qr_url: drop.profiles.upi_qr_url,
-          default_shipping_fee_paisa: drop.profiles.default_shipping_fee_paisa,
-          free_shipping_threshold_paisa: drop.profiles.free_shipping_threshold_paisa,
-          advance_confirmation_enabled: drop.profiles.advance_confirmation_enabled,
-          advance_amount_paisa: drop.profiles.advance_amount_paisa,
-          hold_duration_days: drop.profiles.hold_duration_days,
-        });
+    if (storefronts && storefronts.length > 0) {
+      raw = storefronts;
+    } else {
+      const extracted: PublicSellerStorefront[] = [];
+      const seen = new Set<string>();
+
+      for (const drop of recentDrops) {
+        if (drop.profiles && !seen.has(drop.seller_id)) {
+          seen.add(drop.seller_id);
+          extracted.push({
+            id: drop.seller_id,
+            store_name: drop.profiles.store_name,
+            store_slug: drop.profiles.store_slug || 'boutique',
+            phone_number: drop.profiles.phone_number || null,
+            upi_id: drop.profiles.upi_id,
+            upi_qr_url: drop.profiles.upi_qr_url,
+            default_shipping_fee_paisa: drop.profiles.default_shipping_fee_paisa,
+            free_shipping_threshold_paisa: drop.profiles.free_shipping_threshold_paisa,
+            advance_confirmation_enabled: drop.profiles.advance_confirmation_enabled,
+            advance_amount_paisa: drop.profiles.advance_amount_paisa,
+            hold_duration_days: drop.profiles.hold_duration_days,
+          });
+        }
       }
+      raw = extracted;
     }
-    return extracted;
+
+    return filterProductionStorefronts(raw);
   }, [storefronts, recentDrops]);
 
-  // Filtered boutiques and drops based on search query
+  // Filtered boutiques based on search query and category
   const filteredStorefronts = useMemo(() => {
-    if (!searchQuery.trim()) return resolvedStorefronts;
-    const query = searchQuery.toLowerCase().trim();
-    return resolvedStorefronts.filter(
-      (s) =>
-        s.store_name.toLowerCase().includes(query) ||
-        s.store_slug.toLowerCase().includes(query)
-    );
-  }, [resolvedStorefronts, searchQuery]);
+    let result = resolvedStorefronts;
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (s) =>
+          s.store_name.toLowerCase().includes(query) ||
+          s.store_slug.toLowerCase().includes(query)
+      );
+    }
+
+    if (selectedCategory !== 'all') {
+      const categoryQuery = selectedCategory.toLowerCase();
+      // If store matches category keyword or if search was not already matched
+      const categoryMatches = result.filter(
+        (s) =>
+          s.store_name.toLowerCase().includes(categoryQuery) ||
+          s.store_slug.toLowerCase().includes(categoryQuery)
+      );
+      // Keep category filter graceful if no specific tag is attached
+      if (categoryMatches.length > 0) {
+        result = categoryMatches;
+      }
+    }
+
+    return result;
+  }, [resolvedStorefronts, searchQuery, selectedCategory]);
 
   const filteredActiveDrops = useMemo(() => {
     if (!searchQuery.trim()) return resolvedActiveDrops;
@@ -87,71 +126,35 @@ export function HomeStorefront({
   };
 
   return (
-    <div className="ld-home-storefront" data-testid="platform-home">
-      {/* 1. Global Navigation Bar */}
-      <header className="ld-navbar" role="banner">
-        <div className="ld-navbar-inner">
-          <div className="ld-navbar-left">
-            <Link href="/" className="ld-brand-emblem" aria-label="LiveDrop Home">
-              <span className="ld-brand-sparkle">✦</span>
-              <span className="ld-brand-title">LiveDrop</span>
-              <span className="ld-brand-sub">LIVE COMMERCE</span>
-            </Link>
-          </div>
+    <div className="ld-home-storefront ld-has-bottom-dock" data-testid="platform-home">
+      {/* 1. Scroll-Aware Luxury Top Header */}
+      <LuxuryTopHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
 
-          <nav className="ld-nav-links" aria-label="Main Navigation">
-            <a href="#boutiques" className="ld-nav-link active">Boutiques</a>
-            {resolvedActiveDrops.length > 0 ? (
-              <a href="#live-drops" className="ld-nav-link ld-nav-live-link">
-                Live Drops <span className="ld-nav-count-badge">LIVE</span>
-              </a>
-            ) : (
-              <a href="#live-drops" className="ld-nav-link">Live Drops</a>
-            )}
-            <a href="#how-it-works" className="ld-nav-link">How It Works</a>
-          </nav>
-
-          {/* Search Input Bar */}
-          <div className="ld-nav-search-box">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ld-nav-search-icon">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              className="ld-nav-search-input"
-              placeholder="Search boutique or drop name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search boutiques and drops"
-              data-testid="platform-search-input"
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* 2. Platform Hero Section */}
+      {/* 2. Editorial Hero Section (Restrained Luxury Magazine Aesthetic) */}
       <section className="ld-hero-section">
         <div className="ld-hero-glow" aria-hidden="true" />
         <div className="ld-hero-container">
-          <div className="ld-hero-content" style={{ maxWidth: '780px', margin: '0 auto', textAlign: 'center' }}>
-            <div className="ld-hero-badge-row" style={{ justifyContent: 'center' }}>
+          <div className="ld-hero-content ld-hero-content-editorial">
+            <div className="ld-hero-badge-row ld-hero-badge-row-center">
               <span className="ld-hero-live-pill active">
-                <span className="ld-hero-live-dot" style={{ backgroundColor: 'var(--color-gold, #D4AF37)' }} />
-                INDIA&apos;S INDEPENDENT BOUTIQUES
+                <span className="ld-hero-live-dot" />
+                INDIA&apos;S INDEPENDENT ATELIERS
               </span>
-              <span className="ld-hero-location">✦ Zero Middlemen Commerce</span>
+              <span className="ld-hero-location">✦ Direct Artisan Heritage</span>
             </div>
 
-            <h1 className="ld-hero-store-name" style={{ fontSize: 'clamp(32px, 6vw, 56px)' }}>
+            <h1 className="ld-hero-store-name">
               India&apos;s Luxury Boutiques, Streaming Live
             </h1>
 
-            <p className="ld-hero-tagline" style={{ maxWidth: '640px', margin: '0 auto 24px' }}>
-              Handcrafted sarees, designer wear, and artisanal collections directly from verified independent boutiques across India. Single-piece creations with direct UPI checkout.
+            <p className="ld-hero-tagline ld-hero-tagline-editorial">
+              Handcrafted sarees, designer wear, and artisanal collections directly from verified independent boutiques across India. Single-piece creations with direct studio settlement.
             </p>
 
-            <div className="ld-hero-cta-group" style={{ justifyContent: 'center' }}>
+            <div className="ld-hero-cta-group ld-hero-cta-group-center">
               <a href="#boutiques" className="ld-btn-gold-cta" data-testid="explore-boutiques-btn">
                 <span>Explore Boutiques</span>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -171,7 +174,25 @@ export function HomeStorefront({
         </div>
       </section>
 
-      {/* 3. Section: Live Drops Streaming Now */}
+      {/* 3. Horizontal Silk Category Chips */}
+      <section className="ld-categories-section" aria-label="Product Categories">
+        <div className="ld-category-tabs-row" role="tablist">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              role="tab"
+              aria-selected={selectedCategory === cat.id}
+              className={`ld-category-pill ${selectedCategory === cat.id ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat.id)}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 4. Section: Live Drops Streaming Now */}
       <section className="ld-platform-section" id="live-drops" data-testid="live-drops-section">
         <div className="ld-platform-section-header">
           <div className="ld-hero-badge-row">
@@ -200,8 +221,8 @@ export function HomeStorefront({
                   <span className="ld-live-drop-store">{drop.profiles?.store_name || 'Boutique'}</span>
                 </div>
                 <h3 className="ld-live-drop-title">{drop.title}</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Interactive live flash sale with direct atomic reservation locks.
+                <p style={{ fontSize: '13px', color: 'var(--ivory-muted, rgba(251, 251, 251, 0.65))' }}>
+                  Interactive live atelier presentation with instant single-piece reserve.
                 </p>
                 <div className="ld-live-drop-actions">
                   <Link href={`/drop/${drop.slug}`} className="ld-btn-visit-boutique">
@@ -231,7 +252,7 @@ export function HomeStorefront({
         )}
       </section>
 
-      {/* 4. Section: Discover Independent Boutiques */}
+      {/* 5. Section: Discover Independent Boutiques */}
       <section className="ld-platform-section" id="boutiques" data-testid="boutiques-directory-section">
         <div className="ld-platform-section-header">
           <h2 className="ld-platform-section-title">Discover Verified Boutiques</h2>
@@ -248,7 +269,9 @@ export function HomeStorefront({
                   <div className="ld-boutique-card-emblem">
                     {boutique.store_name.slice(0, 1).toUpperCase()}
                   </div>
-                  <span className="ld-verified-boutique-tag">✦ Verified</span>
+                  {Boolean(boutique.is_verified) && (
+                    <span className="ld-verified-boutique-tag">✦ Verified</span>
+                  )}
                 </div>
 
                 <div className="ld-boutique-card-info">
@@ -259,7 +282,7 @@ export function HomeStorefront({
                 <div className="ld-boutique-card-perks">
                   <span>✓ Handcrafted Single Pieces</span>
                   <span>✓ Direct Studio Dispatch</span>
-                  <span>✓ 100% Direct UPI</span>
+                  <span>✓ Direct UPI Settlement</span>
                 </div>
 
                 <div className="ld-boutique-card-actions">
@@ -280,7 +303,10 @@ export function HomeStorefront({
                       title="Chat on WhatsApp"
                       aria-label={`Chat with ${boutique.store_name} on WhatsApp`}
                     >
-                      💬
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.101-.477-.15-.678.15-.2.301-.778.978-.954 1.18-.176.201-.351.226-.652.075-.301-.15-1.272-.469-2.423-1.496-.896-.799-1.5-1.787-1.677-2.088-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.201.05-.376-.025-.527-.075-.15-.678-1.632-.929-2.234-.244-.587-.492-.507-.677-.517l-.578-.01c-.201 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.23 3.109.15.201 2.124 3.243 5.145 4.549.719.311 1.28.497 1.718.636.722.23 1.379.197 1.9.119.58-.088 1.78-.728 2.03-1.431.251-.703.251-1.305.176-1.431-.076-.126-.277-.201-.578-.352z" />
+                        <path d="M12 2C6.48 2 2 6.48 2 12c0 1.94.55 3.75 1.51 5.28L2 22l4.88-1.47C8.36 21.48 10.12 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.64 0-3.17-.49-4.46-1.34l-.32-.21-2.89.87.87-2.81-.23-.34C4.1 14.86 3.6 13.48 3.6 12c0-4.63 3.77-8.4 8.4-8.4s8.4 3.77 8.4 8.4-3.77 8.4-8.4 8.4z" />
+                      </svg>
                     </a>
                   )}
                 </div>
@@ -300,60 +326,96 @@ export function HomeStorefront({
         )}
       </section>
 
-      {/* 5. How LiveDrop Works */}
+      {/* 6. Atelier Craft Standards (Bespoke SVG Stroke Icons, No Developer Jargon) */}
       <section className="ld-value-props-bar" id="how-it-works">
         <div className="ld-value-prop-item">
-          <div className="ld-prop-icon">🎥</div>
+          <div className="ld-prop-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--champagne-gold, #D4AF37)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7" />
+              <rect width="15" height="14" x="1" y="5" rx="2" ry="2" />
+            </svg>
+          </div>
           <div className="ld-prop-text">
-            <strong>Live Streaming Drops</strong>
+            <strong>Live Studio Broadcasts</strong>
             <span>Real-time boutique video sessions</span>
           </div>
         </div>
 
         <div className="ld-value-prop-item">
-          <div className="ld-prop-icon">🔒</div>
+          <div className="ld-prop-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--champagne-gold, #D4AF37)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
           <div className="ld-prop-text">
-            <strong>Atomic Claim Locks</strong>
-            <span>First buyer to tap locks the piece</span>
+            <strong>Single-Piece Claim</strong>
+            <span>Instant reserve during live drops</span>
           </div>
         </div>
 
         <div className="ld-value-prop-item">
-          <div className="ld-prop-icon">⚡</div>
+          <div className="ld-prop-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--champagne-gold, #D4AF37)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
           <div className="ld-prop-text">
-            <strong>100% Direct UPI</strong>
-            <span>Zero middleman payment fees</span>
+            <strong>Direct UPI Settlement</strong>
+            <span>Direct payments to artisan studios</span>
           </div>
         </div>
 
         <div className="ld-value-prop-item">
-          <div className="ld-prop-icon">📦</div>
+          <div className="ld-prop-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--champagne-gold, #D4AF37)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m7.5 4.27 9 5.15" />
+              <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              <path d="m3.3 7 8.7 5 8.7-5" />
+              <path d="M12 22V12" />
+            </svg>
+          </div>
           <div className="ld-prop-text">
-            <strong>Verified Dispatch</strong>
-            <span>Direct shipping from studio</span>
+            <strong>Studio Dispatch</strong>
+            <span>Direct shipping from artisan ateliers</span>
           </div>
         </div>
       </section>
 
-      {/* 6. Luxury Footer */}
+      {/* 7. Haute Couture Editorial Footer */}
       <footer className="ld-footer">
         <div className="ld-footer-top">
           <span className="ld-footer-brand">LiveDrop</span>
           <span className="ld-footer-bullets">
-            INDIAN BOUTIQUES • LIVE COMMERCE • ATOMIC INVENTORY • ZERO TRANSACTION FEES
+            CURATED INDIAN BOUTIQUES • LIVE COMMERCE • ARTISANAL HERITAGE • DIRECT SETTLEMENT
           </span>
           <div className="ld-footer-socials">
-            <span className="ld-social-icon" title="Instagram">📸</span>
-            <span className="ld-social-icon" title="YouTube">📺</span>
+            <span className="ld-social-icon" title="Instagram">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+              </svg>
+            </span>
+            <span className="ld-social-icon" title="YouTube">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+                <polygon points="10 15 15 12 10 9 10 15" />
+              </svg>
+            </span>
           </div>
         </div>
         <div className="ld-footer-bottom">
           <span className="ld-script-tagline">Crafted for Indian Boutiques ~</span>
           <span className="ld-copyright">
-            © {new Date().getFullYear()} LiveDrop Technologies. Canonical deployment: livedrop-in.vercel.app
+            © {new Date().getFullYear()} LiveDrop Technologies. All rights reserved.
           </span>
         </div>
       </footer>
+
+      {/* 8. Persistent Mobile Bottom Dock */}
+      <MobileBottomDock />
     </div>
   );
 }

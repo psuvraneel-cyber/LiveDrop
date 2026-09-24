@@ -152,9 +152,8 @@ describe('TASK-2.3: Buyer Checkout & Atomic Reservation (/checkout)', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('checkout-unavailable-banner')).toBeInTheDocument();
+        expect(screen.getByTestId('checkout-warning-prod-01')).toHaveTextContent('RESERVED — Claimed by another buyer');
       });
-
-      expect(screen.getByTestId('checkout-warning-prod-01')).toHaveTextContent('RESERVED — Claimed by another buyer');
       expect(screen.getByTestId('checkout-submit-btn')).toBeDisabled();
       expect(screen.getByTestId('checkout-remove-prod-01')).toBeInTheDocument();
 

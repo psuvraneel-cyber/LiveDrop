@@ -50,6 +50,11 @@ export interface PublicSellerStorefront {
   hold_duration_days: number;
   whatsapp_number?: string | null;
   created_at?: string;
+  is_approved?: boolean;
+  is_verified?: boolean;
+  is_published?: boolean;
+  is_production?: boolean;
+  status?: string;
 }
 
 export interface Drop {

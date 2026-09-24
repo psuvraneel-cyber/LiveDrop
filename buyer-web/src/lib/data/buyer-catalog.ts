@@ -183,6 +183,10 @@ export async function getStorefrontBySlug(
     const storefront = {
       ...data,
       upi_id: (rawData.upi_vpa as string) || (rawData.upi_id as string) || '',
+      is_approved: typeof rawData.is_approved === 'boolean' ? rawData.is_approved : true,
+      is_verified: typeof rawData.is_verified === 'boolean' ? rawData.is_verified : undefined,
+      is_published: typeof rawData.is_published === 'boolean' ? rawData.is_published : undefined,
+      is_production: typeof rawData.is_production === 'boolean' ? rawData.is_production : undefined,
     };
 
     return (storefront as unknown as PublicSellerStorefront) || null;
@@ -319,6 +323,95 @@ export async function getStorefrontData(
 }
 
 /**
+ * Known automated test, CI/CD, or seed storefront patterns.
+ */
+const TEST_STORE_PATTERNS = [
+  /^racestore/i,
+  /^race-store/i,
+  /^race_store/i,
+  /^staging/i,
+  /^test[-_]?/i,
+  /[-_]?test$/i,
+  /^seed[-_]?/i,
+  /^dummy[-_]?/i,
+  /^mock[-_]?/i,
+  /^e2e[-_]?/i,
+  /^cypress[-_]?/i,
+  /^sample[-_]?/i,
+  /^fake[-_]?/i,
+  /^temp[-_]?/i,
+  /^placeholder/i,
+  /soanlidnsn/i,
+  /dheh/i,
+  /asdf/i,
+  /qwerty/i,
+];
+
+/**
+ * Deterministically filters storefronts for production display.
+ * Removes known test/seed records and only exposes storefronts satisfying explicit production/publication criteria.
+ * Sorting and editorial prominence remain strictly separate concerns.
+ */
+export function filterProductionStorefronts(
+  storefronts: PublicSellerStorefront[]
+): PublicSellerStorefront[] {
+  if (!Array.isArray(storefronts)) {
+    return [];
+  }
+
+  return storefronts.filter((sf) => {
+    if (!sf || typeof sf !== 'object') return false;
+    if (!sf.id || typeof sf.id !== 'string' || !sf.id.trim()) return false;
+
+    // Use an actual verified/published/production data property where available.
+    // Explicit negative publication flags must be strictly respected.
+    // Never infer verification merely because a store has imagery or a description.
+    if (sf.is_approved !== undefined && sf.is_approved !== true) return false;
+    if (sf.is_published !== undefined && sf.is_published !== true) return false;
+    if (sf.is_production !== undefined && sf.is_production !== true) return false;
+    if (sf.is_verified !== undefined && sf.is_verified !== true) return false;
+    if (
+      sf.status === 'draft' ||
+      sf.status === 'archived' ||
+      sf.status === 'suspended' ||
+      sf.status === 'inactive'
+    ) {
+      return false;
+    }
+
+    const slug = (sf.store_slug || '').trim().toLowerCase();
+    const name = (sf.store_name || '').trim();
+
+    // Must satisfy explicit minimal publication criteria:
+    // Non-empty slug with at least 2 chars, non-empty store name with at least 2 chars
+    if (slug.length < 2 || name.length < 2) return false;
+    if (slug === 'null' || slug === 'undefined') return false;
+
+    // Reject known test / seed / automated patterns in slug or store name
+    for (const pattern of TEST_STORE_PATTERNS) {
+      if (pattern.test(slug) || pattern.test(name)) {
+        return false;
+      }
+    }
+
+    // Reject generic placeholder names
+    const lowerName = name.toLowerCase();
+    if (
+      lowerName === 'test store' ||
+      lowerName === 'seller a' ||
+      lowerName === 'seller b' ||
+      lowerName === 'store 1' ||
+      lowerName === 'temp store' ||
+      lowerName === 'sample store'
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
  * Retrieves all verified boutique storefronts for directory listing.
  */
 export async function getAllVerifiedStorefronts(
@@ -351,13 +444,19 @@ export async function getAllVerifiedStorefronts(
       throw new LiveDropError(`Failed to fetch storefronts: ${error.message}`, 'UNKNOWN_ERROR');
     }
 
-    return (data || []).map((row) => {
+    const mapped = (data || []).map((row) => {
       const raw = row as Record<string, unknown>;
       return {
         ...row,
         upi_id: (raw.upi_vpa as string) || (raw.upi_id as string) || '',
+        is_approved: typeof raw.is_approved === 'boolean' ? raw.is_approved : true,
+        is_verified: typeof raw.is_verified === 'boolean' ? raw.is_verified : undefined,
+        is_published: typeof raw.is_published === 'boolean' ? raw.is_published : undefined,
+        is_production: typeof raw.is_production === 'boolean' ? raw.is_production : undefined,
       } as PublicSellerStorefront;
     });
+
+    return filterProductionStorefronts(mapped);
   } catch (err: unknown) {
     if (err instanceof LiveDropError) throw err;
     throw new NetworkError(err instanceof Error ? err.message : String(err));

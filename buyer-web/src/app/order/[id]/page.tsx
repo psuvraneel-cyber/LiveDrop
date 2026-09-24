@@ -16,6 +16,7 @@ import { getOrderByToken } from '../../../lib/data/buyer-catalog';
 import { getCachedOrderToken, clearCachedOrderToken } from '../../../lib/cart/cart-storage';
 import { OrderReceipt } from '../../../types/domain';
 import { CheckoutSuccessView } from '../../../components/checkout/CheckoutSuccessView';
+import { MobileBottomDock } from '../../../components/navigation/MobileBottomDock';
 
 function OrderTrackingContent() {
   const params = useParams();
@@ -95,7 +96,7 @@ function OrderTrackingContent() {
   // Token missing or invalid: Never expose order data based solely on route param
   if (isTokenMissing || !order) {
     return (
-      <div className="ld-checkout-page" data-testid="order-token-error-page">
+      <div className="ld-checkout-page ld-has-bottom-dock" data-testid="order-token-error-page">
         <header className="ld-checkout-header">
           <div className="ld-checkout-nav">
             <Link href="/" className="ld-back-link" data-testid="order-return-home-btn">
@@ -109,13 +110,17 @@ function OrderTrackingContent() {
           <div className="ld-checkout-empty" data-testid="order-access-restricted">
             <div
               style={{
-                fontSize: '44px',
                 marginBottom: '16px',
-                color: 'var(--stock-reserved)',
+                color: 'var(--champagne-gold, #D4AF37)',
+                display: 'flex',
+                justifyContent: 'center',
               }}
               aria-hidden="true"
             >
-              🔒
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
             </div>
             <h2 className="ld-checkout-empty-title">Order Access Restricted</h2>
             <p className="ld-checkout-empty-desc">
@@ -129,12 +134,13 @@ function OrderTrackingContent() {
             </div>
           </div>
         </main>
+        <MobileBottomDock />
       </div>
     );
   }
 
   return (
-    <div className="ld-checkout-page" data-testid="order-tracking-page">
+    <div className="ld-checkout-page ld-has-bottom-dock" data-testid="order-tracking-page">
       <header className="ld-checkout-header">
         <div className="ld-checkout-nav">
           <Link href="/" className="ld-back-link" data-testid="order-home-link">
@@ -151,6 +157,7 @@ function OrderTrackingContent() {
           dropSlug={order.store_slug || null}
         />
       </main>
+      <MobileBottomDock />
     </div>
   );
 }

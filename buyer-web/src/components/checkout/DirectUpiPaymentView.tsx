@@ -471,10 +471,19 @@ export function DirectUpiPaymentView({
                   fontSize: '13px',
                   fontWeight: 600,
                   color: '#166534',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
                 data-testid="buyer-courier-partner"
               >
-                📦 Dispatched via {order.courier_partner || 'Courier'}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m7.5 4.27 9 5.15" />
+                  <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                  <path d="m3.3 7 8.7 5 8.7-5" />
+                  <path d="M12 22V12" />
+                </svg>
+                Dispatched via {order.courier_partner || 'Courier'}
               </span>
               <span className="ld-badge-ready" data-testid="buyer-order-shipped-status">
                 Shipped
@@ -839,16 +848,21 @@ export function DirectUpiPaymentView({
 
                   <div
                     style={{
-                      backgroundColor: '#FFFBEB',
-                      border: '1px solid #FDE68A',
+                      backgroundColor: 'rgba(212, 175, 55, 0.08)',
+                      border: '1px solid rgba(212, 175, 55, 0.24)',
                       borderRadius: '8px',
                       padding: '10px 12px',
                       marginTop: '12px',
                     }}
                     data-testid="do-not-pay-again-warning"
                   >
-                    <span style={{ color: '#92400E', fontSize: '13px', fontWeight: 600 }}>
-                      ⚠️ Do not pay again unless the boutique asks you to.
+                    <span style={{ color: 'var(--champagne-gold, #D4AF37)', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      Do not pay again unless the boutique asks you to.
                     </span>
                   </div>
                 </div>

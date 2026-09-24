@@ -8,6 +8,7 @@ import { useOptionalCart } from '../lib/cart/cart-context';
 import { ProductCard } from './ProductCard';
 import { CartDrawer } from './cart/CartDrawer';
 import { StickyCartBar } from './cart/StickyCartBar';
+import { MobileBottomDock } from './navigation/MobileBottomDock';
 
 export interface BoutiqueStorefrontViewProps {
   storefront: PublicSellerStorefront;
@@ -100,7 +101,7 @@ export function BoutiqueStorefrontView({
   };
 
   return (
-    <div className="ld-home-storefront" data-testid="boutique-storefront">
+    <div className="ld-home-storefront ld-has-bottom-dock" data-testid="boutique-storefront">
       {/* 1. Global Boutique Navigation Bar */}
       <header className="ld-navbar" role="banner">
         <div className="ld-navbar-inner">
@@ -173,7 +174,9 @@ export function BoutiqueStorefrontView({
                 NEXT LIVE DROP SOON
               </span>
             )}
-            <span className="ld-verified-boutique-tag">✦ Verified Boutique</span>
+            {Boolean(storefront.is_verified) && (
+              <span className="ld-verified-boutique-tag">✦ Verified Boutique</span>
+            )}
           </div>
 
           <h1 className="ld-storefront-title" data-testid="storefront-title">
@@ -224,7 +227,9 @@ export function BoutiqueStorefrontView({
         <main className="ld-catalog-section" data-testid="live-products-section">
           <div className="ld-catalog-header">
             <div className="ld-catalog-header-left">
-              <span className="ld-live-pill-tag">🔴 LIVE SESSION</span>
+              <span className="ld-live-pill-tag">
+                <span className="ld-hero-live-dot" /> LIVE ATELIER SESSION
+              </span>
               <h2 className="ld-catalog-title">{activeLiveDrop?.title}</h2>
               <span className="ld-catalog-subtitle">
                 {liveProducts.length} flash sale piece{liveProducts.length === 1 ? '' : 's'} available
@@ -368,8 +373,12 @@ export function BoutiqueStorefrontView({
               rel="noopener noreferrer"
               className="ld-social-icon"
               title="WhatsApp"
+              aria-label="Contact Boutique on WhatsApp"
             >
-              💬
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.101-.477-.15-.678.15-.2.301-.778.978-.954 1.18-.176.201-.351.226-.652.075-.301-.15-1.272-.469-2.423-1.496-.896-.799-1.5-1.787-1.677-2.088-.176-.301-.019-.464.132-.614.136-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.201.05-.376-.025-.527-.075-.15-.678-1.632-.929-2.234-.244-.587-.492-.507-.677-.517l-.578-.01c-.201 0-.527.075-.803.376s-1.054 1.029-1.054 2.509c0 1.48 1.079 2.909 1.23 3.109.15.201 2.124 3.243 5.145 4.549.719.311 1.28.497 1.718.636.722.23 1.379.197 1.9.119.58-.088 1.78-.728 2.03-1.431.251-.703.251-1.305.176-1.431-.076-.126-.277-.201-.578-.352z" />
+                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.94.55 3.75 1.51 5.28L2 22l4.88-1.47C8.36 21.48 10.12 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.64 0-3.17-.49-4.46-1.34l-.32-.21-2.89.87.87-2.81-.23-.34C4.1 14.86 3.6 13.48 3.6 12c0-4.63 3.77-8.4 8.4-8.4s8.4 3.77 8.4 8.4-3.77 8.4-8.4 8.4z" />
+              </svg>
             </a>
           </div>
         </div>
@@ -412,6 +421,9 @@ export function BoutiqueStorefrontView({
           />
         </>
       )}
+
+      {/* Persistent Mobile Bottom Dock */}
+      <MobileBottomDock />
     </div>
   );
 }

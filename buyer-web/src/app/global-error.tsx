@@ -21,7 +21,13 @@ export default function GlobalError({
               boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
             }}
           >
-            <div style={{ fontSize: '40px', marginBottom: '16px' }}>⚡</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', color: '#D4AF37' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
             <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
               Application Error
             </h1>
