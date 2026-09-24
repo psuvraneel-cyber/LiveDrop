@@ -19,6 +19,8 @@ import { useCart, useOptionalCart, CartProvider } from '../lib/cart/cart-context
 import { StickyCartBar } from './cart/StickyCartBar';
 import { CartDrawer } from './cart/CartDrawer';
 import { InAppBrowserBanner } from './InAppBrowserBanner';
+import { CinematicLiveRoomView } from './live/CinematicLiveRoomView';
+import { FacebookLivePlayer } from './live/FacebookLivePlayer';
 
 export type DropViewState = 'loading' | 'live' | 'closed' | 'not_found' | 'error';
 
@@ -61,6 +63,15 @@ function PublicDropContent({
 
   // Cart drawer control
   const { isDrawerOpen, openDrawer, closeDrawer } = useCart();
+
+  // Cinematic live room mode (e.g. from ?view=live or button click)
+  const [isCinematicMode, setIsCinematicMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('view') === 'live' || params.get('view') === 'cinematic';
+    }
+    return false;
+  });
 
   // Realtime connection status
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
@@ -291,7 +302,19 @@ function PublicDropContent({
     );
   }
 
-  // State: Live Catalog
+  // State: Live Catalog (Cinematic Fullscreen Room)
+  if (viewState === 'live' && isCinematicMode && drop) {
+    return (
+      <CinematicLiveRoomView
+        drop={drop}
+        products={products}
+        realtimeStatus={realtimeStatus}
+        onExitToGrid={() => setIsCinematicMode(false)}
+      />
+    );
+  }
+
+  // State: Live Catalog (Grid View with Live Stream Banner)
   return (
     <div>
       {/* Social In-App Browser Guidance Banner */}
@@ -299,6 +322,37 @@ function PublicDropContent({
 
       {/* Sticky Drop Header */}
       <DropHeader drop={drop} realtimeStatus={realtimeStatus} onOpenCart={openDrawer} />
+
+      {/* Live Stream Spotlight Header Banner */}
+      <section className="px-4 pt-3 pb-2 max-w-4xl mx-auto" aria-label="Live Stream Preview">
+        <div className="relative w-full rounded-2xl overflow-hidden border border-[rgba(212,175,55,0.25)] bg-[#0E0E12] shadow-xl">
+          <div className="relative aspect-video sm:aspect-[21/9] w-full bg-black/80">
+            <FacebookLivePlayer
+              streamUrl={drop.stream_url}
+              dropTitle={drop.title}
+              storeName={drop.profiles?.store_name}
+              isLive={true}
+            />
+          </div>
+          <div className="p-3 bg-[#121217] flex items-center justify-between gap-3 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs text-white/90 font-medium">Broadcast Active</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCinematicMode(true)}
+              className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] text-xs font-bold font-sans shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+              data-testid="enter-cinematic-mode-btn"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              <span>Watch Live Fullscreen</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Main Catalog View Container */}
       <main className="ld-container" role="main">

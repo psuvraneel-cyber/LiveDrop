@@ -271,6 +271,22 @@ export function CartDrawer({
               {hasUnavailableItems ? 'Remove Unavailable Items' : 'Proceed to Checkout'}
             </button>
 
+            {/* Luxury Assurances Trust Row */}
+            <div className="grid grid-cols-3 gap-2 py-3 border-t border-white/5 text-center">
+              <div className="py-1 px-1 rounded-lg bg-white/[0.02]">
+                <span className="block text-[11px] font-serif text-[#D4AF37]">✦ 100%</span>
+                <span className="text-[10px] text-white/50">Authentic</span>
+              </div>
+              <div className="py-1 px-1 rounded-lg bg-white/[0.02]">
+                <span className="block text-[11px] font-serif text-[#D4AF37]">Insured</span>
+                <span className="text-[10px] text-white/50">Delivery</span>
+              </div>
+              <div className="py-1 px-1 rounded-lg bg-white/[0.02]">
+                <span className="block text-[11px] font-serif text-[#D4AF37]">Direct</span>
+                <span className="text-[10px] text-white/50">Settlement</span>
+              </div>
+            </div>
+
             {/* Clear Cart Button */}
             <button
               type="button"

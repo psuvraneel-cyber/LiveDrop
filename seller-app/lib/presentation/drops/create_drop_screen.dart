@@ -26,6 +26,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
   late TextEditingController _slugController;
   late TextEditingController _shippingFeeController;
   late TextEditingController _freeShippingThresholdController;
+  late TextEditingController _streamUrlController;
   bool _isLoading = false;
   bool _autoSlug = true;
 
@@ -39,6 +40,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
 
     _titleController = TextEditingController(text: drop?.title ?? '');
     _slugController = TextEditingController(text: drop?.slug ?? '');
+    _streamUrlController = TextEditingController(text: drop?.streamUrl ?? '');
 
     final defaultShipping = (drop?.shippingFeePaisa ?? profile?.defaultShippingFeePaisa ?? 8000) ~/ 100;
     _shippingFeeController = TextEditingController(text: defaultShipping.toString());
@@ -57,6 +59,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
   void dispose() {
     _titleController.dispose();
     _slugController.dispose();
+    _streamUrlController.dispose();
     _shippingFeeController.dispose();
     _freeShippingThresholdController.dispose();
     super.dispose();
@@ -86,6 +89,9 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
       final freeShippingThresholdPaisa =
           thresholdText.isNotEmpty ? (int.parse(thresholdText)) * 100 : null;
 
+      final streamUrlText = _streamUrlController.text.trim();
+      final streamUrl = streamUrlText.isNotEmpty ? streamUrlText : null;
+
       SellerDrop savedDrop;
       if (_isEditing) {
         savedDrop = await widget.repository.updateDrop(
@@ -94,6 +100,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
           slug: slug,
           shippingFeePaisa: shippingFeePaisa,
           freeShippingThresholdPaisa: freeShippingThresholdPaisa,
+          streamUrl: streamUrl,
         );
       } else {
         savedDrop = await widget.repository.createDrop(
@@ -101,6 +108,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
           slug: slug,
           shippingFeePaisa: shippingFeePaisa,
           freeShippingThresholdPaisa: freeShippingThresholdPaisa,
+          streamUrl: streamUrl,
         );
       }
 
@@ -189,6 +197,38 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
                   }
                   if (!RegExp(r'^[a-z0-9-]+$').hasMatch(val.trim())) {
                     return 'Slug can only contain lowercase letters, numbers, and hyphens';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Facebook Live Stream URL Field
+              TextFormField(
+                controller: _streamUrlController,
+                keyboardType: TextInputType.url,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Facebook Live Stream URL (Optional)',
+                  hintText: 'https://www.facebook.com/.../videos/...',
+                  hintStyle: TextStyle(color: Colors.grey.shade600),
+                  labelStyle: TextStyle(color: Colors.grey.shade400),
+                  helperText: 'Paste the public Facebook Live broadcast or video URL',
+                  helperStyle: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                  prefixIcon: const Icon(Icons.live_tv, color: Color(0xFF1877F2)),
+                  filled: true,
+                  fillColor: const Color(0xFF1E1E24),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                validator: (val) {
+                  if (val != null && val.trim().isNotEmpty) {
+                    final trimmed = val.trim();
+                    if (!RegExp(r'^https?://', caseSensitive: false).hasMatch(trimmed)) {
+                      return 'Please enter a valid URL starting with http:// or https://';
+                    }
                   }
                   return null;
                 },

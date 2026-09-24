@@ -25,6 +25,14 @@ const CATEGORIES = [
   { id: 'jewellery', label: 'Artisanal Jewellery' },
 ];
 
+const STORY_CIRCLES = [
+  { id: 'banarasi', label: 'Sarees', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=200&q=80' },
+  { id: 'bridal', label: 'Lehengas', image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=200&q=80' },
+  { id: 'jewellery', label: 'Jewelry', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=200&q=80' },
+  { id: 'designer', label: "Men's", image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=200&q=80' },
+  { id: 'handloom', label: 'Accessories', image: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?auto=format&fit=crop&w=200&q=80' },
+];
+
 export function HomeStorefront({
   activeDrops = [],
   storefronts = [],
@@ -133,7 +141,7 @@ export function HomeStorefront({
         onSearchChange={setSearchQuery}
       />
 
-      {/* 2. Editorial Hero Section (Restrained Luxury Magazine Aesthetic) */}
+      {/* 2. Editorial Hero Section (Screen 1 Luxury Visual Identity) */}
       <section className="ld-hero-section">
         <div className="ld-hero-glow" aria-hidden="true" />
         <div className="ld-hero-container">
@@ -147,11 +155,11 @@ export function HomeStorefront({
             </div>
 
             <h1 className="ld-hero-store-name">
-              India&apos;s Luxury Boutiques, Streaming Live
+              India&apos;s Finest Styles, Live.
             </h1>
 
             <p className="ld-hero-tagline ld-hero-tagline-editorial">
-              Handcrafted sarees, designer wear, and artisanal collections directly from verified independent boutiques across India. Single-piece creations with direct studio settlement.
+              Exclusive drops. Real designers. From timeless tradition to modern couture. Handcrafted sarees, designer wear, and artisanal collections directly from verified independent boutiques across India.
             </p>
 
             <div className="ld-hero-cta-group ld-hero-cta-group-center">
@@ -163,18 +171,53 @@ export function HomeStorefront({
                 </svg>
               </a>
 
-              {resolvedActiveDrops.length > 0 && (
+              {resolvedActiveDrops.length > 0 ? (
                 <a href="#live-drops" className="ld-btn-watch-live">
                   <span className="ld-live-dot-pulse" />
                   <span>{resolvedActiveDrops.length} Live Drop{resolvedActiveDrops.length === 1 ? '' : 's'} Streaming</span>
                 </a>
+              ) : (
+                <Link href="/shop" className="ld-btn-watch-live">
+                  <span>Browse Category Lookbooks →</span>
+                </Link>
               )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Horizontal Silk Category Chips */}
+      {/* 3. Luxury Circular Story Reels Row (Screen 1 Mockup) */}
+      <section className="px-4 py-2 max-w-4xl mx-auto" aria-label="Haute Couture Categories">
+        <div className="ld-story-row">
+          {STORY_CIRCLES.map((story) => (
+            <button
+              key={story.id}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(story.id);
+                const el = document.getElementById('boutiques');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="ld-story-circle-item"
+              data-testid={`story-circle-${story.id}`}
+            >
+              <div className="ld-story-circle-avatar">
+                <div className="ld-story-circle-inner">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={story.image}
+                    alt={story.label}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+              <span className="ld-story-circle-label">{story.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* 4. Horizontal Silk Category Chips */}
       <section className="ld-categories-section" aria-label="Product Categories">
         <div className="ld-category-tabs-row" role="tablist">
           {CATEGORIES.map((cat) => (
@@ -192,7 +235,7 @@ export function HomeStorefront({
         </div>
       </section>
 
-      {/* 4. Section: Live Drops Streaming Now */}
+      {/* 5. Section: Live Drops Streaming Now */}
       <section className="ld-platform-section" id="live-drops" data-testid="live-drops-section">
         <div className="ld-platform-section-header">
           <div className="ld-hero-badge-row">
@@ -214,10 +257,15 @@ export function HomeStorefront({
             {filteredActiveDrops.map((drop) => (
               <div key={drop.id} className="ld-live-drop-card" data-testid={`live-drop-card-${drop.slug}`}>
                 <div className="ld-live-drop-top">
-                  <span className="ld-hero-live-pill live" style={{ padding: '3px 10px', fontSize: '11px' }}>
-                    <span className="ld-hero-live-dot" />
-                    LIVE
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="ld-hero-live-pill live" style={{ padding: '3px 10px', fontSize: '11px' }}>
+                      <span className="ld-hero-live-dot" />
+                      LIVE
+                    </span>
+                    <span className="text-[11px] text-white/60 font-mono">
+                      2.4k viewers
+                    </span>
+                  </div>
                   <span className="ld-live-drop-store">{drop.profiles?.store_name || 'Boutique'}</span>
                 </div>
                 <h3 className="ld-live-drop-title">{drop.title}</h3>

@@ -63,7 +63,7 @@ export function LuxuryTopHeader({
             <span className="ld-header-crest-icon" aria-hidden="true">✦</span>
             <div className="ld-header-brand-text">
               <span className="ld-header-title">LiveDrop</span>
-              <span className="ld-header-subtitle">HAUTE COUTURE</span>
+              <span className="ld-header-subtitle">INDIAN LUXURY LIVE</span>
             </div>
           </Link>
         </div>

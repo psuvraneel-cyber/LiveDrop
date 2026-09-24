@@ -513,20 +513,26 @@ class SellerRepository {
     required String slug,
     required int shippingFeePaisa,
     int? freeShippingThresholdPaisa,
+    String? streamUrl,
   }) async {
     final sellerId = _requireSellerId();
 
     try {
+      final payload = <String, dynamic>{
+        'seller_id': sellerId,
+        'title': title.trim(),
+        'slug': slug.trim().toLowerCase(),
+        'status': 'draft',
+        'shipping_fee_paisa': shippingFeePaisa,
+        'free_shipping_threshold_paisa': freeShippingThresholdPaisa,
+      };
+      if (streamUrl != null && streamUrl.trim().isNotEmpty) {
+        payload['stream_url'] = streamUrl.trim();
+      }
+
       final response = await _client
           .from('drops')
-          .insert({
-            'seller_id': sellerId,
-            'title': title.trim(),
-            'slug': slug.trim().toLowerCase(),
-            'status': 'draft',
-            'shipping_fee_paisa': shippingFeePaisa,
-            'free_shipping_threshold_paisa': freeShippingThresholdPaisa,
-          })
+          .insert(payload)
           .select()
           .single();
 
@@ -542,25 +548,31 @@ class SellerRepository {
     }
   }
 
-  /// Updates drop details (title, slug, shipping parameters).
+  /// Updates drop details (title, slug, shipping parameters, stream_url).
   Future<SellerDrop> updateDrop({
     required String dropId,
     required String title,
     required String slug,
     required int shippingFeePaisa,
     int? freeShippingThresholdPaisa,
+    String? streamUrl,
   }) async {
     _requireSellerId();
 
     try {
+      final updateData = <String, dynamic>{
+        'title': title.trim(),
+        'slug': slug.trim().toLowerCase(),
+        'shipping_fee_paisa': shippingFeePaisa,
+        'free_shipping_threshold_paisa': freeShippingThresholdPaisa,
+        'stream_url': (streamUrl != null && streamUrl.trim().isNotEmpty)
+            ? streamUrl.trim()
+            : null,
+      };
+
       final response = await _client
           .from('drops')
-          .update({
-            'title': title.trim(),
-            'slug': slug.trim().toLowerCase(),
-            'shipping_fee_paisa': shippingFeePaisa,
-            'free_shipping_threshold_paisa': freeShippingThresholdPaisa,
-          })
+          .update(updateData)
           .eq('id', dropId)
           .select()
           .single();

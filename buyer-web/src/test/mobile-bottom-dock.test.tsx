@@ -3,10 +3,9 @@
  *
  * Verifies:
  * 1. Safe rendering across mock and browser environments
- * 2. Active tab resolution based on route and hash anchors
- * 3. Hiding on fullscreen live rooms (/drop/*)
- * 4. Isolation of checkout route to prevent false boutique tab highlights
- * 5. Bag item counter badge rendering
+ * 2. Exactly 4 tabs: Home, Live, Shop, Orders (with Bag cleanly in header)
+ * 3. Active tab resolution based on route and hash anchors
+ * 4. Hiding on fullscreen live rooms (/drop/*)
  */
 
 import React from 'react';
@@ -32,7 +31,7 @@ describe('MobileBottomDock Component Tests', () => {
     window.location.hash = '';
   });
 
-  it('renders all 5 buyer journey navigation tabs', () => {
+  it('renders exactly 4 buyer navigation tabs (Home, Live, Shop, Orders)', () => {
     render(
       <CartProvider>
         <MobileBottomDock />
@@ -42,9 +41,10 @@ describe('MobileBottomDock Component Tests', () => {
     expect(screen.getByTestId('mobile-bottom-dock')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Home/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Live Drops/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^Boutiques/i })).toBeInTheDocument();
-    expect(screen.getByTestId('dock-bag-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('dock-shop-tab')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Orders/i })).toBeInTheDocument();
+    // Bag is strictly in the header, not duplicate 5th tab in bottom dock
+    expect(screen.queryByTestId('dock-bag-tab')).not.toBeInTheDocument();
   });
 
   it('highlights Home tab as active on root path (/)', () => {
@@ -76,23 +76,20 @@ describe('MobileBottomDock Component Tests', () => {
     expect(homeTab).not.toHaveClass('active');
   });
 
-  it('highlights Boutiques tab when hash is #boutiques on homepage', () => {
-    mockPathname = '/';
-    window.location.hash = '#boutiques';
+  it('highlights Shop tab on /shop route', () => {
+    mockPathname = '/shop';
     render(
       <CartProvider>
         <MobileBottomDock />
       </CartProvider>
     );
 
-    const boutiquesTab = screen.getByRole('link', { name: /^Boutiques/i });
-    expect(boutiquesTab).toHaveClass('active');
-
-    const homeTab = screen.getByRole('link', { name: /^Home/i });
-    expect(homeTab).not.toHaveClass('active');
+    const shopTab = screen.getByTestId('dock-shop-tab');
+    expect(shopTab).toHaveClass('active');
+    expect(shopTab).toHaveAttribute('aria-current', 'page');
   });
 
-  it('highlights Boutiques tab on boutique storefront route (/[storeSlug])', () => {
+  it('highlights Shop tab on boutique storefront route (/[storeSlug])', () => {
     mockPathname = '/suv-s';
     render(
       <CartProvider>
@@ -100,34 +97,8 @@ describe('MobileBottomDock Component Tests', () => {
       </CartProvider>
     );
 
-    const boutiquesTab = screen.getByRole('link', { name: /^Boutiques/i });
-    expect(boutiquesTab).toHaveClass('active');
-  });
-
-  it('highlights Bag tab on /cart and /checkout, never falsely activating Boutiques', () => {
-    mockPathname = '/cart';
-    const { unmount } = render(
-      <CartProvider>
-        <MobileBottomDock />
-      </CartProvider>
-    );
-
-    const bagTab = screen.getByTestId('dock-bag-tab');
-    expect(bagTab).toHaveClass('active');
-    unmount();
-
-    mockPathname = '/checkout';
-    render(
-      <CartProvider>
-        <MobileBottomDock />
-      </CartProvider>
-    );
-
-    const checkoutBagTab = screen.getByTestId('dock-bag-tab');
-    expect(checkoutBagTab).toHaveClass('active');
-
-    const boutiquesTab = screen.getByRole('link', { name: /^Boutiques/i });
-    expect(boutiquesTab).not.toHaveClass('active');
+    const shopTab = screen.getByTestId('dock-shop-tab');
+    expect(shopTab).toHaveClass('active');
   });
 
   it('highlights Orders tab on /order route', () => {
@@ -172,4 +143,3 @@ describe('MobileBottomDock Component Tests', () => {
     expect(window.location.hash).toBe('');
   });
 });
-

@@ -234,6 +234,7 @@ class SellerDrop {
   final DropStatus status;
   final int shippingFeePaisa;
   final int? freeShippingThresholdPaisa;
+  final String? streamUrl;
   final DateTime? liveStartedAt;
   final DateTime? closedAt;
   final DateTime createdAt;
@@ -246,6 +247,7 @@ class SellerDrop {
     required this.status,
     required this.shippingFeePaisa,
     this.freeShippingThresholdPaisa,
+    this.streamUrl,
     this.liveStartedAt,
     this.closedAt,
     required this.createdAt,
@@ -260,6 +262,7 @@ class SellerDrop {
       status: DropStatus.fromString(json['status'] as String),
       shippingFeePaisa: json['shipping_fee_paisa'] as int,
       freeShippingThresholdPaisa: json['free_shipping_threshold_paisa'] as int?,
+      streamUrl: json['stream_url'] as String?,
       liveStartedAt: json['live_started_at'] != null
           ? DateTime.parse(json['live_started_at'] as String)
           : null,

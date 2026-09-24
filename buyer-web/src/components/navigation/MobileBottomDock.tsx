@@ -3,7 +3,6 @@
 import React, { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useOptionalCart } from '../../lib/cart/cart-context';
 
 function useSafePathname(): string {
   try {
@@ -50,9 +49,6 @@ function setHashLocation(hash: string) {
 
 export function MobileBottomDock() {
   const pathname = useSafePathname();
-  const cart = useOptionalCart();
-  const itemCount = cart?.itemCount ?? 0;
-  const isHydrated = cart?.isHydrated ?? false;
 
   const currentHash = useSyncExternalStore(
     subscribeHash,
@@ -69,6 +65,7 @@ export function MobileBottomDock() {
   const isCart = pathname === '/cart' || pathname === '/checkout';
   const isOrder = pathname?.startsWith('/order');
   const isHomeBase = pathname === '/' || pathname === '';
+  const isShopRoute = pathname === '/shop';
   const isBoutiqueRoute = Boolean(
     pathname &&
     pathname !== '/' &&
@@ -78,8 +75,8 @@ export function MobileBottomDock() {
   );
 
   const isLiveActive = isHomeBase && currentHash === '#live-drops';
-  const isBoutiquesActive = isBoutiqueRoute || (isHomeBase && currentHash === '#boutiques');
-  const isHomeActive = isHomeBase && !isLiveActive && !isBoutiquesActive;
+  const isShopActive = isShopRoute || isBoutiqueRoute || (isHomeBase && currentHash === '#boutiques');
+  const isHomeActive = isHomeBase && !isLiveActive && !isShopActive && !isCart && !isOrder;
 
   return (
     <nav
@@ -124,32 +121,13 @@ export function MobileBottomDock() {
           {isLiveActive && <span className="ld-dock-active-line" aria-hidden="true" />}
         </Link>
 
-        {/* 3. Boutiques */}
+        {/* 3. Shop */}
         <Link
-          href="/#boutiques"
-          className={`ld-dock-tab ${isBoutiquesActive ? 'active' : ''}`}
-          aria-label="Boutiques"
-          onClick={() => {
-            if (isHomeBase) setHashLocation('#boutiques');
-          }}
-        >
-          <div className="ld-dock-icon-wrap">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" />
-              <path d="M9 22V12h6v10" />
-            </svg>
-          </div>
-          <span className="ld-dock-label">Boutiques</span>
-          {isBoutiquesActive && <span className="ld-dock-active-line" aria-hidden="true" />}
-        </Link>
-
-        {/* 4. Bag */}
-        <Link
-          href="/cart"
-          className={`ld-dock-tab ${isCart ? 'active' : ''}`}
-          aria-label={`Shopping Bag containing ${itemCount} items`}
-          aria-current={isCart ? 'page' : undefined}
-          data-testid="dock-bag-tab"
+          href="/shop"
+          className={`ld-dock-tab ${isShopActive ? 'active' : ''}`}
+          aria-label="Shop"
+          aria-current={isShopActive ? 'page' : undefined}
+          data-testid="dock-shop-tab"
         >
           <div className="ld-dock-icon-wrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -157,17 +135,12 @@ export function MobileBottomDock() {
               <path d="M3 6h18" />
               <path d="M16 10a4 4 0 0 1-8 0" />
             </svg>
-            {isHydrated && itemCount > 0 && (
-              <span className="ld-dock-bag-badge" data-testid="dock-bag-count">
-                {itemCount}
-              </span>
-            )}
           </div>
-          <span className="ld-dock-label">Bag</span>
-          {isCart && <span className="ld-dock-active-line" aria-hidden="true" />}
+          <span className="ld-dock-label">Shop</span>
+          {isShopActive && <span className="ld-dock-active-line" aria-hidden="true" />}
         </Link>
 
-        {/* 5. Orders */}
+        {/* 4. Orders */}
         <Link
           href="/order"
           className={`ld-dock-tab ${isOrder ? 'active' : ''}`}
