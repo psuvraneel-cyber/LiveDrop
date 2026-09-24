@@ -18,6 +18,43 @@ class EnvConfig {
     defaultValue: 'development',
   );
 
+  /// Base URL of the public buyer webfront.
+  /// Defaults to canonical production URL, customizable via `--dart-define=BUYER_BASE_URL=...`.
+  static const String buyerBaseUrl = String.fromEnvironment(
+    'BUYER_BASE_URL',
+    defaultValue: 'https://livedrop-in.vercel.app',
+  );
+
+  /// Generates the canonical public drop URL for buyers.
+  static String getDropUrl(String slug) {
+    final base = buyerBaseUrl.endsWith('/')
+        ? buyerBaseUrl.substring(0, buyerBaseUrl.length - 1)
+        : buyerBaseUrl;
+    final cleanSlug = slug.startsWith('/') ? slug.substring(1) : slug;
+    return '$base/drop/$cleanSlug';
+  }
+
+  /// Generates the direct product flash link for buyers.
+  static String getProductUrl(String dropSlug, String productCode) {
+    final cleanCode = productCode.replaceAll('#', '');
+    return '${getDropUrl(dropSlug)}#$cleanCode';
+  }
+
+  /// Generates the canonical public storefront URL for a boutique.
+  static String getStorefrontUrl(String storeSlug) {
+    final base = buyerBaseUrl.trim().endsWith('/')
+        ? buyerBaseUrl.trim().substring(0, buyerBaseUrl.trim().length - 1)
+        : buyerBaseUrl.trim();
+    var cleanSlug = storeSlug.trim();
+    while (cleanSlug.startsWith('/')) {
+      cleanSlug = cleanSlug.substring(1);
+    }
+    while (cleanSlug.endsWith('/')) {
+      cleanSlug = cleanSlug.substring(0, cleanSlug.length - 1);
+    }
+    return '$base/$cleanSlug';
+  }
+
   /// Validates that all required configuration variables are present and well-formed.
   static void validate() {
     if (supabaseUrl.trim().isEmpty) {

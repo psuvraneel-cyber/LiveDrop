@@ -15,6 +15,8 @@ import {
   PublicDropCatalog,
   PublicProductView,
   PublicSellerStorefront,
+  StorefrontData,
+  ShowcaseCollection,
   CreateOrderRequest,
   CreateOrderSuccessResponse,
   CreateOrderResponse,
@@ -80,6 +82,7 @@ export async function getLiveDropBySlug(
         id,
         store_name,
         store_slug,
+        phone_number,
         upi_vpa,
         upi_display_name,
         upi_qr_url,
@@ -102,6 +105,7 @@ export async function getLiveDropBySlug(
       ? {
           store_name: storefrontData.store_name,
           store_slug: storefrontData.store_slug,
+          phone_number: storefrontData.phone_number || undefined,
           upi_id: storefrontData.upi_vpa || ((storefrontData as Record<string, unknown>).upi_id as string) || '',
           upi_qr_url: storefrontData.upi_qr_url,
           default_shipping_fee_paisa: storefrontData.default_shipping_fee_paisa,
@@ -139,7 +143,8 @@ export async function getStorefrontBySlug(
   client: SupabaseClient,
   storeSlug: string
 ): Promise<PublicSellerStorefront | null> {
-  if (!storeSlug || storeSlug.trim() === '') {
+  const cleanSlug = (storeSlug || '').trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  if (!cleanSlug) {
     return null;
   }
 
@@ -151,6 +156,7 @@ export async function getStorefrontBySlug(
         id,
         store_name,
         store_slug,
+        phone_number,
         upi_vpa,
         upi_display_name,
         upi_qr_url,
@@ -159,10 +165,11 @@ export async function getStorefrontBySlug(
         free_shipping_threshold_paisa,
         advance_confirmation_enabled,
         advance_amount_paisa,
-        hold_duration_days
+        hold_duration_days,
+        created_at
       `
       )
-      .eq('store_slug', storeSlug)
+      .eq('store_slug', cleanSlug)
       .maybeSingle();
 
     if (error) {
@@ -185,6 +192,269 @@ export async function getStorefrontBySlug(
   }
 }
 
+export const getSellerStorefrontBySlug = getStorefrontBySlug;
+
+/**
+ * Retrieves full boutique storefront data:
+ * - Seller profile info
+ * - Active live drop (if any) and its live products
+ * - Previous closed drops with available showcase items
+ */
+export async function getStorefrontData(
+  client: SupabaseClient,
+  storeSlug: string
+): Promise<StorefrontData | null> {
+  const storefront = await getStorefrontBySlug(client, storeSlug);
+  if (!storefront) {
+    return null;
+  }
+
+  let activeLiveDrop: PublicDropCatalog | null = null;
+  let liveProducts: PublicProductView[] = [];
+
+  // 1. Check for active live drop for this seller
+  const { data: liveDropData } = await client
+    .from('drops')
+    .select(
+      `
+      id,
+      seller_id,
+      title,
+      slug,
+      status,
+      shipping_fee_paisa,
+      free_shipping_threshold_paisa,
+      advance_confirmation_enabled,
+      advance_amount_paisa,
+      hold_duration_days,
+      live_started_at,
+      closed_at,
+      created_at,
+      updated_at
+    `
+    )
+    .eq('seller_id', storefront.id)
+    .eq('status', 'live')
+    .order('live_started_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (liveDropData) {
+    activeLiveDrop = {
+      ...liveDropData,
+      profiles: {
+        store_name: storefront.store_name,
+        store_slug: storefront.store_slug,
+        phone_number: storefront.phone_number || undefined,
+        upi_id: storefront.upi_vpa || storefront.upi_id || '',
+        upi_qr_url: storefront.upi_qr_url,
+        default_shipping_fee_paisa: storefront.default_shipping_fee_paisa,
+        free_shipping_threshold_paisa: storefront.free_shipping_threshold_paisa,
+        advance_confirmation_enabled: storefront.advance_confirmation_enabled,
+        advance_amount_paisa: storefront.advance_amount_paisa,
+        hold_duration_days: storefront.hold_duration_days,
+      },
+    } as unknown as PublicDropCatalog;
+
+    try {
+      liveProducts = await getPublicProductsForDrop(client, liveDropData.id);
+    } catch {
+      liveProducts = [];
+    }
+  }
+
+  // 2. Query closed drops for showcase lookbook
+  const { data: closedDrops } = await client
+    .from('drops')
+    .select('id, seller_id, title, slug, status, created_at, closed_at')
+    .eq('seller_id', storefront.id)
+    .eq('status', 'closed')
+    .order('created_at', { ascending: false });
+
+  const pastDropsWithProducts: ShowcaseCollection[] = [];
+
+  if (closedDrops && closedDrops.length > 0) {
+    const dropIds = closedDrops.map((d) => d.id);
+    const { data: availableItems } = await client
+      .from('public_products_catalog')
+      .select('id, drop_id, code, title, price_paisa, size, image_url, image_urls, status, reserved_at, version, drop_status, drop_title, drop_slug, drop_created_at, seller_id, created_at')
+      .in('drop_id', dropIds)
+      .eq('status', 'available')
+      .order('code', { ascending: true });
+
+    const itemsByDrop = new Map<string, PublicProductView[]>();
+    for (const item of (availableItems || []) as PublicProductView[]) {
+      if (item.drop_id) {
+        if (!itemsByDrop.has(item.drop_id)) {
+          itemsByDrop.set(item.drop_id, []);
+        }
+        itemsByDrop.get(item.drop_id)!.push(item);
+      }
+    }
+
+    for (const drop of closedDrops) {
+      const dropItems = itemsByDrop.get(drop.id) || [];
+      if (dropItems.length > 0) {
+        pastDropsWithProducts.push({
+          drop: {
+            id: drop.id,
+            title: drop.title,
+            slug: drop.slug,
+            status: 'closed',
+            created_at: drop.created_at,
+            closed_at: drop.closed_at,
+          },
+          products: dropItems,
+        });
+      }
+    }
+  }
+
+  return {
+    storefront,
+    activeLiveDrop,
+    liveProducts,
+    pastDropsWithProducts,
+  };
+}
+
+/**
+ * Retrieves all verified boutique storefronts for directory listing.
+ */
+export async function getAllVerifiedStorefronts(
+  client: SupabaseClient
+): Promise<PublicSellerStorefront[]> {
+  try {
+    const { data, error } = await client
+      .from('public_seller_storefronts')
+      .select(
+        `
+        id,
+        store_name,
+        store_slug,
+        phone_number,
+        upi_vpa,
+        upi_display_name,
+        upi_qr_url,
+        upi_enabled,
+        default_shipping_fee_paisa,
+        free_shipping_threshold_paisa,
+        advance_confirmation_enabled,
+        advance_amount_paisa,
+        hold_duration_days,
+        created_at
+      `
+      )
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new LiveDropError(`Failed to fetch storefronts: ${error.message}`, 'UNKNOWN_ERROR');
+    }
+
+    return (data || []).map((row) => {
+      const raw = row as Record<string, unknown>;
+      return {
+        ...row,
+        upi_id: (raw.upi_vpa as string) || (raw.upi_id as string) || '',
+      } as PublicSellerStorefront;
+    });
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Retrieves all currently active live drops across all boutiques.
+ */
+export async function getAllActiveLiveDrops(
+  client: SupabaseClient
+): Promise<PublicDropCatalog[]> {
+  try {
+    const { data: drops, error: dropsError } = await client
+      .from('drops')
+      .select(
+        `
+        id,
+        seller_id,
+        title,
+        slug,
+        status,
+        shipping_fee_paisa,
+        free_shipping_threshold_paisa,
+        advance_confirmation_enabled,
+        advance_amount_paisa,
+        hold_duration_days,
+        live_started_at,
+        closed_at,
+        created_at,
+        updated_at
+      `
+      )
+      .eq('status', 'live')
+      .order('live_started_at', { ascending: false, nullsFirst: false });
+
+    if (dropsError) {
+      throw new LiveDropError(`Failed to fetch live drops: ${dropsError.message}`, 'UNKNOWN_ERROR');
+    }
+
+    if (!drops || drops.length === 0) {
+      return [];
+    }
+
+    const sellerIds = Array.from(new Set(drops.map((d) => d.seller_id).filter(Boolean)));
+    const { data: sfs } = sellerIds.length > 0
+      ? await client
+          .from('public_seller_storefronts')
+          .select('*')
+          .in('id', sellerIds)
+      : { data: [] };
+
+    const sfMap = new Map<string, Record<string, unknown>>();
+    for (const sf of (sfs || []) as Record<string, unknown>[]) {
+      if (sf?.id) {
+        sfMap.set(sf.id as string, sf);
+      }
+    }
+
+    const enriched: PublicDropCatalog[] = drops.map((drop) => {
+      const sf = sfMap.get(drop.seller_id);
+      return {
+        ...drop,
+        profiles: sf
+          ? {
+              store_name: (sf.store_name as string) || 'LiveDrop Boutique',
+              store_slug: (sf.store_slug as string) || '',
+              phone_number: (sf.phone_number as string) || undefined,
+              upi_id: (sf.upi_vpa as string) || (sf.upi_id as string) || '',
+              upi_qr_url: (sf.upi_qr_url as string) || null,
+              default_shipping_fee_paisa: (sf.default_shipping_fee_paisa as number) ?? 0,
+              free_shipping_threshold_paisa: (sf.free_shipping_threshold_paisa as number) ?? null,
+              advance_confirmation_enabled: Boolean(sf.advance_confirmation_enabled),
+              advance_amount_paisa: (sf.advance_amount_paisa as number) ?? 0,
+              hold_duration_days: (sf.hold_duration_days as number) ?? 2,
+            }
+          : {
+              store_name: 'LiveDrop Boutique',
+              store_slug: '',
+              upi_id: '',
+              upi_qr_url: null,
+              default_shipping_fee_paisa: 0,
+              free_shipping_threshold_paisa: null,
+              advance_confirmation_enabled: false,
+              advance_amount_paisa: 0,
+              hold_duration_days: 2,
+            },
+      } as unknown as PublicDropCatalog;
+    });
+
+    return enriched;
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+
 /**
  * Retrieves the public product list for a live drop, ordered by flash code ascending.
  */
@@ -199,7 +469,7 @@ export async function getPublicProductsForDrop(
   try {
     const { data, error } = await client
       .from('public_products_catalog')
-      .select('id, code, title, price_paisa, size, image_url, status, reserved_at, version')
+      .select('id, drop_id, code, title, price_paisa, size, image_url, image_urls, status, reserved_at, version, drop_status, drop_title, drop_slug, drop_created_at, seller_id, created_at')
       .eq('drop_id', dropId)
       .order('code', { ascending: true });
 

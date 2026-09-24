@@ -477,6 +477,10 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
     }
 
     final priceRupees = '₹${(product.pricePaisa / 100).toStringAsFixed(0)}';
+    final displayCode = product.code.startsWith('#') ? product.code : '#${product.code}';
+    final photoCount = product.imageUrls.isNotEmpty
+        ? product.imageUrls.length
+        : (product.imageUrl.isNotEmpty ? 1 : 0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -497,25 +501,63 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen> {
         },
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Container(
+          child: SizedBox(
             width: 54,
             height: 54,
-            color: AppColors.obsidianElevated,
-            child: product.imageUrl.isNotEmpty
-                ? Image.network(
-                    product.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(
+                  color: AppColors.obsidianElevated,
+                  child: product.imageUrl.isNotEmpty
+                      ? Image.network(
+                          product.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
+                        ),
+                ),
+                if (photoCount > 1)
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: AppColors.cardBorder.withValues(alpha: 0.6),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.collections_rounded, size: 9, color: AppColors.goldPrimary),
+                          const SizedBox(width: 2),
+                          Text(
+                            '$photoCount',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                : const Center(
-                    child: Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
                   ),
+              ],
+            ),
           ),
         ),
         title: Text(
-          '#${product.code}',
+          displayCode,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w800,

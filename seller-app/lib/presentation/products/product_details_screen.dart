@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../core/config/env_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 
@@ -24,6 +27,8 @@ class ProductDetailsScreen extends StatefulWidget {
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   late SellerProduct _product;
+  late final PageController _pageController;
+  int _currentImageIndex = 0;
   bool _isMarkingSold = false;
   bool _isEditing = false;
 
@@ -31,14 +36,34 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void initState() {
     super.initState();
     _product = widget.product;
+    _pageController = PageController();
   }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  List<String> get _allImages {
+    if (_product.imageUrls.isNotEmpty) {
+      return _product.imageUrls;
+    }
+    if (_product.imageUrl.isNotEmpty) {
+      return [_product.imageUrl];
+    }
+    return const [];
+  }
+
+  String get _displayCode =>
+      _product.code.startsWith('#') ? _product.code : '#${_product.code}';
 
   Future<void> _handleEditProduct() async {
     if (_product.status != ProductStatus.available) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Cannot edit ${_product.code}: item is ${_product.status.name}. Only available items can be edited.',
+            'Cannot edit $_displayCode: item is ${_product.status.name}. Only available items can be edited.',
           ),
           backgroundColor: AppColors.crimson,
         ),
@@ -61,7 +86,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           side: const BorderSide(color: AppColors.cardBorder),
         ),
         title: Text(
-          'Edit #${_product.code}',
+          'Edit $_displayCode',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -244,6 +269,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           pricePaisa: _product.pricePaisa,
           size: _product.size,
           imageUrl: _product.imageUrl,
+          imageUrls: _product.imageUrls,
           status: ProductStatus.sold,
           version: _product.version + 1,
         );
@@ -262,11 +288,101 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     }
   }
 
+  Future<void> _handleShareProduct() async {
+    String dropSlug = '';
+    try {
+      final drops = await widget.repository.getDrops();
+      final drop = drops.where((d) => d.id == _product.dropId).firstOrNull;
+      if (drop != null) {
+        dropSlug = drop.slug;
+      }
+    } catch (_) {}
+
+    final productUrl = dropSlug.isNotEmpty
+        ? EnvConfig.getProductUrl(dropSlug, _product.code)
+        : EnvConfig.buyerBaseUrl;
+
+    final priceRupees = (_product.pricePaisa / 100).toStringAsFixed(0);
+    final shareText = '✨ $_displayCode ${_product.title} (₹$priceRupees)\n'
+        'Direct link to shop: $productUrl';
+
+    if (!mounted) return;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.obsidianSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Share $_displayCode ${_product.title}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.copy_rounded, color: AppColors.goldPrimary),
+                title: const Text('Copy Direct Link', style: TextStyle(color: Colors.white)),
+                subtitle: Text(productUrl, style: const TextStyle(color: AppColors.textMuted, fontSize: 12), overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.pop(ctx, 'copy'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_outlined, color: AppColors.emerald),
+                title: const Text('Share via WhatsApp', style: TextStyle(color: Colors.white)),
+                subtitle: const Text('Send link directly to customers', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                onTap: () => Navigator.pop(ctx, 'whatsapp'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.open_in_browser_rounded, color: Colors.blueAccent),
+                title: const Text('Open on Buyer Website', style: TextStyle(color: Colors.white)),
+                subtitle: const Text('Preview product in mobile browser', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                onTap: () => Navigator.pop(ctx, 'open'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+
+    if (choice == 'copy') {
+      await Clipboard.setData(ClipboardData(text: productUrl));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Product link copied: $productUrl'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+    } else if (choice == 'whatsapp') {
+      UrlLauncherHelper.launchExternalWebUrl(
+        context: context,
+        url: 'https://wa.me/?text=${Uri.encodeComponent(shareText)}',
+      );
+    } else if (choice == 'open') {
+      UrlLauncherHelper.launchExternalWebUrl(
+        context: context,
+        url: productUrl,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final priceRupees = (_product.pricePaisa / 100).toStringAsFixed(0);
     final isSold = _product.status == ProductStatus.sold;
     final isReserved = _product.status == ProductStatus.reserved;
+    final images = _allImages;
+    final activeIndex = _currentImageIndex.clamp(0, images.isEmpty ? 0 : images.length - 1);
 
     Color statusColor = AppColors.emerald;
     Color statusTint = AppColors.emeraldTint;
@@ -301,25 +417,35 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hero Image Container with status overlay
+            // Hero Image Container with status overlay & carousel
             Stack(
               children: [
                 Container(
-                  height: 340,
+                  height: 360,
                   width: double.infinity,
                   color: AppColors.obsidianElevated,
-                  child: _product.imageUrl.isNotEmpty
-                      ? Image.network(
-                          _product.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Center(
-                            child: Icon(Icons.checkroom_rounded, size: 80, color: AppColors.goldPrimary),
-                          ),
+                  child: images.isNotEmpty
+                      ? PageView.builder(
+                          controller: _pageController,
+                          itemCount: images.length,
+                          onPageChanged: (index) {
+                            setState(() => _currentImageIndex = index);
+                          },
+                          itemBuilder: (context, index) {
+                            return Image.network(
+                              images[index],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(Icons.checkroom_rounded, size: 80, color: AppColors.goldPrimary),
+                              ),
+                            );
+                          },
                         )
                       : const Center(
                           child: Icon(Icons.checkroom_rounded, size: 80, color: AppColors.goldPrimary),
                         ),
                 ),
+                // Status Overlay (Top Right)
                 Positioned(
                   top: 16,
                   right: 16,
@@ -351,6 +477,59 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     ),
                   ),
                 ),
+                // Angle Counter Badge (Top Left)
+                if (images.length > 1)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.cardBorder.withValues(alpha: 0.6)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.camera_alt_rounded, size: 13, color: AppColors.goldPrimary),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${activeIndex + 1} / ${images.length}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                // Dot Indicators (Bottom Center)
+                if (images.length > 1)
+                  Positioned(
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(images.length, (index) {
+                        final isActive = index == activeIndex;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: isActive ? 22 : 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: isActive ? AppColors.goldPrimary : Colors.white.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
               ],
             ),
 
@@ -361,7 +540,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 children: [
                   // Title & Code
                   Text(
-                    '#${_product.code} ${_product.title}',
+                    '$_displayCode ${_product.title}',
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -406,7 +585,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: BounceableButton(
-                          onPressed: () {},
+                          onPressed: _handleShareProduct,
                           variant: ButtonVariant.darkCard,
                           height: 44,
                           icon: Icons.share_outlined,
@@ -437,51 +616,83 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   Text(
                     _product.title.isNotEmpty
                         ? '${_product.title} (Piece ${_product.code}). Authentic boutique garment. Listed at ₹$priceRupees.'
-                        : 'Authentic boutique garment #${_product.code}. Listed at ₹$priceRupees.',
+                        : 'Authentic boutique garment $_displayCode. Listed at ₹$priceRupees.',
                     style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
                   ),
                   const SizedBox(height: 24),
 
-                  // Photos
-                  const Text(
-                    'Photos',
-                    style: TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
+                  // Photos Gallery Strip
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      if (_product.imageUrl.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColors.goldPrimary, width: 1.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Image.network(
-                              _product.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const Center(
-                                child: Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: AppColors.obsidianElevated,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.cardBorder, width: 1),
-                          ),
-                          child: const Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
+                      const Text(
+                        'Photos',
+                        style: TextStyle(fontSize: 13, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                      ),
+                      if (images.length > 1)
+                        Text(
+                          '${images.length} angles',
+                          style: const TextStyle(fontSize: 12, color: AppColors.goldPrimary, fontWeight: FontWeight.w600),
                         ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  if (images.isNotEmpty)
+                    SizedBox(
+                      height: 76,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: images.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) {
+                          final isSelected = index == activeIndex;
+                          final imgUrl = images[index];
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() => _currentImageIndex = index);
+                              _pageController.animateToPage(
+                                index,
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                              );
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 76,
+                              height: 76,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.goldPrimary : AppColors.cardBorder,
+                                  width: isSelected ? 2.0 : 1.0,
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  imgUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Center(
+                                    child: Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: AppColors.obsidianElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.cardBorder, width: 1),
+                      ),
+                      child: const Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 28),
+                    ),
                   const SizedBox(height: 24),
 
                   // Detail Attributes Grid
@@ -496,7 +707,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                _product.code,
+                                _displayCode,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,

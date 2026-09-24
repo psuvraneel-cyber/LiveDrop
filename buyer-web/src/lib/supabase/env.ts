@@ -24,10 +24,12 @@ export function validateBuyerEnv(): BuyerEnvConfig {
     }
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const appEnv = (process.env.NEXT_PUBLIC_APP_ENV || 'development') as 'development' | 'staging' | 'production';
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || 'http://localhost:3000';
+  const sanitize = (val?: string) => (val || '').replace(/^\uFEFF/, '').trim();
+
+  const supabaseUrl = sanitize(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const supabaseAnonKey = sanitize(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const appEnv = (sanitize(process.env.NEXT_PUBLIC_APP_ENV) || 'development') as 'development' | 'staging' | 'production';
+  const appBaseUrl = sanitize(process.env.NEXT_PUBLIC_APP_BASE_URL) || 'http://localhost:3000';
 
   if (!supabaseUrl || supabaseUrl.trim() === '') {
     throw new Error(

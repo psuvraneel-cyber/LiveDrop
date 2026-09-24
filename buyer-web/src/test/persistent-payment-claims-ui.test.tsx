@@ -345,5 +345,80 @@ describe('TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX', () => {
       vi.useRealTimers();
     }
   });
+
+  it('UI-10: advance_paid order ignores stale advance payment attempt, auto-initiates balance attempt, and displays balance amount', async () => {
+    const historicalAdvanceAttempt: PaymentAttempt = {
+      id: 'att-adv-001',
+      order_id: mockOrderId,
+      payment_type: 'advance',
+      payment_method: 'upi',
+      expected_amount_paisa: 25000,
+      payee_vpa_snapshot: 'priya@okaxis',
+      payee_display_name_snapshot: 'Priya Trends',
+      transaction_reference: 'LD1001-ADV',
+      status: 'verified',
+      buyer_submitted_utr: '123456789012',
+      buyer_claimed_at: new Date().toISOString(),
+      seller_verified_at: new Date().toISOString(),
+      verified_by: 'seller-uuid',
+      rejection_reason: null,
+      verification_expires_at: null,
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      upi_uri: 'upi://pay?pa=priya@okaxis&pn=Priya%20Trends&am=250.00&tr=LD1001-ADV',
+    };
+
+    const advancePaidOrder: OrderReceipt = {
+      ...baseOrder,
+      payment_status: 'advance_paid',
+      status: 'confirmed',
+      advance_paid_paisa: 25000,
+      total_paid_paisa: 25000,
+      balance_due_paisa: 160000,
+      payment_attempt: historicalAdvanceAttempt,
+    };
+
+    const balanceAttemptResult = {
+      success: true as const,
+      payment_attempt_id: 'att-bal-002',
+      order_id: mockOrderId,
+      payment_type: 'balance' as const,
+      payment_method: 'upi' as const,
+      expected_amount_paisa: 160000,
+      payee_vpa: 'priya@okaxis',
+      payee_display_name: 'Priya Trends',
+      transaction_reference: 'LD1001-BAL-X7Y8',
+      status: 'awaiting_payment' as const,
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      upi_uri: 'upi://pay?pa=priya@okaxis&pn=Priya%20Trends&am=1600.00&tr=LD1001-BAL-X7Y8',
+    };
+
+    const initiateSpy = vi
+      .spyOn(buyerCatalog, 'initiatePaymentAttempt')
+      .mockResolvedValue(balanceAttemptResult);
+
+    render(<DirectUpiPaymentView order={advancePaidOrder} orderToken={mockOrderToken} />);
+
+    // Verify banner confirms advance was received
+    expect(screen.getByTestId('advance-verified-banner')).toBeInTheDocument();
+    expect(screen.getByText(/₹250\s+Paid/i)).toBeInTheDocument();
+
+    // Verify auto-initiated balance attempt with type 'balance'
+    await waitFor(() => {
+      expect(initiateSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        mockOrderId,
+        mockOrderToken,
+        'balance'
+      );
+    });
+
+    // Verify balance amount is displayed, NOT the advance amount
+    await waitFor(() => {
+      expect(screen.getByTestId('payment-expected-amount')).toHaveTextContent('₹1,600');
+      expect(screen.getByTestId('payment-reference')).toHaveTextContent('LD1001-BAL-X7Y8');
+    });
+  });
 });
 

@@ -9,8 +9,16 @@ export const viewport: Viewport = {
   themeColor: "#0C0C0E",
 };
 
+const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://livedrop.in').replace(/^\uFEFF/, '').trim();
+let siteBaseUrl: URL;
+try {
+  siteBaseUrl = new URL(rawBaseUrl);
+} catch {
+  siteBaseUrl = new URL('https://livedrop.in');
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://livedrop.in'),
+  metadataBase: siteBaseUrl,
   title: {
     default: "LiveDrop.in — Boutique Fashion. Live Stories. Real People.",
     template: "%s | LiveDrop.in",

@@ -75,7 +75,8 @@ jobs:
     env:
       VERCEL_ORG_ID: "q2sL66F6xJd8H07oVZZ9b90a"
       VERCEL_PROJECT_ID: "prj_IyYtkVSrnoBwq0AY62fDJU9x6RFy"
-      VERCEL_TOKEN: "${{ secrets.VERCEL_TOKEN }}"
+      VERCEL_TOKEN: "secrets.VERCEL_TOKEN"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../core/config/env_config.dart';
 import '../../core/errors/exceptions.dart';
+import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import '../../core/services/offline_intake_queue.dart';
@@ -157,6 +160,50 @@ class _DropsListScreenState extends State<DropsListScreen> {
           intakeQueue: widget.intakeQueue,
         ),
       ),
+    );
+  }
+
+  void _copyDropUrl(SellerDrop drop) async {
+    final url = EnvConfig.getDropUrl(drop.slug);
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF1E1E24),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Buyer URL copied: $url',
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'OPEN',
+          textColor: const Color(0xFFF59E0B),
+          onPressed: () => _openDropInBrowser(drop),
+        ),
+      ),
+    );
+  }
+
+  void _openDropInBrowser(SellerDrop drop) {
+    final url = EnvConfig.getDropUrl(drop.slug);
+    UrlLauncherHelper.launchExternalWebUrl(context: context, url: url);
+  }
+
+  void _shareDropViaWhatsApp(SellerDrop drop) {
+    final url = EnvConfig.getDropUrl(drop.slug);
+    final storeName = _profile?.storeName ?? 'Our boutique';
+    final message = '✨ Check out "$storeName"\'s live drop: ${drop.title}!\n\nBrowse catalog & shop directly: $url';
+    UrlLauncherHelper.launchExternalWebUrl(
+      context: context,
+      url: 'https://wa.me/?text=${Uri.encodeComponent(message)}',
     );
   }
 
@@ -321,9 +368,69 @@ class _DropsListScreenState extends State<DropsListScreen> {
                     ],
                   ),
                 ),
-                IconButton(
+                PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, color: Colors.white70),
-                  onPressed: () => _openCreateDropScreen(drop),
+                  color: const Color(0xFF2A2A32),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'copy':
+                        _copyDropUrl(drop);
+                        break;
+                      case 'open':
+                        _openDropInBrowser(drop);
+                        break;
+                      case 'share_wa':
+                        _shareDropViaWhatsApp(drop);
+                        break;
+                      case 'edit':
+                        _openCreateDropScreen(drop);
+                        break;
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'copy',
+                      child: Row(
+                        children: [
+                          Icon(Icons.copy_rounded, color: Color(0xFFF59E0B), size: 18),
+                          SizedBox(width: 10),
+                          Text('Copy Buyer URL', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'open',
+                      child: Row(
+                        children: [
+                          Icon(Icons.open_in_browser_rounded, color: Color(0xFF10B981), size: 18),
+                          SizedBox(width: 10),
+                          Text('Open in Browser', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'share_wa',
+                      child: Row(
+                        children: [
+                          Icon(Icons.share_outlined, color: Color(0xFF3B82F6), size: 18),
+                          SizedBox(width: 10),
+                          Text('Share via WhatsApp', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(height: 1),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, color: Colors.white70, size: 18),
+                          SizedBox(width: 10),
+                          Text('Edit Drop Details', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -340,10 +447,26 @@ class _DropsListScreenState extends State<DropsListScreen> {
             ),
             const SizedBox(height: 4),
 
-            // Slug & Shipping Info
-            Text(
-              'Slug: /drop/${drop.slug}  •  Shipping: ₹${drop.shippingFeePaisa ~/ 100}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+            // Slug & Shipping Info (Tap to copy full URL)
+            InkWell(
+              onTap: () => _copyDropUrl(drop),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Slug: /drop/${drop.slug}  •  Shipping: ₹${drop.shippingFeePaisa ~/ 100}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.copy_rounded, size: 13, color: Color(0xFFF59E0B)),
+                  ],
+                ),
+              ),
             ),
             if (drop.freeShippingThresholdPaisa != null)
               Text(
@@ -357,6 +480,23 @@ class _DropsListScreenState extends State<DropsListScreen> {
             // Action Buttons Strip
             Row(
               children: [
+                // Quick Share URL Button
+                IconButton(
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF2A2A32),
+                    foregroundColor: const Color(0xFFF59E0B),
+                    padding: const EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Color(0xFFF59E0B), width: 0.8),
+                    ),
+                  ),
+                  tooltip: 'Share or Copy Drop URL',
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  onPressed: () => _copyDropUrl(drop),
+                ),
+                const SizedBox(width: 8),
+
                 // Camera Intake Action
                 Expanded(
                   child: ElevatedButton.icon(

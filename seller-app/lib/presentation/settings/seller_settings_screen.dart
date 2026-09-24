@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/config/admin_config.dart';
+import '../../core/config/env_config.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -108,7 +110,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
     final phoneCtrl = TextEditingController(text: _profile?.phoneNumber ?? '');
     final addressCtrl = TextEditingController(text: _profile?.returnAddress ?? '');
     final slug = _profile?.storeSlug ?? 'boutique';
-    final storefrontUrl = 'https://livedrop.shop/$slug';
+    final storefrontUrl = EnvConfig.getStorefrontUrl(slug);
     bool isSaving = false;
 
     showModalBottomSheet<void>(
@@ -155,26 +157,80 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.cardBorder),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.language, color: AppColors.goldPrimary, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Public Store Link', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                            Text(
-                              storefrontUrl,
-                              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          const Icon(Icons.language, color: AppColors.goldPrimary, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Public Store Link', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                                Text(
+                                  storefrontUrl,
+                                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.open_in_new, color: AppColors.goldPrimary, size: 18),
-                        onPressed: () => UrlLauncherHelper.launchExternalWebUrl(context: context, url: storefrontUrl),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.copy, size: 14, color: AppColors.goldPrimary),
+                              label: const Text('Copy Link', style: TextStyle(fontSize: 12, color: AppColors.goldPrimary)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.cardBorder),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: storefrontUrl));
+                                BoutiqueHaptics.light();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Store link copied to clipboard'),
+                                    backgroundColor: AppColors.obsidianElevated,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.share, size: 14, color: AppColors.goldPrimary),
+                              label: const Text('WhatsApp', style: TextStyle(fontSize: 12, color: AppColors.goldPrimary)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.cardBorder),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                BoutiqueHaptics.light();
+                                final shareText = 'Visit my boutique on LiveDrop: $storefrontUrl';
+                                UrlLauncherHelper.launchExternalWebUrl(
+                                  context: context,
+                                  url: 'https://wa.me/?text=${Uri.encodeComponent(shareText)}',
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.open_in_new, color: AppColors.goldPrimary, size: 18),
+                            tooltip: 'Open in Browser',
+                            onPressed: () => UrlLauncherHelper.launchExternalWebUrl(context: context, url: storefrontUrl),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../core/config/env_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/boutique_haptics.dart';
+import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import '../common/skeleton_loaders.dart';
@@ -382,7 +384,14 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                               ),
                               const SizedBox(height: 6),
                               InkWell(
-                                onTap: widget.onManageDrop,
+                                onTap: () {
+                                  if (_activeDrop != null) {
+                                    final url = EnvConfig.getDropUrl(_activeDrop!.slug);
+                                    UrlLauncherHelper.launchExternalWebUrl(context: context, url: url);
+                                  } else {
+                                    widget.onManageDrop();
+                                  }
+                                },
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [

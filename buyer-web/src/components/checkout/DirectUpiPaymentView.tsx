@@ -60,21 +60,35 @@ export function DirectUpiPaymentView({
   );
 
   const resolveAttempt = (src: CreateOrderSuccessResponse | OrderReceipt): PaymentAttempt | null => {
+    let candidate: PaymentAttempt | null = null;
     if ('active_payment_attempt' in src && src.active_payment_attempt) {
-      return src.active_payment_attempt;
+      candidate = src.active_payment_attempt;
+    } else if ('payment_attempt' in src && (src as { payment_attempt?: PaymentAttempt | null }).payment_attempt) {
+      candidate = (src as { payment_attempt?: PaymentAttempt | null }).payment_attempt || null;
     }
-    if ('payment_attempt' in src && (src as { payment_attempt?: PaymentAttempt | null }).payment_attempt) {
-      return (src as { payment_attempt?: PaymentAttempt | null }).payment_attempt || null;
+
+    if (!candidate) return null;
+
+    // INVARIANT: When an order is in 'advance_paid' status, the advance has already been verified and settled.
+    // Any historical attempt for 'advance' must NEVER be treated as the active attempt for paying the remaining balance.
+    if (src.payment_status === 'advance_paid' && candidate.payment_type !== 'balance') {
+      return null;
     }
-    return null;
+
+    return candidate;
   };
 
   const initialAttempt = resolveAttempt(order);
 
+  const initialUpiUri = (): string => {
+    if (order.payment_status === 'advance_paid') {
+      return initialAttempt?.payment_type === 'balance' ? initialAttempt.upi_uri || '' : '';
+    }
+    return initialAttempt?.upi_uri || ('upi_uri' in order && order.upi_uri ? order.upi_uri : '');
+  };
+
   const [activeAttempt, setActiveAttempt] = useState<PaymentAttempt | null>(initialAttempt);
-  const [upiUri, setUpiUri] = useState<string>(
-    initialAttempt?.upi_uri || ('upi_uri' in order && order.upi_uri ? order.upi_uri : '')
-  );
+  const [upiUri, setUpiUri] = useState<string>(initialUpiUri());
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [utrInput, setUtrInput] = useState<string>(initialAttempt?.buyer_submitted_utr || '');
   const [utrError, setUtrError] = useState<string | null>(null);
@@ -89,11 +103,18 @@ export function DirectUpiPaymentView({
   const [prevOrder, setPrevOrder] = useState(order);
   if (order !== prevOrder) {
     setPrevOrder(order);
+    if (order.payment_status === 'advance_paid' && paymentType !== 'balance') {
+      setPaymentType('balance');
+    }
     const freshAttempt = resolveAttempt(order);
     if (freshAttempt) {
       setActiveAttempt(freshAttempt);
       if (freshAttempt.upi_uri) setUpiUri(freshAttempt.upi_uri);
       if (freshAttempt.buyer_submitted_utr) setUtrInput(freshAttempt.buyer_submitted_utr);
+    } else if (order.payment_status === 'advance_paid' && activeAttempt?.payment_type !== 'balance') {
+      setActiveAttempt(null);
+      setUpiUri('');
+      setUtrInput('');
     }
   }
 
@@ -123,13 +144,18 @@ export function DirectUpiPaymentView({
         setActiveAttempt(newAttempt);
         if (newAttempt.upi_uri) setUpiUri(newAttempt.upi_uri);
         if (newAttempt.buyer_submitted_utr) setUtrInput(newAttempt.buyer_submitted_utr);
+      } else if (updated.payment_status === 'advance_paid' && activeAttempt?.payment_type !== 'balance') {
+        setActiveAttempt(null);
+        setUpiUri('');
+        setUtrInput('');
+        setPaymentType('balance');
       }
     } catch {
       setRefreshError('Unable to refresh order status. Please try again.');
     } finally {
       setIsRefreshing(false);
     }
-  }, [orderId, token, onOrderRefresh]);
+  }, [orderId, token, onOrderRefresh, activeAttempt?.payment_type]);
 
   // 2. Tab Resume / Visibility Handlers (Re-fetch fresh server state on return)
   useEffect(() => {
@@ -304,7 +330,7 @@ export function DirectUpiPaymentView({
         setIsInitiating(false);
       }
     },
-    [orderId, token, isPaidInFull, isTerminal]
+    [orderId, token, isPaidInFull, isTerminal, setActiveAttempt]
   );
 
   // Auto-initiate attempt if none is present and order is unpaid or advance_paid
@@ -313,7 +339,8 @@ export function DirectUpiPaymentView({
     if (!activeAttempt && !isPaidInFull && !isTerminal) {
       const timer = setTimeout(() => {
         if (active) {
-          void ensurePaymentAttempt(paymentType);
+          const targetType = order.payment_status === 'advance_paid' ? 'balance' : paymentType;
+          void ensurePaymentAttempt(targetType);
         }
       }, 0);
       return () => {
@@ -321,7 +348,7 @@ export function DirectUpiPaymentView({
         clearTimeout(timer);
       };
     }
-  }, [activeAttempt, paymentType, isPaidInFull, isTerminal, ensurePaymentAttempt]);
+  }, [activeAttempt, paymentType, order.payment_status, isPaidInFull, isTerminal, ensurePaymentAttempt]);
 
   // 6. Handle copy to clipboard
   const handleCopy = (text: string, field: 'vpa' | 'ref' | 'amount') => {

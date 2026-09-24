@@ -37,14 +37,19 @@ export interface PublicSellerStorefront {
   id: string;
   store_name: string;
   store_slug: string;
-  upi_id: string;
+  phone_number?: string | null;
+  upi_id?: string;
+  upi_vpa?: string;
+  upi_display_name?: string | null;
   upi_qr_url: string | null;
+  upi_enabled?: boolean;
   default_shipping_fee_paisa: number;
   free_shipping_threshold_paisa: number | null;
   advance_confirmation_enabled: boolean;
   advance_amount_paisa: number;
   hold_duration_days: number;
   whatsapp_number?: string | null;
+  created_at?: string;
 }
 
 export interface Drop {
@@ -79,6 +84,25 @@ export interface PublicDropCatalog extends Drop {
   };
 }
 
+export interface ShowcaseCollection {
+  drop: {
+    id: string;
+    title: string;
+    slug: string;
+    status: DropStatus;
+    created_at: string;
+    closed_at: string | null;
+  };
+  products: PublicProductView[];
+}
+
+export interface StorefrontData {
+  storefront: PublicSellerStorefront;
+  activeLiveDrop: PublicDropCatalog | null;
+  liveProducts: PublicProductView[];
+  pastDropsWithProducts: ShowcaseCollection[];
+}
+
 export interface Product {
   id: string; // UUID
   drop_id: string; // UUID references drops(id)
@@ -100,6 +124,7 @@ export interface Product {
 
 export interface PublicProductView {
   id: string;
+  drop_id?: string;
   code: string;
   title: string;
   price_paisa: number;
@@ -111,6 +136,12 @@ export interface PublicProductView {
   status: ProductStatus;
   reserved_at: string | null;
   version: number;
+  drop_status?: DropStatus;
+  drop_title?: string;
+  drop_slug?: string;
+  drop_created_at?: string;
+  seller_id?: string;
+  created_at?: string;
 }
 
 export interface Order {
