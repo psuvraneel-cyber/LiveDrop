@@ -3,7 +3,7 @@
 import React, { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useOptionalProfile } from '../../lib/profile/profile-context';
+import { useOptionalCart } from '../../lib/cart/cart-context';
 
 function useSafePathname(): string {
   try {
@@ -50,9 +50,11 @@ function setHashLocation(hash: string) {
 
 export function MobileBottomDock() {
   const pathname = useSafePathname();
-  const profileContext = useOptionalProfile();
-  const isProfileOpen = profileContext?.isProfileOpen ?? false;
-  const openProfile = profileContext?.openProfile;
+  const cart = useOptionalCart();
+  const itemCount = cart?.itemCount ?? 0;
+  const isHydrated = cart?.isHydrated ?? false;
+  const openDrawer = cart?.openDrawer;
+  const isDrawerOpen = cart?.isDrawerOpen ?? false;
 
   const currentHash = useSyncExternalStore(
     subscribeHash,
@@ -66,23 +68,12 @@ export function MobileBottomDock() {
   }
 
   // Determine active tab based on route and hash
-  const isCart = pathname === '/cart' || pathname === '/checkout';
   const isHomeBase = pathname === '/' || pathname === '';
-  const isShopRoute = pathname === '/shop';
-  const isBoutiqueRoute = Boolean(
-    pathname &&
-    pathname !== '/' &&
-    !isCart &&
-    !pathname.startsWith('/order') &&
-    !pathname.startsWith('/drop/') &&
-    !isShopRoute
-  );
-
   const isLiveActive = isHomeBase && (currentHash === '#live-drops' || currentHash === '#live-now');
-  const isDesignersActive = isBoutiqueRoute || (isHomeBase && (currentHash === '#boutiques' || currentHash === '#designers'));
-  const isShopActive = isShopRoute;
-  const isProfileActive = isProfileOpen;
-  const isHomeActive = isHomeBase && !isLiveActive && !isDesignersActive && !isShopActive && !isCart && !isProfileActive;
+  const isShopActive = pathname === '/shop';
+  const isOrdersActive = pathname?.startsWith('/order');
+  const isBagActive = pathname === '/cart' || pathname === '/checkout' || isDrawerOpen;
+  const isHomeActive = isHomeBase && !isLiveActive && !isShopActive && !isOrdersActive && !isBagActive;
 
   return (
     <nav
@@ -148,45 +139,69 @@ export function MobileBottomDock() {
           {isShopActive && <span className="ld-dock-active-line" aria-hidden="true" />}
         </Link>
 
-        {/* 4. Designers */}
+        {/* 4. Orders */}
         <Link
-          href="/#boutiques"
-          className={`ld-dock-tab ${isDesignersActive ? 'active' : ''}`}
-          aria-label="Designers"
-          data-testid="dock-designers-tab"
-          onClick={() => setHashLocation('#boutiques')}
+          href="/order"
+          className={`ld-dock-tab ${isOrdersActive ? 'active' : ''}`}
+          aria-label="Orders"
+          aria-current={isOrdersActive ? 'page' : undefined}
+          data-testid="dock-orders-tab"
         >
           <div className="ld-dock-icon-wrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="m9 12 2 2 4-4" />
+              <rect width="16" height="20" x="4" y="2" rx="2" />
+              <line x1="8" x2="16" y1="6" y2="6" />
+              <line x1="8" x2="16" y1="10" y2="10" />
+              <line x1="8" x2="12" y1="14" y2="14" />
             </svg>
           </div>
-          <span className="ld-dock-label">Designers</span>
-          {isDesignersActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          <span className="ld-dock-label">Orders</span>
+          {isOrdersActive && <span className="ld-dock-active-line" aria-hidden="true" />}
         </Link>
 
-        {/* 5. Profile */}
-        <button
-          type="button"
-          className={`ld-dock-tab ${isProfileActive ? 'active' : ''}`}
-          aria-label="Profile"
-          data-testid="dock-profile-tab"
-          onClick={() => {
-            if (openProfile) {
-              openProfile();
-            }
-          }}
-        >
-          <div className="ld-dock-icon-wrap">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M20 21a8 8 0 1 0-16 0" />
-            </svg>
-          </div>
-          <span className="ld-dock-label">Profile</span>
-          {isProfileActive && <span className="ld-dock-active-line" aria-hidden="true" />}
-        </button>
+        {/* 5. Bag */}
+        {openDrawer ? (
+          <button
+            type="button"
+            className={`ld-dock-tab ${isBagActive ? 'active' : ''}`}
+            aria-label="Shopping Bag"
+            data-testid="dock-bag-tab"
+            onClick={openDrawer}
+          >
+            <div className="ld-dock-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              {isHydrated && itemCount > 0 && (
+                <span className="ld-header-bag-badge" style={{ position: 'absolute', top: -4, right: -8, width: 16, height: 16, fontSize: 10 }}>
+                  {itemCount}
+                </span>
+              )}
+            </div>
+            <span className="ld-dock-label">Bag</span>
+            {isBagActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          </button>
+        ) : (
+          <Link
+            href="/cart"
+            className={`ld-dock-tab ${isBagActive ? 'active' : ''}`}
+            aria-label="Shopping Bag"
+            data-testid="dock-bag-tab"
+          >
+            <div className="ld-dock-icon-wrap">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              {isHydrated && itemCount > 0 && (
+                <span className="ld-header-bag-badge" style={{ position: 'absolute', top: -4, right: -8, width: 16, height: 16, fontSize: 10 }}>
+                  {itemCount}
+                </span>
+              )}
+            </div>
+            <span className="ld-dock-label">Bag</span>
+            {isBagActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          </Link>
+        )}
       </div>
     </nav>
   );

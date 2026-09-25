@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { HomeStorefront } from '../components/HomeStorefront';
 import { CartProvider } from '../lib/cart/cart-context';
 import { ProfileProvider } from '../lib/profile/profile-context';
@@ -76,54 +76,51 @@ function renderWithProviders(ui: React.ReactElement) {
   );
 }
 
-describe('HomeStorefront Screen 1 Component Tests', () => {
-  it('renders Screen 1 Hero section with HERITAGE MEETS NOW and editorial headline', () => {
+describe('HomeStorefront Component Tests', () => {
+  it('renders compact hero section with clean headline and CTA', () => {
     renderWithProviders(<HomeStorefront storefronts={[mockBoutique]} />);
 
-    expect(screen.getByText('HERITAGE MEETS NOW')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/India's.*Finest.*Styles,.*Live/i);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/No Live Drop Right Now/i);
     expect(screen.getByTestId('explore-live-shows-btn')).toBeInTheDocument();
   });
 
-  it('renders the 5 circular story reels row', () => {
+  it('renders the compact category chips rail', () => {
     renderWithProviders(<HomeStorefront storefronts={[mockBoutique]} />);
 
-    expect(screen.getByTestId('story-circle-sarees')).toBeInTheDocument();
-    expect(screen.getByTestId('story-circle-lehengas')).toBeInTheDocument();
-    expect(screen.getByTestId('story-circle-jewelry')).toBeInTheDocument();
-    expect(screen.getByTestId('story-circle-mens')).toBeInTheDocument();
-    expect(screen.getByTestId('story-circle-accessories')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chips-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chip-all')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chip-sarees')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chip-kurtis')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chip-lehengas')).toBeInTheDocument();
+    expect(screen.getByTestId('category-chip-jewelry')).toBeInTheDocument();
   });
 
-  it('STATE 1: renders LIVE NOW broadcast card when an active drop is streaming', () => {
+  it('STATE 1: renders LIVE NOW broadcast hero when an active drop is streaming', () => {
     renderWithProviders(
       <HomeStorefront activeDrops={[mockLiveDrop]} storefronts={[mockBoutique]} />
     );
 
-    expect(screen.getByText('Live Now')).toBeInTheDocument();
-    expect(screen.getByTestId('live-drop-card-bridal-lehengas-with-anaya')).toBeInTheDocument();
-    expect(screen.getByText('Bridal Lehengas with Anaya')).toBeInTheDocument();
+    expect(screen.getByTestId('live-drop-hero')).toBeInTheDocument();
+    expect(screen.getAllByText('Bridal Lehengas with Anaya').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/LIVE/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('shop-live-hero-btn')).toBeInTheDocument();
   });
 
-  it('STATE 2: renders UP NEXT scheduled session with Notify Me when no drop is live', () => {
+  it('STATE 2: renders calm no-live state when no drop is streaming', () => {
     renderWithProviders(<HomeStorefront activeDrops={[]} storefronts={[mockBoutique]} />);
 
-    expect(screen.getByText('Up Next')).toBeInTheDocument();
-    expect(screen.getByTestId('upcoming-drop-card')).toBeInTheDocument();
-    expect(screen.getByTestId('notify-me-btn')).toBeInTheDocument();
-
-    // Clicking Notify Me toggles button text
-    fireEvent.click(screen.getByTestId('notify-me-btn'));
-    expect(screen.getByText('Notified ✓')).toBeInTheDocument();
+    expect(screen.getByText('No Live Drop Right Now')).toBeInTheDocument();
+    expect(screen.getByText(/Explore the latest pieces from independent boutiques/i)).toBeInTheDocument();
+    expect(screen.getByTestId('explore-live-shows-btn')).toBeInTheDocument();
   });
 
-  it('renders Verified Designers directory with boutique card and WhatsApp link', () => {
+  it('renders verified boutiques rail with boutique card and WhatsApp link', () => {
     renderWithProviders(<HomeStorefront storefronts={[mockBoutique]} />);
 
-    expect(screen.getByText('Verified Designers')).toBeInTheDocument();
+    expect(screen.getByText('Live Boutiques')).toBeInTheDocument();
     expect(screen.getByTestId('boutique-card-suvs-atelier')).toBeInTheDocument();
-    expect(screen.getByTestId('visit-store-suvs-atelier')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-boutique-suvs-atelier')).toBeInTheDocument();
     expect(screen.getByTestId('whatsapp-store-suvs-atelier')).toBeInTheDocument();
   });
 });
+

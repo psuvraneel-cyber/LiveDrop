@@ -787,3 +787,73 @@ export async function submitBuyerPaymentClaim(
   }
 }
 
+/**
+ * Retrieves featured available products from active drops or approved seller showcases.
+ */
+export async function getFeaturedProducts(
+  client: SupabaseClient,
+  limit: number = 12
+): Promise<PublicProductView[]> {
+  try {
+    const { data, error } = await client
+      .from('public_products_catalog')
+      .select('id, drop_id, code, title, price_paisa, size, image_url, image_urls, status, reserved_at, version, drop_status, drop_title, drop_slug, drop_created_at, seller_id, created_at')
+      .eq('status', 'available')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw new LiveDropError(`Failed to fetch featured products: ${error.message}`, 'UNKNOWN_ERROR');
+    }
+
+    return (data || []) as PublicProductView[];
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * Retrieves catalog products across all approved boutiques with optional search and category filters.
+ */
+export async function getAllProducts(
+  client: SupabaseClient,
+  options?: { category?: string; query?: string; limit?: number }
+): Promise<PublicProductView[]> {
+  try {
+    let queryBuilder = client
+      .from('public_products_catalog')
+      .select('id, drop_id, code, title, price_paisa, size, image_url, image_urls, status, reserved_at, version, drop_status, drop_title, drop_slug, drop_created_at, seller_id, created_at')
+      .eq('status', 'available');
+
+    if (options?.category && options.category.toLowerCase() !== 'all') {
+      const cat = options.category.toLowerCase();
+      queryBuilder = queryBuilder.ilike('title', `%${cat}%`);
+    }
+
+    if (options?.query && options.query.trim()) {
+      const q = options.query.trim();
+      queryBuilder = queryBuilder.or(`title.ilike.%${q}%,code.ilike.%${q}%`);
+    }
+
+    queryBuilder = queryBuilder.order('created_at', { ascending: false });
+
+    if (options?.limit) {
+      queryBuilder = queryBuilder.limit(options.limit);
+    } else {
+      queryBuilder = queryBuilder.limit(60);
+    }
+
+    const { data, error } = await queryBuilder;
+
+    if (error) {
+      throw new LiveDropError(`Failed to fetch catalog products: ${error.message}`, 'UNKNOWN_ERROR');
+    }
+
+    return (data || []) as PublicProductView[];
+  } catch (err: unknown) {
+    if (err instanceof LiveDropError) throw err;
+    throw new NetworkError(err instanceof Error ? err.message : String(err));
+  }
+}
+

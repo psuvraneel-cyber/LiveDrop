@@ -70,14 +70,17 @@ export function LuxuryTopHeader({
 
         {/* Center / Desktop Links */}
         <nav className="ld-header-nav-links" aria-label="Primary Navigation">
-          <Link href="/#boutiques" className="ld-header-nav-link">
-            Boutiques
+          <Link href="/shop" className="ld-header-nav-link">
+            Shop
           </Link>
-          <Link href="/#live-now" className="ld-header-nav-link">
+          <Link href="/#live-drops" className="ld-header-nav-link">
             Live Drops
           </Link>
           <Link href="/shop" className="ld-header-nav-link">
-            Categories
+            Collections
+          </Link>
+          <Link href="/#boutiques" className="ld-header-nav-link">
+            Boutiques
           </Link>
         </nav>
 
@@ -101,10 +104,10 @@ export function LuxuryTopHeader({
                 <input
                   type="text"
                   className="ld-header-search-input"
-                  placeholder="Search boutiques, drops..."
+                  placeholder="Search sarees, kurtis, dupattas..."
                   value={searchQuery}
                   onChange={(e) => onSearchChange?.(e.target.value)}
-                  aria-label="Search boutiques and drops"
+                  aria-label="Search products, sarees, kurtis"
                   data-testid="platform-search-input"
                 />
                 {searchQuery && (

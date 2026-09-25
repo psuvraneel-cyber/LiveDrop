@@ -1,89 +1,104 @@
 /**
- * LiveDrop — Luxury Boutique Noir Global Styles & Design System Tokens
- * Governing Specifications: docs/03-ui-ux-specification.md & seller-app theme tokens
+ * LiveDrop — Unified Buyer Design System Tokens & Global Reset
+ * Governing Specification: Item 32 & 33 in UI/UX Reset Mandate
  */
 @import "tailwindcss";
 
 :root {
   /* -------------------------------------------------------------------------
-     Haute Couture Indian Luxury Palette Tokens (Noir, Burgundy, Champagne)
+     Unified LiveDrop Design Tokens (Black / Ivory / Restrained Gold)
      ------------------------------------------------------------------------- */
-  --noir-black: #08080A;
-  --noir-card: #0E0E12;
-  --noir-elevated: #15151B;
-  --burgundy-deep: #2A0811;
-  --burgundy-accent: #4E1220;
-  --burgundy-glow: rgba(78, 18, 32, 0.25);
-  --champagne-gold: #D4AF37;
-  --champagne-muted: rgba(212, 175, 55, 0.18);
-  --champagne-hairline: rgba(212, 175, 55, 0.16);
-  --ivory-text: #FBFBFB;
-  --ivory-muted: rgba(251, 251, 251, 0.65);
+  --ld-bg: #090909;
+  --ld-surface: #121211;
+  --ld-surface-2: #181715;
 
-  /* Surfaces & Mappings for Universal Invariant Protection */
-  --obsidian: #08080A;
-  --obsidian-surface: #0E0E12;
-  --obsidian-elevated: #15151B;
-  --input-background: #121217;
-  --card-border: rgba(255, 255, 255, 0.08);
-  --card-border-gold: rgba(212, 175, 55, 0.25);
+  --ld-text: #F4F1EA;
+  --ld-text-muted: #AAA49A;
 
-  /* Metallic Gold Accents & Gradients */
-  --gold-primary: #D4AF37;
-  --gold-secondary: #C88A24;
-  --gold-light: #FDE68A;
-  --gold-muted: rgba(212, 175, 55, 0.2);
-  --gold-gradient: linear-gradient(135deg, #D4AF37 0%, #C88A24 100%);
-  --gold-gradient-hover: linear-gradient(135deg, #E5BA48 0%, #D89832 100%);
-  --gold-glow: radial-gradient(ellipse at top, rgba(212, 175, 55, 0.16) 0%, transparent 70%);
+  --ld-gold: #C79A45;
+  --ld-gold-soft: #E2C27A;
 
-  /* Status Accents */
-  --primary-emerald: #10B981;
-  --primary-emerald-hover: #059669;
-  --whatsapp-teal: #25D366;
+  --ld-live: #E5484D;
+  --ld-success: #3FA56B;
+  --ld-warning: #D89A38;
 
-  --stock-available: #10B981;
-  --stock-available-bg: rgba(16, 185, 129, 0.16);
-  --stock-available-text: #34D399;
+  --ld-border: rgba(255, 255, 255, 0.09);
+  --ld-border-gold: rgba(199, 154, 69, 0.3);
 
-  --stock-reserved: #F59E0B;
-  --stock-reserved-bg: rgba(245, 158, 11, 0.16);
-  --stock-reserved-text: #FBBF24;
-
-  --stock-sold: #6B7280;
-  --stock-sold-bg: rgba(107, 114, 128, 0.22);
-  --stock-sold-text: #9CA3AF;
-
-  --error-crimson: #EF4444;
-  --error-bg: rgba(239, 68, 68, 0.16);
-
-  /* Surfaces & Typography */
-  --bg-page: #08080A;
-  --surface-card: #0E0E12;
-  --surface-elevated: #15151B;
-  --text-primary: #FBFBFB;
-  --text-secondary: rgba(251, 251, 251, 0.72);
-  --text-muted: rgba(251, 251, 251, 0.44);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: #D4AF37;
+  /* Geometry & Layout */
+  --radius-card: 14px;
+  --radius-feature: 18px;
+  --radius-pill: 9999px;
+  --radius-sm: 8px;
+  --max-width-mobile: 680px;
+  --touch-target-min: 48px;
 
   /* Typography Stacks */
   --font-display: var(--font-display, 'Cormorant Garamond', Georgia, serif);
   --font-sans: var(--font-sans, 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Layout & Geometry */
-  --radius-card: 16px;
-  --radius-pill: 28px;
-  --radius-sm: 8px;
-  --max-width-mobile: 680px;
-  --touch-target-min: 48px;
+  /* Backward-Compatible Palette Aliases */
+  --noir-black: var(--ld-bg);
+  --noir-card: var(--ld-surface);
+  --noir-elevated: var(--ld-surface-2);
+  --burgundy-deep: #1A0D11;
+  --burgundy-accent: #2D141C;
+  --burgundy-glow: rgba(45, 20, 28, 0.2);
+  --champagne-gold: var(--ld-gold);
+  --champagne-muted: rgba(199, 154, 69, 0.16);
+  --champagne-hairline: var(--ld-border);
+  --ivory-text: var(--ld-text);
+  --ivory-muted: var(--ld-text-muted);
 
-  /* Shadows */
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.7);
-  --shadow-gold: 0 4px 18px rgba(212, 175, 55, 0.2);
+  --obsidian: var(--ld-bg);
+  --obsidian-surface: var(--ld-surface);
+  --obsidian-elevated: var(--ld-surface-2);
+  --input-background: var(--ld-surface-2);
+  --card-border: var(--ld-border);
+  --card-border-gold: var(--ld-border-gold);
+
+  --gold-primary: var(--ld-gold);
+  --gold-secondary: #B58632;
+  --gold-light: var(--ld-gold-soft);
+  --gold-muted: rgba(199, 154, 69, 0.18);
+  --gold-gradient: linear-gradient(135deg, #C79A45 0%, #B58632 100%);
+  --gold-gradient-hover: linear-gradient(135deg, #D4AF37 0%, #C79A45 100%);
+  --gold-glow: none;
+
+  --primary-emerald: var(--ld-success);
+  --primary-emerald-hover: #328B59;
+  --whatsapp-teal: #25D366;
+
+  --stock-available: var(--ld-success);
+  --stock-available-bg: rgba(63, 165, 107, 0.16);
+  --stock-available-text: #4ADE80;
+
+  --stock-reserved: var(--ld-warning);
+  --stock-reserved-bg: rgba(216, 154, 56, 0.16);
+  --stock-reserved-text: #FBBF24;
+
+  --stock-sold: #6B7280;
+  --stock-sold-bg: rgba(107, 114, 128, 0.22);
+  --stock-sold-text: #9CA3AF;
+
+  --error-crimson: var(--ld-live);
+  --error-bg: rgba(229, 72, 77, 0.16);
+
+  --bg-page: var(--ld-bg);
+  --surface-card: var(--ld-surface);
+  --surface-elevated: var(--ld-surface-2);
+  --text-primary: var(--ld-text);
+  --text-secondary: rgba(244, 241, 234, 0.72);
+  --text-muted: var(--ld-text-muted);
+  --border-subtle: var(--ld-border);
+  --border-focus: var(--ld-gold);
+
+  /* Shadows — Restrained, no excessive glow */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-gold: none;
 }
 
 /* Reset & Box Sizing */
@@ -112,18 +127,22 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--noir-black);
-  color: var(--ivory-text);
-  background-image: 
-    radial-gradient(ellipse at 50% 0%, rgba(78, 18, 32, 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 30%, rgba(212, 175, 55, 0.04) 0%, transparent 50%);
-  background-attachment: fixed;
+  background-color: var(--ld-bg);
+  color: var(--ld-text);
+  overflow-x: hidden;
 }
 
-/* Safe area padding for mobile bottom navigation dock */
+/* Safe area padding for mobile bottom navigation dock — ensures zero content clipping */
 .ld-has-bottom-dock,
 .ld-home-storefront {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 24px) !important;
+}
+
+@media (min-width: 768px) {
+  .ld-has-bottom-dock,
+  .ld-home-storefront {
+    padding-bottom: 48px !important;
+  }
 }
 
 /* Base Mobile-First Layout Container */
@@ -1281,21 +1300,24 @@ body {
   opacity: 0.88;
 }
 
-.ld-products-grid {
+.ld-products-grid,
+.ld-product-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 @media (min-width: 640px) {
-  .ld-products-grid {
+  .ld-products-grid,
+  .ld-product-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px;
+    gap: 16px;
   }
 }
 
 @media (min-width: 1024px) {
-  .ld-products-grid {
+  .ld-products-grid,
+  .ld-product-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
   }
@@ -1306,8 +1328,8 @@ body {
    ========================================================================== */
 
 .ld-product-card {
-  background: var(--obsidian-surface);
-  border: 1px solid var(--card-border);
+  background: var(--ld-surface);
+  border: 1px solid var(--ld-border);
   border-radius: var(--radius-card);
   overflow: hidden;
   display: flex;
@@ -1319,9 +1341,9 @@ body {
 }
 
 .ld-product-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--card-border-gold);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(229, 169, 60, 0.15);
+  transform: translateY(-2px);
+  border-color: var(--ld-border-gold);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .ld-product-card.unavailable {

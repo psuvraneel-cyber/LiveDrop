@@ -86,7 +86,7 @@ export function BuyerProfileDrawer({ isOpen, onClose }: BuyerProfileDrawerProps)
         role="presentation"
       >
         <div
-          className="w-full max-w-md h-full bg-[#08080A] border-l border-[rgba(212,175,55,0.2)] shadow-2xl flex flex-col overflow-y-auto scrollbar-none animate-slide-in-right select-none text-[#FBFBFB]"
+          className="w-full max-w-md h-full bg-[#090909] border-l border-white/10 shadow-2xl flex flex-col overflow-y-auto scrollbar-none animate-slide-in-right text-[#F4F1EA]"
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -236,29 +236,13 @@ export function BuyerProfileDrawer({ isOpen, onClose }: BuyerProfileDrawerProps)
                 data-testid="profile-addresses"
               >
                 <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-[#D4AF37]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-[#C79A45]">
                     <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
                     <circle cx="12" cy="10" r="3" />
                   </svg>
                   <span className="text-sm font-medium tracking-wide">Addresses</span>
                 </div>
                 <span className="text-xs text-white/40">Manage →</span>
-              </div>
-
-              {/* Payment Methods */}
-              <div
-                className="w-full px-4 py-3 rounded-xl flex items-center justify-between hover:bg-white/5 text-white/85 transition-all cursor-pointer"
-                onClick={() => showToast('Direct peer-to-peer UPI verified at order placement')}
-                data-testid="profile-payments"
-              >
-                <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-[#D4AF37]">
-                    <rect width="20" height="14" x="2" y="5" rx="2" />
-                    <line x1="2" x2="22" y1="10" y2="10" />
-                  </svg>
-                  <span className="text-sm font-medium tracking-wide">Payment Methods</span>
-                </div>
-                <span className="text-xs text-[#D4AF37] font-mono">UPI Direct</span>
               </div>
 
               {/* Help & Support */}
@@ -270,7 +254,7 @@ export function BuyerProfileDrawer({ isOpen, onClose }: BuyerProfileDrawerProps)
                 data-testid="profile-support"
               >
                 <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-[#D4AF37]">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-[#C79A45]">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                     <path d="M12 17h.01" />
@@ -279,53 +263,7 @@ export function BuyerProfileDrawer({ isOpen, onClose }: BuyerProfileDrawerProps)
                 </div>
                 <span className="text-xs text-[#25D366] font-medium">WhatsApp →</span>
               </a>
-
-              {/* Settings */}
-              <div
-                className="w-full px-4 py-3 rounded-xl flex items-center justify-between hover:bg-white/5 text-white/85 transition-all cursor-pointer"
-                onClick={() => showToast('Preferences cached on device')}
-                data-testid="profile-settings"
-              >
-                <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="text-[#D4AF37]">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <span className="text-sm font-medium tracking-wide">Settings</span>
-                </div>
-                <span className="text-xs text-white/40">App v2.0</span>
-              </div>
             </nav>
-
-            {/* 4. Luxury Promo Card at Bottom: 'Be the First to Know' */}
-            <div className="relative rounded-2xl overflow-hidden border border-[rgba(212,175,55,0.3)] bg-gradient-to-r from-[#14141A] via-[#101014] to-[#200A12] p-5 shadow-xl">
-              <div className="relative z-10 space-y-2 max-w-[70%]">
-                <h3 className="text-base font-serif font-bold text-white tracking-wide">
-                  Be the First to Know
-                </h3>
-                <p className="text-xs text-white/70 font-sans leading-relaxed">
-                  Get early access to exclusive drops and designer collaborations.
-                </p>
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleToggleNotifications}
-                    className="px-4 py-2 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] text-xs font-bold tracking-wider uppercase transition-all shadow-md shadow-[rgba(212,175,55,0.25)] hover:scale-102"
-                    data-testid="profile-enable-notifications-btn"
-                  >
-                    Enable Notifications
-                  </button>
-                </div>
-              </div>
-
-              {/* Decorative model silhouette thumbnail on right */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=300&q=80"
-                alt="Haute Couture Bride"
-                className="absolute right-0 top-0 bottom-0 w-32 object-cover object-center opacity-40 mix-blend-luminosity pointer-events-none"
-              />
-            </div>
           </div>
         </div>
       </div>

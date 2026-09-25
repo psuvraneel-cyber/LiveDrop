@@ -92,7 +92,7 @@ function CartPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#08080A] text-[#FBFBFB] pb-24 font-sans select-none" data-testid="cart-page">
+    <div className="min-h-screen bg-[#090909] text-[#F4F1EA] pb-24 font-sans" data-testid="cart-page">
       {/* 1. Header: Back Arrow '<' + Title 'Your Cart (N)' */}
       <header className="px-4 py-4 border-b border-white/10 sticky top-0 bg-[#08080A]/95 backdrop-blur-md z-10">
         <div className="max-w-2xl mx-auto flex items-center justify-between">

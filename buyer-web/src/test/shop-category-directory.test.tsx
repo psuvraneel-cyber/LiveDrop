@@ -38,7 +38,7 @@ const mockStorefronts: PublicSellerStorefront[] = [
 ];
 
 describe('ShopCategoryDirectory Component Tests', () => {
-  it('renders all luxury category cards by default', () => {
+  it('renders boutique collections header and category tabs', () => {
     render(
       <CartProvider>
         <ShopCategoryDirectory storefronts={mockStorefronts} />
@@ -46,27 +46,26 @@ describe('ShopCategoryDirectory Component Tests', () => {
     );
 
     expect(screen.getByTestId('shop-category-directory')).toBeInTheDocument();
-    expect(screen.getByText('Couture by Category')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Sarees', level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Lehengas', level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Jewelry', level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: "Men's Couture", level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Accessories', level: 3 })).toBeInTheDocument();
+    expect(screen.getByText('Boutique Collections')).toBeInTheDocument();
+    expect(screen.getByTestId('shop-category-all')).toBeInTheDocument();
+    expect(screen.getByTestId('shop-category-sarees')).toBeInTheDocument();
+    expect(screen.getByTestId('shop-category-kurtis')).toBeInTheDocument();
+    expect(screen.getByTestId('shop-category-lehengas')).toBeInTheDocument();
+    expect(screen.getByTestId('shop-category-jewelry')).toBeInTheDocument();
+    expect(screen.getByTestId('shop-category-accessories')).toBeInTheDocument();
   });
 
-  it('filters categories when tab is selected', () => {
+  it('filters active category tab on click', () => {
     render(
       <CartProvider>
         <ShopCategoryDirectory storefronts={mockStorefronts} />
       </CartProvider>
     );
 
-    const lehengasTab = screen.getByRole('tab', { name: /^Lehengas/i });
+    const lehengasTab = screen.getByTestId('shop-category-lehengas');
     fireEvent.click(lehengasTab);
 
-    expect(screen.getByText('For every grand celebration')).toBeInTheDocument();
-    // Non-lehenga taglines should be hidden
-    expect(screen.queryByText('Timeless drapes for every era')).not.toBeInTheDocument();
+    expect(lehengasTab).toHaveClass('active');
   });
 
   it('renders verified boutiques list', () => {
@@ -80,3 +79,4 @@ describe('ShopCategoryDirectory Component Tests', () => {
     expect(screen.getByText('/suv-s')).toBeInTheDocument();
   });
 });
+

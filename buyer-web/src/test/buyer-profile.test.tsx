@@ -80,7 +80,7 @@ describe('BuyerProfileDrawer UI Component Tests', () => {
     );
   }
 
-  it('renders Screen 7 elements when open (header, patron card, 8 menu actions, promo banner)', () => {
+  it('renders clean utility elements when open (header, patron card, menu actions, close X)', () => {
     render(
       <ProfileProvider>
         <ProfileTestRig />
@@ -95,20 +95,15 @@ describe('BuyerProfileDrawer UI Component Tests', () => {
     expect(screen.getByText('INDIAN LUXURY LIVE')).toBeInTheDocument();
     expect(screen.getByTestId('profile-display-name')).toHaveTextContent('Guest Patron');
 
-    // 8 Menu Actions
+    // Menu Actions
     expect(screen.getByTestId('profile-my-orders')).toBeInTheDocument();
     expect(screen.getByTestId('profile-wishlist')).toBeInTheDocument();
     expect(screen.getByTestId('profile-notifications')).toBeInTheDocument();
     expect(screen.getByTestId('profile-saved-shows')).toBeInTheDocument();
     expect(screen.getByTestId('profile-addresses')).toBeInTheDocument();
-    expect(screen.getByTestId('profile-payments')).toBeInTheDocument();
     expect(screen.getByTestId('profile-support')).toBeInTheDocument();
-    expect(screen.getByTestId('profile-settings')).toBeInTheDocument();
-
-    // Promo banner
-    expect(screen.getByText('Be the First to Know')).toBeInTheDocument();
-    expect(screen.getByTestId('profile-enable-notifications-btn')).toBeInTheDocument();
   });
+
 
   it('allows opening EditProfileModal and updating patron display name', () => {
     render(

@@ -1,26 +1,34 @@
 import type { Metadata } from 'next';
 import { createBuyerClient } from '../../lib/supabase/client';
-import { getAllVerifiedStorefronts } from '../../lib/data/buyer-catalog';
+import { getAllVerifiedStorefronts, getAllProducts } from '../../lib/data/buyer-catalog';
 import { ShopCategoryDirectory } from '../../components/shop/ShopCategoryDirectory';
-import { PublicSellerStorefront } from '../../types/domain';
+import { PublicProductView, PublicSellerStorefront } from '../../types/domain';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: 'Shop Indian Luxury Couture | LiveDrop',
-  description: 'Explore curated handcrafted sarees, lehengas, jewelry, and couture from verified independent boutiques on LiveDrop.',
+  title: 'Shop Boutique Fashion | LiveDrop',
+  description: 'Explore handcrafted sarees, kurtis, lehengas, jewelry, and couture direct from independent Indian boutiques on LiveDrop.',
 };
 
 export default async function ShopPage() {
   let storefronts: PublicSellerStorefront[] = [];
+  let products: PublicProductView[] = [];
 
   try {
     const client = createBuyerClient();
-    storefronts = await getAllVerifiedStorefronts(client);
+    const [sfData, prodData] = await Promise.all([
+      getAllVerifiedStorefronts(client),
+      getAllProducts(client, { limit: 80 }),
+    ]);
+    storefronts = sfData;
+    products = prodData;
   } catch {
     storefronts = [];
+    products = [];
   }
 
-  return <ShopCategoryDirectory storefronts={storefronts} />;
+  return <ShopCategoryDirectory storefronts={storefronts} initialProducts={products} />;
 }
+

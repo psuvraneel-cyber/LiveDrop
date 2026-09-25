@@ -1,109 +1,76 @@
 'use client';
 
 /**
- * LiveDrop — Screen 2: Haute Couture Shop by Category
+ * LiveDrop — Commerce-First Shop Page
  *
- * Full-fidelity implementation of the category directory:
- * - Curated luxury photography for Indian Couture categories
- * - Responsive 1-column mobile / 2-column desktop editorial cards
- * - Verified Ateliers directory
- * - Zero bottom dock clipping
+ * Full-fidelity implementation matching product-first principles:
+ * - Product-oriented search & category filters (All, Sarees, Kurtis, Lehengas, Dupattas, Jewelry, Accessories)
+ * - Immediate 2-column mobile / 4-column desktop Product Grid
+ * - Zero giant full-screen category banner artwork
+ * - Secondary Verified Ateliers discovery rail at bottom
+ * - Zero bottom dock overlap
  */
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { PublicSellerStorefront } from '../../types/domain';
+import { PublicProductView, PublicSellerStorefront } from '../../types/domain';
 import { LuxuryTopHeader } from '../navigation/LuxuryTopHeader';
 import { MobileBottomDock } from '../navigation/MobileBottomDock';
+import { ProductCard } from '../ProductCard';
 
 export interface ShopCategoryDirectoryProps {
   storefronts?: PublicSellerStorefront[];
+  initialProducts?: PublicProductView[];
 }
 
-interface EditorialCategory {
-  id: string;
-  tag: string;
-  title: string;
-  tagline: string;
-  imageUrl: string;
-  actionText: string;
-}
-
-const EDITORIAL_CATEGORIES: EditorialCategory[] = [
-  {
-    id: 'sarees',
-    tag: 'HANDLOOM & HERITAGE',
-    title: 'Sarees',
-    tagline: 'Timeless drapes for every era',
-    imageUrl: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=1000&q=80',
-    actionText: 'Explore Sarees',
-  },
-  {
-    id: 'lehengas',
-    tag: 'HAUTE BRIDAL',
-    title: 'Lehengas',
-    tagline: 'For every grand celebration',
-    imageUrl: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1000&q=80',
-    actionText: 'Explore Lehengas',
-  },
-  {
-    id: 'jewelry',
-    tag: 'ROYAL HEIRLOOMS',
-    title: 'Jewelry',
-    tagline: 'Heirlooms reimagined for the modern patron',
-    imageUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=1000&q=80',
-    actionText: 'Explore Jewelry',
-  },
-  {
-    id: 'mens-couture',
-    tag: 'CONTEMPORARY ROYALTY',
-    title: "Men's Couture",
-    tagline: 'Tradition with a sharp, modern edge',
-    imageUrl: 'https://images.unsplash.com/photo-1621609764095-b32bbe35cf3a?auto=format&fit=crop&w=1000&q=80',
-    actionText: "Explore Men's Couture",
-  },
-  {
-    id: 'accessories',
-    tag: 'COUTURE ACCENTS',
-    title: 'Accessories',
-    tagline: 'The definitive finishing touch',
-    imageUrl: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1000&q=80',
-    actionText: 'Explore Accessories',
-  },
-];
-
-const TABS = [
+const CATEGORY_TABS = [
   { id: 'all', label: 'All' },
   { id: 'sarees', label: 'Sarees' },
+  { id: 'kurtis', label: 'Kurtis' },
   { id: 'lehengas', label: 'Lehengas' },
+  { id: 'dupattas', label: 'Dupattas' },
   { id: 'jewelry', label: 'Jewelry' },
-  { id: 'mens-couture', label: "Men's Couture" },
   { id: 'accessories', label: 'Accessories' },
 ];
 
 export function ShopCategoryDirectory({
   storefronts = [],
+  initialProducts = [],
 }: ShopCategoryDirectoryProps) {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc'>('featured');
 
-  const filteredCategories = useMemo(() => {
-    let list = EDITORIAL_CATEGORIES;
+  // Filter products by category tab and search query
+  const filteredProducts = useMemo(() => {
+    let list = [...initialProducts];
+
     if (activeTab !== 'all') {
-      list = list.filter((c) => c.id === activeTab);
+      const tabKeyword = activeTab.toLowerCase();
+      list = list.filter((p) => {
+        const title = (p.title || '').toLowerCase();
+        const code = (p.code || '').toLowerCase();
+        return title.includes(tabKeyword) || code.includes(tabKeyword);
+      });
     }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (c) =>
-          c.title.toLowerCase().includes(q) ||
-          c.tagline.toLowerCase().includes(q) ||
-          c.tag.toLowerCase().includes(q)
-      );
+      list = list.filter((p) => {
+        const title = (p.title || '').toLowerCase();
+        const code = (p.code || '').toLowerCase();
+        return title.includes(q) || code.includes(q);
+      });
     }
+
+    if (sortBy === 'price-asc') {
+      list.sort((a, b) => a.price_paisa - b.price_paisa);
+    } else if (sortBy === 'price-desc') {
+      list.sort((a, b) => b.price_paisa - a.price_paisa);
+    }
+
     return list;
-  }, [activeTab, searchQuery]);
+  }, [initialProducts, activeTab, searchQuery, sortBy]);
 
   const filteredBoutiques = useMemo(() => {
     if (!searchQuery.trim()) return storefronts;
@@ -117,7 +84,7 @@ export function ShopCategoryDirectory({
 
   return (
     <div
-      className="ld-has-bottom-dock min-h-screen bg-[#08080A] text-[#FBFBFB] pb-36 sm:pb-24 font-sans select-none"
+      className="ld-has-bottom-dock min-h-screen bg-[#090909] text-[#F4F1EA] font-sans"
       data-testid="shop-category-directory"
     >
       {/* 1. Header */}
@@ -126,36 +93,60 @@ export function ShopCategoryDirectory({
         onSearchChange={setSearchQuery}
       />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 pt-6 sm:pt-8 space-y-8 sm:space-y-12">
-        {/* Page Title & Subtitle */}
-        <div className="text-center space-y-2 pt-2">
-          <span className="text-[#D4AF37] text-xs font-mono font-bold tracking-[0.25em] uppercase">
-            ✦ CURATED COLLECTIONS ✦
-          </span>
-          <h1 className="text-3xl sm:text-5xl font-serif text-[#FBFBFB] tracking-wide">
-            Couture by Category
-          </h1>
-          <p className="text-xs sm:text-base text-white/60 max-w-lg mx-auto leading-relaxed">
-            Discover singular handcrafted Indian couture direct from independent master designers and ateliers.
-          </p>
+      <main className="max-w-6xl mx-auto px-4 sm:px-8 pt-4 sm:pt-6 space-y-6 sm:space-y-8">
+        {/* Page Title & Breadcrumb */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs text-[#AAA49A]">
+            <Link href="/" className="hover:text-white transition-colors">Home</Link>
+            <span>/</span>
+            <span className="text-[#F4F1EA]">Shop Catalog</span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+            <div>
+              <h1 className="text-2xl sm:text-4xl font-serif text-[#F4F1EA] tracking-wide">
+                Boutique Collections
+              </h1>
+              <p className="text-xs sm:text-sm text-[#AAA49A]">
+                {filteredProducts.length} pieces available from verified ateliers
+              </p>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="shop-sort" className="text-xs text-[#AAA49A] whitespace-nowrap">
+                Sort by:
+              </label>
+              <select
+                id="shop-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'featured' | 'price-asc' | 'price-desc')}
+                className="bg-[#121211] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-[#F4F1EA] focus:outline-none focus:border-[#C79A45] cursor-pointer"
+              >
+                <option value="featured">Featured / Latest</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Category Horizontal Filter Tabs */}
+        {/* 2. Category Horizontal Filter Tabs */}
         <div
-          className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none justify-start sm:justify-center"
+          className="flex gap-2 overflow-x-auto pb-2 scrollbar-none"
           role="tablist"
         >
-          {TABS.map((tab) => (
+          {CATEGORY_TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
               role="tab"
+              data-testid={`shop-category-${tab.id}`}
               aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-2 rounded-full text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] font-bold shadow-lg shadow-[rgba(212,175,55,0.25)]'
-                  : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/5'
+                  ? 'active bg-[#C79A45] text-[#090909] font-bold shadow-md'
+                  : 'bg-white/5 text-[#AAA49A] hover:bg-white/10 hover:text-white border border-white/5'
               }`}
             >
               {tab.label}
@@ -163,84 +154,81 @@ export function ShopCategoryDirectory({
           ))}
         </div>
 
-        {/* 2. Full-Width Editorial Category Cards (Screen 2 Mockup) */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6" aria-label="Featured Categories">
-          {filteredCategories.map((cat) => (
-            <div
-              key={cat.id}
-              className="relative w-full h-64 sm:h-80 rounded-3xl overflow-hidden border border-[rgba(212,175,55,0.2)] shadow-xl group"
-            >
-              <Image
-                src={cat.imageUrl}
-                alt={cat.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-700 brightness-75"
-                sizes="(max-width: 768px) 100vw, 800px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-              <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
-                <span className="text-[#D4AF37] text-[10px] sm:text-xs font-mono font-bold tracking-widest uppercase mb-1.5">
-                  {cat.tag}
-                </span>
-                <h3 className="text-2xl sm:text-3xl font-serif text-[#FBFBFB] tracking-wide mb-1">
-                  {cat.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-white/70 font-sans mb-4 max-w-sm">
-                  {cat.tagline}
-                </p>
-
-                <div>
-                  <Link
-                    href="/#boutiques"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/60 backdrop-blur-md border border-[rgba(212,175,55,0.4)] text-[#FBFBFB] hover:text-[#D4AF37] hover:border-[#D4AF37] text-xs font-semibold tracking-wide transition-all shadow-md group/btn"
-                  >
-                    <span>{cat.actionText}</span>
-                    <span aria-hidden="true" className="group-hover/btn:translate-x-1 transition-transform">→</span>
-                  </Link>
-                </div>
-              </div>
+        {/* 3. Product-First Grid (2-column mobile, 4-column desktop) */}
+        <section aria-label="Available Garments Catalog">
+          {filteredProducts.length > 0 ? (
+            <div className="ld-product-grid" data-testid="shop-product-grid">
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  dropId={product.drop_id}
+                />
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="py-16 px-4 text-center rounded-2xl bg-[#121211] border border-white/5 space-y-3">
+              <p className="text-base text-[#F4F1EA] font-medium">
+                No pieces found
+              </p>
+              <p className="text-xs text-[#AAA49A] max-w-sm mx-auto">
+                {searchQuery
+                  ? `No garments matched your search for "${searchQuery}". Try searching for sarees, kurtis, or specific flash codes like #A01.`
+                  : `No pieces currently listed under ${activeTab}. Explore other categories or check back during live drops.`}
+              </p>
+              {(activeTab !== 'all' || searchQuery) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('all');
+                    setSearchQuery('');
+                  }}
+                  className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 text-xs text-white font-medium transition-all"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
-        {/* 3. Verified Independent Boutiques Directory */}
+        {/* 4. Secondary Verified Independent Boutiques Directory Rail */}
         {filteredBoutiques.length > 0 && (
-          <section className="pt-6 sm:pt-10 space-y-4 sm:space-y-6" aria-label="Verified Designer Boutiques">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h2 className="text-xl sm:text-2xl font-serif text-[#FBFBFB] tracking-wide">
+          <section className="pt-8 sm:pt-12 space-y-4 border-t border-white/5" aria-label="Verified Designer Boutiques">
+            <div className="flex items-center justify-between pb-2">
+              <h2 className="text-lg sm:text-xl font-serif text-[#F4F1EA] tracking-wide">
                 Verified Ateliers
               </h2>
-              <span className="text-xs sm:text-sm text-[#D4AF37] font-mono font-medium">
+              <span className="text-xs text-[#AAA49A]">
                 {filteredBoutiques.length} Boutiques
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {filteredBoutiques.map((sf) => (
                 <Link
                   key={sf.id}
                   href={`/${sf.store_slug}`}
-                  className="p-5 rounded-2xl bg-[#0E0E12] border border-white/10 hover:border-[rgba(212,175,55,0.35)] flex items-center justify-between transition-all group shadow-md"
+                  className="p-4 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.35)] flex items-center justify-between transition-all group shadow-sm"
                 >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#2A0811] to-[#15151B] border border-[#D4AF37]/40 flex items-center justify-center font-serif font-bold text-base text-[#D4AF37] shadow-sm group-hover:scale-105 transition-transform">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center font-serif font-bold text-sm text-[#C79A45] shadow-sm group-hover:scale-105 transition-transform">
                       {sf.store_name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-base font-serif font-medium text-white group-hover:text-[#D4AF37] transition-colors">
+                        <span className="text-sm font-semibold text-white group-hover:text-[#E2C27A] transition-colors">
                           {sf.store_name}
                         </span>
-                        <span className="text-[#D4AF37] text-xs">✓</span>
+                        <span className="text-[#C79A45] text-xs">✓</span>
                       </div>
-                      <span className="text-xs text-white/50 font-mono">
+                      <span className="text-xs text-[#AAA49A] font-mono">
                         /{sf.store_slug}
                       </span>
                     </div>
                   </div>
 
-                  <span className="text-xs sm:text-sm text-[#D4AF37] font-semibold group-hover:translate-x-1 transition-transform">
+                  <span className="text-xs text-[#C79A45] font-semibold group-hover:translate-x-1 transition-transform">
                     Visit →
                   </span>
                 </Link>
@@ -250,7 +238,7 @@ export function ShopCategoryDirectory({
         )}
       </main>
 
-      {/* 4. Bottom Navigation Dock */}
+      {/* 5. Bottom Navigation Dock */}
       <MobileBottomDock />
     </div>
   );

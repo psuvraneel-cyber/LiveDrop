@@ -40,15 +40,15 @@ describe('MobileBottomDock Component Tests', () => {
     window.location.hash = '';
   });
 
-  it('renders exactly 5 buyer navigation tabs (Home, Live, Shop, Designers, Profile)', () => {
+  it('renders exactly 5 buyer commerce navigation tabs (Home, Live, Shop, Orders, Bag)', () => {
     renderWithProviders(<MobileBottomDock />);
 
     expect(screen.getByTestId('mobile-bottom-dock')).toBeInTheDocument();
     expect(screen.getByTestId('dock-home-tab')).toBeInTheDocument();
     expect(screen.getByTestId('dock-live-tab')).toBeInTheDocument();
     expect(screen.getByTestId('dock-shop-tab')).toBeInTheDocument();
-    expect(screen.getByTestId('dock-designers-tab')).toBeInTheDocument();
-    expect(screen.getByTestId('dock-profile-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('dock-orders-tab')).toBeInTheDocument();
+    expect(screen.getByTestId('dock-bag-tab')).toBeInTheDocument();
   });
 
   it('highlights Home tab as active on root path (/)', () => {
@@ -81,12 +81,12 @@ describe('MobileBottomDock Component Tests', () => {
     expect(shopTab).toHaveAttribute('aria-current', 'page');
   });
 
-  it('highlights Designers tab on boutique storefront route (/[storeSlug])', () => {
-    mockPathname = '/suv-s';
+  it('highlights Bag tab on /cart route', () => {
+    mockPathname = '/cart';
     renderWithProviders(<MobileBottomDock />);
 
-    const designersTab = screen.getByTestId('dock-designers-tab');
-    expect(designersTab).toHaveClass('active');
+    const bagTab = screen.getByTestId('dock-bag-tab');
+    expect(bagTab).toHaveClass('active');
   });
 
   it('strictly hides the dock on fullscreen live drop rooms (/drop/[slug])', () => {
@@ -110,3 +110,4 @@ describe('MobileBottomDock Component Tests', () => {
     expect(window.location.hash).toBe('');
   });
 });
+
