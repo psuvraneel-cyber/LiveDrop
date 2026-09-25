@@ -20,6 +20,8 @@ export interface CartItemRowProps {
 }
 
 export function CartItemRow({ item, onRemove, isAvailable = true, availabilityReason }: CartItemRowProps) {
+  const [imgError, setImgError] = React.useState(false);
+
   return (
     <div
       className={`p-3.5 sm:p-4 rounded-2xl bg-[#101014] border ${
@@ -29,18 +31,22 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
     >
       {/* Square Thumbnail */}
       <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-xl overflow-hidden bg-black/60 border border-white/10 flex-shrink-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={item.imageUrl}
-          alt={item.title}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=200&q=80';
-          }}
-        />
+        {!imgError && item.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt={item.title}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[#181715] text-[#C79A45] p-2 text-center">
+            <span className="text-xs">✦</span>
+            <span className="font-mono text-[10px] text-white/50">{item.code || 'LiveDrop'}</span>
+          </div>
+        )}
         {!isAvailable && (
-          <span className="absolute inset-0 bg-black/75 flex items-center justify-center text-[10px] font-mono font-bold text-red-400 uppercase tracking-wider text-center p-1">
+          <span className="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-mono font-bold text-red-400 uppercase tracking-wider text-center p-1">
             Sold Out
           </span>
         )}

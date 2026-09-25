@@ -17,7 +17,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { PublicDropCatalog, PublicProductView, PublicSellerStorefront } from '../types/domain';
-import { filterProductionStorefronts } from '../lib/data/buyer-catalog';
+import { filterProductionStorefronts, filterProductionProducts } from '../lib/data/buyer-catalog';
 import { normalizeIndianPhoneNumber } from './BoutiqueStorefrontView';
 import { LuxuryTopHeader } from './navigation/LuxuryTopHeader';
 import { MobileBottomDock } from './navigation/MobileBottomDock';
@@ -116,13 +116,13 @@ export function HomeStorefront({
     );
   }, [resolvedActiveDrops, searchQuery]);
 
-  // Combined product feed from prop or initialProducts
+  // Combined product feed from prop or initialProducts, filtered for production hygiene
   const allAvailableProducts = useMemo(() => {
-    const list = [...featuredProducts];
+    let list = [...featuredProducts];
     if (list.length === 0 && initialProducts.length > 0) {
-      return initialProducts.filter((p) => p.status === 'available');
+      list = initialProducts.filter((p) => p.status === 'available');
     }
-    return list;
+    return filterProductionProducts(list);
   }, [featuredProducts, initialProducts]);
 
   // Filtered products by category chip & search query
@@ -173,9 +173,9 @@ export function HomeStorefront({
         onSearchChange={setSearchQuery}
       />
 
-      {/* 2. Compact Live Drop Spotlight Hero (~360–460px mobile, max 50–55vh) */}
+      {/* 2. Compact Live Drop Spotlight Hero (280–320px mobile) */}
       <section
-        className="relative w-full h-[360px] sm:h-[420px] md:h-[460px] flex items-center overflow-hidden border-b border-white/10 bg-[#121211]"
+        className="relative w-full h-[280px] sm:h-[320px] md:h-[360px] flex items-center overflow-hidden border-b border-white/10 bg-[#121211]"
         aria-label="LiveDrop Spotlight Hero"
         data-testid={hasActiveLiveDrop ? "live-drop-hero" : "spotlight-hero"}
       >
@@ -193,24 +193,24 @@ export function HomeStorefront({
           <div className="absolute inset-0 bg-gradient-to-r from-[#090909]/90 via-[#090909]/40 to-transparent" />
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 w-full flex flex-col justify-end pb-8 sm:pb-12">
-          <div className="max-w-xl space-y-3 sm:space-y-4">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-8 w-full flex flex-col justify-end pb-5 sm:pb-7">
+          <div className="max-w-xl space-y-2 sm:space-y-3">
             {/* Live Indicator or Eyebrow */}
             <div className="inline-flex items-center gap-2">
               {hasActiveLiveDrop && primaryLiveDrop ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E5484D] text-white font-mono font-bold text-[11px] tracking-wider uppercase shadow-md">
-                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E5484D] text-white font-mono font-bold text-[10px] tracking-wider uppercase shadow-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                   LIVE NOW
                 </span>
               ) : (
-                <span className="text-[11px] sm:text-xs font-mono font-bold tracking-[0.2em] text-[#C79A45] uppercase">
+                <span className="text-[10px] sm:text-xs font-mono font-bold tracking-[0.2em] text-[#C79A45] uppercase">
                   BOUTIQUE COMMERCE
                 </span>
               )}
             </div>
 
             {/* Concise Headline */}
-            <h1 className="text-3xl sm:text-5xl font-serif text-[#F4F1EA] tracking-wide leading-tight">
+            <h1 className="text-2xl sm:text-4xl font-serif text-[#F4F1EA] tracking-wide leading-tight">
               {hasActiveLiveDrop && primaryLiveDrop
                 ? primaryLiveDrop.title
                 : 'No Live Drop Right Now'}
@@ -224,11 +224,11 @@ export function HomeStorefront({
             </p>
 
             {/* Action CTA */}
-            <div className="pt-2">
+            <div className="pt-1">
               {hasActiveLiveDrop && primaryLiveDrop ? (
                 <Link
                   href={`/drop/${primaryLiveDrop.slug}`}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                   data-testid="shop-live-hero-btn"
                 >
                   <span>Shop Live Drop</span>
@@ -237,7 +237,7 @@ export function HomeStorefront({
               ) : (
                 <Link
                   href="/shop"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                   data-testid="explore-live-shows-btn"
                 >
                   <span>Explore Collections</span>
@@ -249,9 +249,9 @@ export function HomeStorefront({
         </div>
       </section>
 
-      {/* 3. Compact Horizontal Category Rail (~50–65px height) */}
+      {/* 3. Compact Horizontal Category Rail (Normal document flow, 52-60px height) */}
       <section
-        className="px-4 sm:px-8 py-4 border-b border-white/5 bg-[#121211]/60 sticky top-16 z-20 backdrop-blur-md"
+        className="px-4 sm:px-8 py-3.5 border-b border-white/5 bg-[#121211]"
         aria-label="Product Categories"
       >
         <div
@@ -266,7 +266,7 @@ export function HomeStorefront({
               role="tab"
               aria-selected={selectedCategory === cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
                 selectedCategory === cat.id
                   ? 'active bg-[#C79A45] text-[#090909] font-bold shadow-md'
                   : 'bg-white/5 text-[#AAA49A] hover:bg-white/10 hover:text-white border border-white/5'
@@ -280,7 +280,7 @@ export function HomeStorefront({
       </section>
 
       {/* Main Content Area */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-12 space-y-12 sm:space-y-16">
+      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-10 sm:space-y-14">
         {/* 4. Live Drops Spotlight Section (When Live) */}
         {hasActiveLiveDrop && primaryLiveDrop && (
           <section id="live-drops" className="space-y-4 scroll-mt-24" aria-label="Active Live Drop" data-testid="live-drops-section">
@@ -383,11 +383,11 @@ export function HomeStorefront({
           )}
         </section>
 
-        {/* 6. Live & Verified Boutiques Discovery Rail */}
-        <section id="boutiques" className="space-y-4 scroll-mt-24" aria-label="Live Boutiques" data-testid="boutiques-directory-section">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        {/* 6. Live & Verified Boutiques Discovery Rail (Compact horizontal scroll on mobile) */}
+        <section id="boutiques" className="space-y-3 scroll-mt-24" aria-label="Live Boutiques" data-testid="boutiques-directory-section">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
             <div>
-              <h2 className="text-xl sm:text-2xl font-serif text-[#F4F1EA] tracking-wide">
+              <h2 className="text-lg sm:text-xl font-serif text-[#F4F1EA] tracking-wide">
                 Live Boutiques
               </h2>
               <span className="text-xs text-[#AAA49A]">
@@ -396,56 +396,56 @@ export function HomeStorefront({
             </div>
             <Link
               href="/shop"
-              className="text-xs sm:text-sm text-[#C79A45] hover:text-[#E2C27A] font-sans font-medium transition-colors"
+              className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-sans font-medium transition-colors"
             >
               Explore All →
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto pb-2 scrollbar-none">
             {filteredStorefronts.map((boutique) => (
               <div
                 key={boutique.id}
-                className="p-4 sm:p-5 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex flex-col justify-between"
+                className="flex-shrink-0 w-64 sm:w-auto p-3.5 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 shadow-sm"
                 data-testid={`boutique-card-${boutique.store_slug}`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm">
-                      {boutique.store_name[0]?.toUpperCase() || 'B'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1">
-                        <h3 className="text-sm font-semibold text-white">
-                          {boutique.store_name}
-                        </h3>
-                        <span className="text-[#C79A45] text-xs">✓</span>
-                      </div>
-                      <span className="text-xs text-[#AAA49A] font-mono">
-                        /{boutique.store_slug}
-                      </span>
-                    </div>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
+                    {boutique.store_name[0]?.toUpperCase() || 'B'}
                   </div>
-
-                  <Link
-                    href={`/${boutique.store_slug}`}
-                    className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold flex items-center gap-1 transition-colors flex-shrink-0"
-                    data-testid={`visit-boutique-${boutique.store_slug}`}
-                  >
-                    <span>Visit →</span>
-                  </Link>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate">
+                        {boutique.store_name}
+                      </h3>
+                      <span className="text-[#C79A45] text-xs flex-shrink-0" title="Verified">✓</span>
+                    </div>
+                    <span className="text-[11px] text-[#AAA49A] block truncate">
+                      Independent Atelier
+                    </span>
+                  </div>
                 </div>
 
-                <div className="pt-3 border-t border-white/5 flex items-center justify-between mt-3 text-xs text-[#AAA49A]">
-                  <span>Single-piece drops</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Link
+                    href={`/${boutique.store_slug}`}
+                    className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors px-2 py-1 rounded bg-white/5 hover:bg-white/10"
+                    data-testid={`visit-boutique-${boutique.store_slug}`}
+                  >
+                    Visit →
+                  </Link>
                   <a
                     href={getBoutiqueWhatsAppUrl(boutique.phone_number, boutique.store_name)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-[#25D366] hover:underline flex items-center gap-1 font-medium"
+                    className="text-xs text-[#25D366] hover:text-[#2fe671] p-1 transition-colors"
+                    title="WhatsApp Boutique"
+                    aria-label={`WhatsApp ${boutique.store_name}`}
                     data-testid={`whatsapp-store-${boutique.store_slug}`}
                   >
-                    <span>WhatsApp</span>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                    </svg>
                   </a>
                 </div>
               </div>
@@ -453,30 +453,17 @@ export function HomeStorefront({
           </div>
         </section>
 
-        {/* 7. Restrained Trust & Value Assurances */}
-        <section className="p-6 rounded-2xl bg-[#121211] border border-white/5" aria-label="Buyer Assurances">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left">
-            <div className="space-y-1">
-              <span className="text-[#C79A45] text-base font-bold font-mono">01. Direct UPI</span>
-              <h4 className="text-sm font-semibold text-white">Direct Peer-to-Peer</h4>
-              <p className="text-xs text-[#AAA49A] leading-relaxed">
-                Pay boutique sellers directly to their verified UPI address with zero platform markups.
-              </p>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[#C79A45] text-base font-bold font-mono">02. Instant Reserve</span>
-              <h4 className="text-sm font-semibold text-white">Single-Piece Hold</h4>
-              <p className="text-xs text-[#AAA49A] leading-relaxed">
-                Atomic database reservations guarantee that one-of-a-kind sarees are locked to your order.
-              </p>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[#C79A45] text-base font-bold font-mono">03. Verified Ateliers</span>
-              <h4 className="text-sm font-semibold text-white">Independent Boutiques</h4>
-              <p className="text-xs text-[#AAA49A] leading-relaxed">
-                Curated independent designers with direct WhatsApp concierge for order support.
-              </p>
-            </div>
+        {/* 7. Compact Restrained Trust Strip */}
+        <section
+          className="py-4 px-4 rounded-xl bg-[#121211] border border-white/5 text-center"
+          aria-label="Buyer Trust Assurances"
+        >
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-[#AAA49A]">
+            <span className="text-[#C79A45] font-medium tracking-wide">Direct UPI</span>
+            <span className="text-white/20">•</span>
+            <span className="text-[#C79A45] font-medium tracking-wide">Instant Reservation</span>
+            <span className="text-white/20">•</span>
+            <span className="text-[#C79A45] font-medium tracking-wide">Independent Boutiques</span>
           </div>
         </section>
       </main>

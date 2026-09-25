@@ -81,12 +81,19 @@ export function CartDrawer({
   const reconciledItems = getReconciledItems(catalogProducts);
   const hasUnavailableItems = reconciledItems.some((item) => !item.isAvailable);
 
+  // Compute payable subtotal strictly from available items
+  const availableItems = reconciledItems.filter((item) => item.isAvailable);
+  const payableSubtotalPaisa = availableItems.reduce(
+    (sum, item) => sum + Math.floor(item.pricePaisa),
+    0
+  );
+
   // Compute shipping fee based on drop or seller thresholds
   const freeThreshold = drop?.profiles?.free_shipping_threshold_paisa ?? 200000;
   const standardFee = drop?.profiles?.default_shipping_fee_paisa ?? 8000;
-  const isFreeShipping = subtotalPaisa >= freeThreshold;
-  const shippingFeePaisa = isFreeShipping || itemCount === 0 ? 0 : standardFee;
-  const totalPaisa = subtotalPaisa + shippingFeePaisa;
+  const isFreeShipping = payableSubtotalPaisa >= freeThreshold;
+  const shippingFeePaisa = isFreeShipping || availableItems.length === 0 ? 0 : standardFee;
+  const totalPaisa = payableSubtotalPaisa + shippingFeePaisa;
 
   const handleProceedToCheckout = () => {
     onClose();
@@ -257,7 +264,7 @@ export function CartDrawer({
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span className="font-mono text-white" data-testid="cart-subtotal">
-                    {formatPaisaToINR(subtotalPaisa)}
+                    {formatPaisaToINR(payableSubtotalPaisa)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -280,9 +287,9 @@ export function CartDrawer({
             <button
               type="button"
               onClick={handleProceedToCheckout}
-              disabled={hasUnavailableItems || items.length === 0}
+              disabled={hasUnavailableItems || availableItems.length === 0}
               className={`w-full py-3.5 rounded-full font-serif font-bold text-sm tracking-wider uppercase transition-all shadow-xl ${
-                hasUnavailableItems || items.length === 0
+                hasUnavailableItems || availableItems.length === 0
                   ? 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
                   : 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
               }`}
@@ -290,22 +297,6 @@ export function CartDrawer({
             >
               Proceed to Checkout →
             </button>
-
-            {/* 7. Luxury Assurance Badges (Screen 6 Row of 3) */}
-            <div className="pt-2 pb-4 grid grid-cols-3 gap-2 text-center border-t border-white/5">
-              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
-                <span className="text-xs text-[#D4AF37]" aria-hidden="true">🛡️</span>
-                <span className="font-mono uppercase tracking-wider">100% Authentic</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
-                <span className="text-xs text-[#D4AF37]" aria-hidden="true">📦</span>
-                <span className="font-mono uppercase tracking-wider">Insured Delivery</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
-                <span className="text-xs text-[#D4AF37]" aria-hidden="true">🔄</span>
-                <span className="font-mono uppercase tracking-wider">Easy Returns</span>
-              </div>
-            </div>
           </div>
         )}
       </div>

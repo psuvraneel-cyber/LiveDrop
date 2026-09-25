@@ -107,11 +107,6 @@ describe('CartDrawer Screen 6 Tests', () => {
 
     // Checkout CTA button
     expect(screen.getByTestId('cart-checkout-btn')).toBeInTheDocument();
-
-    // 3 Assurance Badges
-    expect(screen.getByText('100% Authentic')).toBeInTheDocument();
-    expect(screen.getByText('Insured Delivery')).toBeInTheDocument();
-    expect(screen.getByText('Easy Returns')).toBeInTheDocument();
   });
 
   it('supports typing and saving a personalized gift note', () => {

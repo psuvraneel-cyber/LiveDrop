@@ -84,7 +84,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
           {product.code}
         </span>
 
-        {/* Availability Badge (Top-Right) */}
+        {/* Availability Badge (Top-Right, compact) */}
         <span
           className={`ld-status-badge ${statusClass}`}
           data-testid={`status-badge-${product.id}`}
@@ -92,7 +92,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
           {statusText}
         </span>
 
-        {/* Product Image or Fallback */}
+        {/* Product Image or Branded Fallback */}
         {currentImageUrl && !isCurrentError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -105,20 +105,10 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
           />
         ) : (
           <div className="ld-image-fallback" data-testid={`fallback-image-${product.id}`}>
-            <svg
-              className="ld-image-fallback-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-              <circle cx="9" cy="9" r="2" />
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            </svg>
+            <div className="ld-fallback-brand" aria-hidden="true">
+              <span className="ld-fallback-crest">✦</span>
+              <span className="ld-fallback-brand-name">LiveDrop</span>
+            </div>
             <span className="ld-image-fallback-text">{product.code}</span>
           </div>
         )}
@@ -166,17 +156,10 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
         )}
       </div>
 
-      {/* Product Details */}
+      {/* Product Details - Compact Mobile Density */}
       <div className="ld-card-body">
-        <h3 className="ld-product-title" title={product.title}>
-          {product.title}
-        </h3>
-
-        <div className="ld-card-meta">
-          <span className="ld-product-price">
-            {formatPaisaToINR(product.price_paisa)}
-          </span>
-
+        <div className="ld-card-header-row">
+          <span className="ld-card-code-subtle">{product.code}</span>
           {product.size && (
             <span className="ld-product-size" title={`Size: ${product.size}`}>
               {product.size}
@@ -184,48 +167,63 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
           )}
         </div>
 
-        {/* Add to Cart / In Cart / Status Button */}
-        <div className="ld-card-action">
-          {isAvailable ? (
-            inCart ? (
-              <button
-                type="button"
-                className="ld-btn-in-cart"
-                onClick={handleAddToCart}
-                data-testid={`cart-btn-${product.id}`}
-                aria-label={`${product.code} is in your cart`}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                <span>In Cart</span>
-              </button>
+        <h3 className="ld-product-title" title={product.title}>
+          {product.title}
+        </h3>
+
+        <div className="ld-card-footer-row">
+          <div className="ld-card-price-group">
+            <span className="ld-product-price">
+              {formatPaisaToINR(product.price_paisa)}
+            </span>
+          </div>
+
+          {/* Compact Cart Action */}
+          <div className="ld-card-action">
+            {isAvailable ? (
+              inCart ? (
+                <button
+                  type="button"
+                  className="ld-btn-in-cart-compact"
+                  onClick={handleAddToCart}
+                  data-testid={`cart-btn-${product.id}`}
+                  aria-label={`${product.code} is in your cart`}
+                  title="In your bag"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="ld-btn-text">In Cart</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="ld-btn-add-cart-compact"
+                  onClick={handleAddToCart}
+                  data-testid={`cart-btn-${product.id}`}
+                  aria-label={`Add ${product.code}: ${product.title} to cart`}
+                  title="Add to Bag"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                    <path d="M3 6h18" />
+                    <path d="M16 10a4 4 0 0 1-8 0" />
+                  </svg>
+                  <span className="ld-btn-text">Add to Bag</span>
+                </button>
+              )
             ) : (
               <button
                 type="button"
-                className="ld-btn-add-cart"
-                onClick={handleAddToCart}
+                className="ld-btn-disabled-status"
+                disabled
                 data-testid={`cart-btn-${product.id}`}
-                aria-label={`Add ${product.code}: ${product.title} to cart`}
+                aria-label={`${product.code} is ${statusText}`}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Add to Bag</span>
+                <span className="ld-btn-text">{isReserved ? 'Reserved' : 'Sold Out'}</span>
               </button>
-            )
-          ) : (
-            <button
-              type="button"
-              className="ld-btn-disabled-status"
-              disabled
-              data-testid={`cart-btn-${product.id}`}
-              aria-label={`${product.code} is ${statusText}`}
-            >
-              <span>{isReserved ? 'Reserved' : 'Sold Out'}</span>
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </article>

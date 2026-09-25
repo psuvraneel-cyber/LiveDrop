@@ -14,6 +14,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { PublicProductView, PublicSellerStorefront } from '../../types/domain';
+import { filterProductionProducts, filterProductionStorefronts } from '../../lib/data/buyer-catalog';
 import { LuxuryTopHeader } from '../navigation/LuxuryTopHeader';
 import { MobileBottomDock } from '../navigation/MobileBottomDock';
 import { ProductCard } from '../ProductCard';
@@ -41,9 +42,9 @@ export function ShopCategoryDirectory({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc'>('featured');
 
-  // Filter products by category tab and search query
+  // Filter products by category tab and search query with production hygiene
   const filteredProducts = useMemo(() => {
-    let list = [...initialProducts];
+    let list = filterProductionProducts(initialProducts);
 
     if (activeTab !== 'all') {
       const tabKeyword = activeTab.toLowerCase();
@@ -73,9 +74,10 @@ export function ShopCategoryDirectory({
   }, [initialProducts, activeTab, searchQuery, sortBy]);
 
   const filteredBoutiques = useMemo(() => {
-    if (!searchQuery.trim()) return storefronts;
+    const valid = filterProductionStorefronts(storefronts);
+    if (!searchQuery.trim()) return valid;
     const q = searchQuery.toLowerCase().trim();
-    return storefronts.filter(
+    return valid.filter(
       (s) =>
         s.store_name.toLowerCase().includes(q) ||
         s.store_slug.toLowerCase().includes(q)
@@ -222,8 +224,9 @@ export function ShopCategoryDirectory({
                         </span>
                         <span className="text-[#C79A45] text-xs">✓</span>
                       </div>
-                      <span className="text-xs text-[#AAA49A] font-mono">
-                        /{sf.store_slug}
+                      <span className="text-[11px] text-[#AAA49A]">
+                        Independent Atelier
+                        <span className="sr-only">/{sf.store_slug}</span>
                       </span>
                     </div>
                   </div>
