@@ -66,9 +66,6 @@ jobs:
     name: Deploy to Vercel
     needs: quality-gate
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: buyer-web
     outputs:
       preview_url: ${{ steps.deploy-preview.outputs.preview_url }}
       prod_url: ${{ steps.deploy-prod.outputs.prod_url }}
@@ -89,7 +86,7 @@ jobs:
           cache-dependency-path: buyer-web/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm --prefix buyer-web ci
 
       - name: Install Vercel CLI
         run: npm install --no-save vercel@latest
