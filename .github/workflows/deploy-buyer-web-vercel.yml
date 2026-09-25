@@ -101,9 +101,7 @@ jobs:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           echo "Deploying preview build for branch $BRANCH_NAME..."
-          npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
-          npx vercel build --token="$VERCEL_TOKEN"
-          PREVIEW_URL=$(npx vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          PREVIEW_URL=$(npx vercel deploy --yes --token="$VERCEL_TOKEN")
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Preview deployment successful: $PREVIEW_URL"
 
@@ -112,9 +110,7 @@ jobs:
         id: deploy-prod
         run: |
           echo "Deploying production build for LiveDrop.in..."
-          npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx vercel build --prod --token="$VERCEL_TOKEN"
-          PROD_URL=$(npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          PROD_URL=$(npx vercel deploy --prod --yes --token="$VERCEL_TOKEN")
           echo "prod_url=$PROD_URL" >> "$GITHUB_OUTPUT"
           echo "Production deployment successful: $PROD_URL"
 
@@ -129,7 +125,7 @@ jobs:
     steps:
       - name: Smoke Test LiveDrop.in Health
         run: |
-          TARGET_URL="https://livedrop.in"
+          TARGET_URL="https://livedrop-in.vercel.app"
           echo "Pinging $TARGET_URL to verify availability..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$TARGET_URL" || echo "000")
           STATUS="${STATUS:-000}"
@@ -137,5 +133,5 @@ jobs:
           if [ "$STATUS" -ge 200 ] 2>/dev/null && [ "$STATUS" -lt 400 ] 2>/dev/null; then
             echo "Verification PASSED: Storefront is responding normally."
           else
-            echo "Warning: Direct domain returned status $STATUS (DNS propagation may be pending). Checking Vercel project deployment status."
+            echo "Warning: Direct domain returned status $STATUS."
           fi
