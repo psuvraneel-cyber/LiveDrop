@@ -1,11 +1,20 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+/**
+ * LiveDrop — Screen 6: Cart Drawer
+ *
+ * Full-fidelity implementation of Screen 6 from the Haute Couture template.
+ * Features item cards with square thumbnails, quantity steppers, trash actions,
+ * expandable gift note input, structured order summary, and luxury assurance badges.
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../../lib/cart/cart-context';
 import { PublicDropCatalog, PublicProductView } from '../../types/domain';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 import { CartEmptyState } from './CartEmptyState';
+import { CartItemRow } from './CartItemRow';
 
 export interface CartDrawerProps {
   isOpen: boolean;
@@ -20,9 +29,27 @@ export function CartDrawer({
   catalogProducts = [],
   drop = null,
 }: CartDrawerProps) {
-  const { items, itemCount, subtotalPaisa, removeItem, clearCart, getReconciledItems } = useCart();
+  const {
+    items,
+    itemCount,
+    subtotalPaisa,
+    orderNote,
+    setOrderNote,
+    removeItem,
+    clearCart,
+    getReconciledItems,
+  } = useCart();
+
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(orderNote);
+  const [prevOrderNote, setPrevOrderNote] = useState(orderNote);
   const drawerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  if (prevOrderNote !== orderNote) {
+    setPrevOrderNote(orderNote);
+    setNoteDraft(orderNote);
+  }
 
   // Close on Escape key
   useEffect(() => {
@@ -54,6 +81,23 @@ export function CartDrawer({
   const reconciledItems = getReconciledItems(catalogProducts);
   const hasUnavailableItems = reconciledItems.some((item) => !item.isAvailable);
 
+  // Compute shipping fee based on drop or seller thresholds
+  const freeThreshold = drop?.profiles?.free_shipping_threshold_paisa ?? 200000;
+  const standardFee = drop?.profiles?.default_shipping_fee_paisa ?? 8000;
+  const isFreeShipping = subtotalPaisa >= freeThreshold;
+  const shippingFeePaisa = isFreeShipping || itemCount === 0 ? 0 : standardFee;
+  const totalPaisa = subtotalPaisa + shippingFeePaisa;
+
+  const handleProceedToCheckout = () => {
+    onClose();
+    router.push('/checkout');
+  };
+
+  const handleSaveNote = () => {
+    setOrderNote(noteDraft.trim());
+    setIsNoteOpen(false);
+  };
+
   return (
     <div
       className="ld-drawer-backdrop"
@@ -70,232 +114,198 @@ export function CartDrawer({
         aria-labelledby="cart-drawer-title"
         data-testid="cart-drawer"
       >
-        {/* Drawer Header */}
-        <div className="ld-drawer-header">
-          <div className="ld-drawer-title-group">
-            <h2 id="cart-drawer-title" className="ld-drawer-title">
-              Your Cart
-            </h2>
-            <span className="ld-cart-count-badge" data-testid="drawer-cart-count">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            className="ld-drawer-close-btn"
-            onClick={onClose}
-            aria-label="Close cart"
-            data-testid="cart-drawer-close"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+        {/* 1. Header: Back Arrow '<' + Title 'Your Cart (N)' */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0 bg-[#08080A]/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+              aria-label="Back to shopping"
+              data-testid="cart-back-btn"
             >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Informational Stock Notice */}
-        {items.length > 0 && (
-          <div className="ld-cart-disclaimer" data-testid="cart-disclaimer">
-            <span className="ld-cart-disclaimer-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
               </svg>
-            </span>
-            <span>Items are not reserved until checkout. Inventory remains live for other buyers.</span>
+            </button>
+            <h2 id="cart-drawer-title" className="text-base sm:text-lg font-serif tracking-wide text-white font-medium">
+              Your Cart {itemCount > 0 ? `(${itemCount})` : ''}
+            </h2>
           </div>
-        )}
 
-        {/* Unavailable items alert banner if applicable */}
-        {hasUnavailableItems && (
-          <div className="ld-cart-alert-banner" data-testid="cart-unavailable-banner">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>Some items in your cart were claimed by another buyer. Please remove them to proceed.</span>
+          <div className="flex items-center gap-2">
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={clearCart}
+                className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors"
+                data-testid="cart-clear-btn"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+              aria-label="Close cart drawer"
+              data-testid="cart-drawer-close"
+            >
+              ✕
+            </button>
           </div>
-        )}
-
-        {/* Cart Content Body */}
-        <div className="ld-drawer-body">
-          {items.length === 0 ? (
-            <CartEmptyState onBrowse={onClose} />
-          ) : (
-            <div className="ld-cart-list" role="list" aria-label="Cart items">
-              {reconciledItems.map((item) => {
-                const isItemUnavailable = !item.isAvailable;
-
-                return (
-                  <div
-                    key={item.productId}
-                    className={`ld-cart-item ${isItemUnavailable ? 'unavailable' : ''}`}
-                    data-testid={`cart-item-${item.productId}`}
-                    role="listitem"
-                  >
-                    {/* Item Thumbnail */}
-                    <div className="ld-cart-item-media">
-                      {item.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.imageUrl}
-                          alt={`${item.code} - ${item.title}`}
-                          className="ld-cart-item-img"
-                        />
-                      ) : (
-                        <div className="ld-cart-item-placeholder" aria-hidden="true">
-                          <span>{item.code}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Item Info */}
-                    <div className="ld-cart-item-details">
-                      <div className="ld-cart-item-header">
-                        <span className="ld-cart-item-code">{item.code}</span>
-                        <span className="ld-cart-item-price">
-                          {formatPaisaToINR(item.pricePaisa)}
-                        </span>
-                      </div>
-
-                      <h4 className="ld-cart-item-title" title={item.title}>
-                        {item.title}
-                      </h4>
-
-                      {item.size && (
-                        <span className="ld-cart-item-size">Size: {item.size}</span>
-                      )}
-
-                      {/* Availability status badge */}
-                      {isItemUnavailable && (
-                        <div
-                          className="ld-cart-item-status-warning"
-                          data-testid={`cart-item-warning-${item.productId}`}
-                        >
-                          <span className="ld-cart-warning-dot" aria-hidden="true" />
-                          {item.status === 'reserved' ? 'RESERVED — No longer available' : 'SOLD OUT'}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Remove Action */}
-                    <div className="ld-cart-item-actions">
-                      <button
-                        type="button"
-                        className="ld-cart-remove-btn"
-                        onClick={() => removeItem(item.productId)}
-                        aria-label={`Remove ${item.code}: ${item.title} from cart`}
-                        data-testid={`cart-remove-${item.productId}`}
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                        <span className="ld-cart-remove-text">Remove</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
-        {/* Drawer Footer / Subtotal */}
-        {items.length > 0 && (
-          <div className="ld-drawer-footer">
-            <div className="ld-cart-summary">
-              <div className="ld-summary-row">
-                <span className="ld-summary-label">Subtotal</span>
-                <span className="ld-summary-value" data-testid="cart-subtotal">
-                  {formatPaisaToINR(subtotalPaisa)}
-                </span>
-              </div>
+        {/* 2. Drawer Content */}
+        {items.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <CartEmptyState onBrowse={onClose} />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scrollbar-none">
+            {/* Informational Stock Notice */}
+            <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
+              <span className="text-[#D4AF37] mt-0.5">✦</span>
+              <span className="leading-relaxed">
+                Garments are held temporarily during active checkout. Live drops are single-piece limited editions.
+              </span>
+            </div>
 
-              {drop?.shipping_fee_paisa !== undefined && (
-                <div className="ld-summary-shipping-note">
-                  {drop.free_shipping_threshold_paisa && subtotalPaisa >= drop.free_shipping_threshold_paisa ? (
-                    <span className="ld-free-shipping-qualify">✓ You qualify for Free Shipping!</span>
-                  ) : drop.free_shipping_threshold_paisa ? (
-                    <span>Add {formatPaisaToINR(drop.free_shipping_threshold_paisa - subtotalPaisa)} more for Free Shipping</span>
-                  ) : drop.shipping_fee_paisa === 0 ? (
-                    <span>Free Shipping on all orders</span>
-                  ) : (
-                    <span>Shipping calculated at checkout</span>
-                  )}
+            {/* Unavailable items alert banner */}
+            {hasUnavailableItems && (
+              <div
+                className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 flex items-start gap-2"
+                data-testid="cart-unavailable-banner"
+              >
+                <span className="font-bold">Notice:</span>
+                <span>One or more items in your cart were claimed offline or by another buyer. Please remove them to proceed.</span>
+              </div>
+            )}
+
+            {/* 3. Items List */}
+            <div className="space-y-3" data-testid="cart-items-list">
+              {reconciledItems.map((item) => (
+                <CartItemRow
+                  key={item.productId}
+                  item={item}
+                  onRemove={removeItem}
+                  isAvailable={item.isAvailable}
+                  availabilityReason={item.availabilityReason}
+                />
+              ))}
+            </div>
+
+            {/* 4. Add a Note (Optional) Card */}
+            <div className="rounded-xl bg-[#101014] border border-white/10 overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setIsNoteOpen((prev) => !prev)}
+                className="w-full p-3.5 flex items-center justify-between text-left hover:bg-white/5 transition-colors group"
+                data-testid="cart-note-toggle"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base" role="img" aria-label="Gift">🎁</span>
+                  <span className="text-xs font-medium text-white/90">
+                    {orderNote ? `Note: "${orderNote.slice(0, 30)}${orderNote.length > 30 ? '...' : ''}"` : 'Add a note (optional)'}
+                  </span>
+                </div>
+                <span className="text-xs text-white/40 group-hover:text-[#D4AF37] transition-colors">
+                  {isNoteOpen ? '▲' : '▼'}
+                </span>
+              </button>
+
+              {isNoteOpen && (
+                <div className="p-3 border-t border-white/5 space-y-2.5 bg-black/40">
+                  <textarea
+                    rows={2}
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="Special delivery instructions or personalized gift message..."
+                    maxLength={300}
+                    className="w-full p-2.5 rounded-lg bg-black/70 border border-white/15 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors resize-none"
+                    data-testid="cart-note-input"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsNoteOpen(false)}
+                      className="px-3 py-1 rounded text-[11px] text-white/50 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveNote}
+                      className="px-3 py-1 rounded bg-[#D4AF37] text-[#08080A] text-[11px] font-bold uppercase tracking-wider hover:bg-[#F3E5AB]"
+                      data-testid="cart-save-note-btn"
+                    >
+                      Save Note
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Checkout Action CTA (Prepared boundary for TASK-2.3) */}
-            <button
-              type="button"
-              className="ld-btn-checkout"
-              disabled={hasUnavailableItems}
-              data-testid="cart-checkout-btn"
-              onClick={() => {
-                if (!hasUnavailableItems) {
-                  onClose();
-                  router.push('/checkout');
-                }
-              }}
-              title={
-                hasUnavailableItems
-                  ? 'Please remove unavailable items before proceeding'
-                  : 'Proceed to Checkout'
-              }
-            >
-              {hasUnavailableItems ? 'Remove Unavailable Items' : 'Proceed to Checkout'}
-            </button>
+            {/* 5. Order Summary Card */}
+            <div className="p-4 rounded-2xl bg-[#101014] border border-[rgba(212,175,55,0.2)] space-y-3 shadow-lg">
+              <h3 className="text-sm font-serif font-bold text-white tracking-wide border-b border-white/5 pb-2">
+                Order Summary
+              </h3>
 
-            {/* Luxury Assurances Trust Row */}
-            <div className="grid grid-cols-3 gap-2 py-3 border-t border-white/5 text-center">
-              <div className="py-1 px-1 rounded-lg bg-white/[0.02]">
-                <span className="block text-[11px] font-serif text-[#D4AF37]">✦ 100%</span>
-                <span className="text-[10px] text-white/50">Authentic</span>
+              <div className="space-y-1.5 text-xs text-white/70">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span className="font-mono text-white" data-testid="cart-subtotal">
+                    {formatPaisaToINR(subtotalPaisa)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span className="font-mono text-[#D4AF37]">
+                    {isFreeShipping ? 'FREE' : formatPaisaToINR(shippingFeePaisa)}
+                  </span>
+                </div>
               </div>
-              <div className="py-1 px-1 rounded-lg bg-white/[0.02]">
-                <span className="block text-[11px] font-serif text-[#D4AF37]">Insured</span>
-                <span className="text-[10px] text-white/50">Delivery</span>
-              </div>
-              <div className="py-1 px-1 rounded-lg bg-white/[0.02]">
-                <span className="block text-[11px] font-serif text-[#D4AF37]">Direct</span>
-                <span className="text-[10px] text-white/50">Settlement</span>
+
+              <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
+                <span className="text-sm font-serif font-bold text-white tracking-wide">Total</span>
+                <span className="text-lg font-serif font-bold text-[#F3E5AB]" data-testid="cart-total">
+                  {formatPaisaToINR(totalPaisa)}
+                </span>
               </div>
             </div>
 
-            {/* Clear Cart Button */}
+            {/* 6. Proceed to Checkout CTA */}
             <button
               type="button"
-              className="ld-btn-clear-cart"
-              onClick={clearCart}
-              data-testid="clear-cart-btn"
+              onClick={handleProceedToCheckout}
+              disabled={hasUnavailableItems || items.length === 0}
+              className={`w-full py-3.5 rounded-full font-serif font-bold text-sm tracking-wider uppercase transition-all shadow-xl ${
+                hasUnavailableItems || items.length === 0
+                  ? 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
+                  : 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
+              }`}
+              data-testid="cart-checkout-btn"
             >
-              Clear Cart
+              Proceed to Checkout →
             </button>
+
+            {/* 7. Luxury Assurance Badges (Screen 6 Row of 3) */}
+            <div className="pt-2 pb-4 grid grid-cols-3 gap-2 text-center border-t border-white/5">
+              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
+                <span className="text-xs text-[#D4AF37]" aria-hidden="true">🛡️</span>
+                <span className="font-mono uppercase tracking-wider">100% Authentic</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
+                <span className="text-xs text-[#D4AF37]" aria-hidden="true">📦</span>
+                <span className="font-mono uppercase tracking-wider">Insured Delivery</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
+                <span className="text-xs text-[#D4AF37]" aria-hidden="true">🔄</span>
+                <span className="font-mono uppercase tracking-wider">Easy Returns</span>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -160,10 +160,13 @@ export function loadStoredCart(): CartStorageSchema {
       }
     }
 
+    const orderNote = typeof parsed.orderNote === 'string' ? parsed.orderNote.slice(0, 500) : undefined;
+
     return {
       version: CURRENT_CART_SCHEMA_VERSION,
       dropId,
       items: sanitizedItems,
+      orderNote,
       updatedAt: typeof parsed.updatedAt === 'number' && Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : Date.now(),
     };
   } catch {
@@ -181,6 +184,7 @@ export function saveStoredCart(cart: CartStorageSchema): boolean {
       version: CURRENT_CART_SCHEMA_VERSION,
       dropId: cart.dropId,
       items: cart.items,
+      orderNote: cart.orderNote,
       updatedAt: Date.now(),
     });
     return setRawStorage(serialized);

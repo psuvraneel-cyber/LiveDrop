@@ -19,11 +19,13 @@ export interface CartItem {
 export interface ReconciledCartItem extends CartItem {
   status: 'available' | 'reserved' | 'sold';
   isAvailable: boolean;
+  availabilityReason?: string;
 }
 
 export interface CartStorageSchema {
   version: 1;
   dropId: string | null;
   items: CartItem[];
+  orderNote?: string;
   updatedAt: number;
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { AppProviders } from "../components/providers/AppProviders";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -54,7 +55,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${cormorant.variable} ${plusJakarta.variable}`}>
-      <body className="ld-body-root">{children}</body>
+      <body className="ld-body-root">
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

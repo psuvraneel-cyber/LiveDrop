@@ -3,6 +3,7 @@
 import React, { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useOptionalProfile } from '../../lib/profile/profile-context';
 
 function useSafePathname(): string {
   try {
@@ -49,6 +50,9 @@ function setHashLocation(hash: string) {
 
 export function MobileBottomDock() {
   const pathname = useSafePathname();
+  const profileContext = useOptionalProfile();
+  const isProfileOpen = profileContext?.isProfileOpen ?? false;
+  const openProfile = profileContext?.openProfile;
 
   const currentHash = useSyncExternalStore(
     subscribeHash,
@@ -63,20 +67,22 @@ export function MobileBottomDock() {
 
   // Determine active tab based on route and hash
   const isCart = pathname === '/cart' || pathname === '/checkout';
-  const isOrder = pathname?.startsWith('/order');
   const isHomeBase = pathname === '/' || pathname === '';
   const isShopRoute = pathname === '/shop';
   const isBoutiqueRoute = Boolean(
     pathname &&
     pathname !== '/' &&
     !isCart &&
-    !isOrder &&
-    !pathname.startsWith('/drop/')
+    !pathname.startsWith('/order') &&
+    !pathname.startsWith('/drop/') &&
+    !isShopRoute
   );
 
   const isLiveActive = isHomeBase && currentHash === '#live-drops';
-  const isShopActive = isShopRoute || isBoutiqueRoute || (isHomeBase && currentHash === '#boutiques');
-  const isHomeActive = isHomeBase && !isLiveActive && !isShopActive && !isCart && !isOrder;
+  const isDesignersActive = isBoutiqueRoute || (isHomeBase && currentHash === '#boutiques');
+  const isShopActive = isShopRoute;
+  const isProfileActive = isProfileOpen;
+  const isHomeActive = isHomeBase && !isLiveActive && !isDesignersActive && !isShopActive && !isCart && !isProfileActive;
 
   return (
     <nav
@@ -91,6 +97,7 @@ export function MobileBottomDock() {
           className={`ld-dock-tab ${isHomeActive ? 'active' : ''}`}
           aria-label="Home"
           aria-current={isHomeActive ? 'page' : undefined}
+          data-testid="dock-home-tab"
           onClick={() => setHashLocation('')}
         >
           <div className="ld-dock-icon-wrap">
@@ -108,12 +115,13 @@ export function MobileBottomDock() {
           href="/#live-drops"
           className={`ld-dock-tab ${isLiveActive ? 'active' : ''}`}
           aria-label="Live Drops"
+          data-testid="dock-live-tab"
           onClick={() => setHashLocation('#live-drops')}
         >
           <div className="ld-dock-icon-wrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect width="15" height="14" x="1" y="5" rx="2" ry="2" />
+              <circle cx="12" cy="12" r="2" />
+              <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
             </svg>
             <span className="ld-dock-live-dot" aria-hidden="true" />
           </div>
@@ -140,25 +148,44 @@ export function MobileBottomDock() {
           {isShopActive && <span className="ld-dock-active-line" aria-hidden="true" />}
         </Link>
 
-        {/* 4. Orders */}
+        {/* 4. Designers */}
         <Link
-          href="/order"
-          className={`ld-dock-tab ${isOrder ? 'active' : ''}`}
-          aria-label="Orders"
-          aria-current={isOrder ? 'page' : undefined}
+          href="/#boutiques"
+          className={`ld-dock-tab ${isDesignersActive ? 'active' : ''}`}
+          aria-label="Designers"
+          data-testid="dock-designers-tab"
+          onClick={() => setHashLocation('#boutiques')}
         >
           <div className="ld-dock-icon-wrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
             </svg>
           </div>
-          <span className="ld-dock-label">Orders</span>
-          {isOrder && <span className="ld-dock-active-line" aria-hidden="true" />}
+          <span className="ld-dock-label">Designers</span>
+          {isDesignersActive && <span className="ld-dock-active-line" aria-hidden="true" />}
         </Link>
+
+        {/* 5. Profile */}
+        <button
+          type="button"
+          className={`ld-dock-tab ${isProfileActive ? 'active' : ''}`}
+          aria-label="Profile"
+          data-testid="dock-profile-tab"
+          onClick={() => {
+            if (openProfile) {
+              openProfile();
+            }
+          }}
+        >
+          <div className="ld-dock-icon-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M20 21a8 8 0 1 0-16 0" />
+            </svg>
+          </div>
+          <span className="ld-dock-label">Profile</span>
+          {isProfileActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+        </button>
       </div>
     </nav>
   );

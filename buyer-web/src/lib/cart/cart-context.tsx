@@ -38,12 +38,14 @@ export interface CartContextValue {
   itemCount: number;
   subtotalPaisa: number;
   dropId: string | null;
+  orderNote: string;
   isHydrated: boolean;
   isDrawerOpen: boolean;
   addItem: (product: PublicProductView, dropId: string) => AddToCartResult;
   replaceCartWithItem: (product: PublicProductView, dropId: string) => void;
   removeItem: (productId: string) => void;
   clearCart: () => void;
+  setOrderNote: (note: string) => void;
   isInCart: (productId: string) => boolean;
   getReconciledItems: (catalogProducts: PublicProductView[]) => ReconciledCartItem[];
   openDrawer: () => void;
@@ -116,11 +118,12 @@ export function resetCartStore(): void {
   notifyListeners();
 }
 
-function setStoreCart(nextItems: CartItem[], nextDropId: string | null) {
+function setStoreCart(nextItems: CartItem[], nextDropId: string | null, nextNote?: string) {
   memoryCart = {
     version: CURRENT_CART_SCHEMA_VERSION,
     dropId: nextDropId,
     items: nextItems,
+    orderNote: nextNote !== undefined ? nextNote : memoryCart.orderNote,
     updatedAt: Date.now(),
   };
   saveStoredCart(memoryCart);
@@ -289,18 +292,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
   const toggleDrawer = useCallback(() => setIsDrawerOpen((prev) => !prev), []);
 
+  const orderNote = cartSnapshot.orderNote || '';
+
+  const setOrderNote = useCallback((note: string) => {
+    setStoreCart(memoryCart.items, memoryCart.dropId, note);
+  }, []);
+
   const value = useMemo<CartContextValue>(
     () => ({
       items,
       itemCount,
       subtotalPaisa,
       dropId,
+      orderNote,
       isHydrated,
       isDrawerOpen,
       addItem,
       replaceCartWithItem,
       removeItem,
       clearCart,
+      setOrderNote,
       isInCart,
       getReconciledItems,
       openDrawer,
@@ -312,12 +323,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       itemCount,
       subtotalPaisa,
       dropId,
+      orderNote,
       isHydrated,
       isDrawerOpen,
       addItem,
       replaceCartWithItem,
       removeItem,
       clearCart,
+      setOrderNote,
       isInCart,
       getReconciledItems,
       openDrawer,

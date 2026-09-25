@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * LiveDrop — Dedicated Buyer Cart Page (/cart) (TASK-2.2)
+ * LiveDrop — Dedicated Buyer Cart Page (/cart) (Screen 6)
  *
- * Provides a dedicated standalone route for reviewing cart items,
- * surviving browser refreshes and bookmarking.
+ * Full-fidelity implementation of Screen 6 from the Haute Couture template.
+ * Features item cards with square thumbnails, quantity steppers, trash actions,
+ * expandable gift note input, structured order summary, and luxury assurance badges.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useCart, CartProvider, useOptionalCart } from '../../lib/cart/cart-context';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 import { CartEmptyState } from '../../components/cart/CartEmptyState';
+import { CartItemRow } from '../../components/cart/CartItemRow';
 import { getBuyerClient } from '../../lib/supabase/client';
 import { getPublicProductsForDrop } from '../../lib/data/buyer-catalog';
 import { PublicProductView } from '../../types/domain';
@@ -20,8 +22,28 @@ import { MobileBottomDock } from '../../components/navigation/MobileBottomDock';
 
 function CartPageContent() {
   const router = useRouter();
-  const { items, itemCount, subtotalPaisa, dropId, isHydrated, removeItem, clearCart, getReconciledItems } = useCart();
+  const {
+    items,
+    itemCount,
+    subtotalPaisa,
+    dropId,
+    orderNote,
+    setOrderNote,
+    isHydrated,
+    removeItem,
+    clearCart,
+    getReconciledItems,
+  } = useCart();
+
   const [catalogProducts, setCatalogProducts] = useState<PublicProductView[]>([]);
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(orderNote);
+  const [prevOrderNote, setPrevOrderNote] = useState(orderNote);
+
+  if (prevOrderNote !== orderNote) {
+    setPrevOrderNote(orderNote);
+    setNoteDraft(orderNote);
+  }
 
   // If dropId exists, fetch latest catalog snapshot for availability reconciliation
   useEffect(() => {
@@ -49,7 +71,7 @@ function CartPageContent() {
 
   if (!isHydrated) {
     return (
-      <div className="ld-cart-page-loading" data-testid="cart-page-loading">
+      <div className="ld-cart-page-loading min-h-screen bg-[#08080A] flex items-center justify-center" data-testid="cart-page-loading">
         <div className="ld-spinner" />
       </div>
     );
@@ -58,48 +80,67 @@ function CartPageContent() {
   const reconciledItems = getReconciledItems(catalogProducts);
   const hasUnavailableItems = reconciledItems.some((item) => !item.isAvailable);
 
+  const freeThreshold = 200000;
+  const standardFee = 8000;
+  const isFreeShipping = subtotalPaisa >= freeThreshold;
+  const shippingFeePaisa = isFreeShipping || itemCount === 0 ? 0 : standardFee;
+  const totalPaisa = subtotalPaisa + shippingFeePaisa;
+
+  const handleSaveNote = () => {
+    setOrderNote(noteDraft.trim());
+    setIsNoteOpen(false);
+  };
+
   return (
-    <div className="ld-cart-page ld-has-bottom-dock" data-testid="cart-page">
-      {/* Top Navigation */}
-      <header className="ld-cart-page-header">
-        <div className="ld-cart-page-nav">
-          <Link href="/" className="ld-back-link" data-testid="cart-back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            <span>Back</span>
-          </Link>
-          <span className="ld-cart-page-brand">LiveDrop</span>
+    <div className="min-h-screen bg-[#08080A] text-[#FBFBFB] pb-24 font-sans select-none" data-testid="cart-page">
+      {/* 1. Header: Back Arrow '<' + Title 'Your Cart (N)' */}
+      <header className="px-4 py-4 border-b border-white/10 sticky top-0 bg-[#08080A]/95 backdrop-blur-md z-10">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+              aria-label="Back to home"
+              data-testid="cart-back-btn"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </Link>
+            <h1 className="text-lg sm:text-xl font-serif tracking-wide text-white font-medium">
+              Your Cart {itemCount > 0 ? `(${itemCount})` : ''}
+            </h1>
+          </div>
+
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={clearCart}
+              className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors"
+              data-testid="cart-page-clear-btn"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </header>
 
-      <main className="ld-container ld-cart-page-main" role="main">
-        <div className="ld-cart-page-title-row">
-          <h1 className="ld-cart-page-title">Your Cart</h1>
-          {itemCount > 0 && (
-            <span className="ld-cart-count-badge" data-testid="page-cart-count">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
-            </span>
-          )}
-        </div>
-
+      <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4" role="main">
         {/* Informational Stock Notice */}
         {items.length > 0 && (
-          <div className="ld-cart-disclaimer" data-testid="page-cart-disclaimer">
-            <span className="ld-cart-disclaimer-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
-              </svg>
+          <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
+            <span className="text-[#D4AF37] mt-0.5">✦</span>
+            <span className="leading-relaxed">
+              Items are not reserved until checkout. Live drops are single-piece limited editions.
             </span>
-            <span>Items are not reserved until checkout. Flash sale stock remains live.</span>
           </div>
         )}
 
         {/* Unavailable items alert banner */}
         {hasUnavailableItems && (
-          <div className="ld-cart-alert-banner" data-testid="page-cart-unavailable-banner">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 flex items-start gap-2.5" data-testid="page-cart-unavailable-banner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -109,133 +150,142 @@ function CartPageContent() {
         )}
 
         {items.length === 0 ? (
-          <CartEmptyState />
+          <div className="py-12 flex justify-center">
+            <CartEmptyState />
+          </div>
         ) : (
-          <div className="ld-cart-page-grid">
-            {/* Items List */}
-            <div className="ld-cart-list" role="list" aria-label="Cart items">
-              {reconciledItems.map((item) => {
-                const isItemUnavailable = !item.isAvailable;
-
-                return (
-                  <div
-                    key={item.productId}
-                    className={`ld-cart-item ${isItemUnavailable ? 'unavailable' : ''}`}
-                    data-testid={`cart-page-item-${item.productId}`}
-                    role="listitem"
-                  >
-                    <div className="ld-cart-item-media">
-                      {item.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.imageUrl}
-                          alt={`${item.code} - ${item.title}`}
-                          className="ld-cart-item-img"
-                        />
-                      ) : (
-                        <div className="ld-cart-item-placeholder" aria-hidden="true">
-                          <span>{item.code}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="ld-cart-item-details">
-                      <div className="ld-cart-item-header">
-                        <span className="ld-cart-item-code">{item.code}</span>
-                        <span className="ld-cart-item-price">
-                          {formatPaisaToINR(item.pricePaisa)}
-                        </span>
-                      </div>
-
-                      <h4 className="ld-cart-item-title" title={item.title}>
-                        {item.title}
-                      </h4>
-
-                      {item.size && (
-                        <span className="ld-cart-item-size">Size: {item.size}</span>
-                      )}
-
-                      {isItemUnavailable && (
-                        <div
-                          className="ld-cart-item-status-warning"
-                          data-testid={`cart-page-warning-${item.productId}`}
-                        >
-                          <span className="ld-cart-warning-dot" aria-hidden="true" />
-                          {item.status === 'reserved' ? 'RESERVED — No longer available' : 'SOLD OUT'}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="ld-cart-item-actions">
-                      <button
-                        type="button"
-                        className="ld-cart-remove-btn"
-                        onClick={() => removeItem(item.productId)}
-                        aria-label={`Remove ${item.code}: ${item.title} from cart`}
-                        data-testid={`cart-page-remove-${item.productId}`}
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                        <span className="ld-cart-remove-text">Remove</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="space-y-4">
+            {/* 3. Items List */}
+            <div className="space-y-3" role="list" aria-label="Cart items" data-testid="cart-items-list">
+              {reconciledItems.map((item) => (
+                <CartItemRow
+                  key={item.productId}
+                  item={item}
+                  onRemove={removeItem}
+                  isAvailable={item.isAvailable}
+                  availabilityReason={item.availabilityReason}
+                />
+              ))}
             </div>
 
-            {/* Subtotal Card */}
-            <div className="ld-cart-page-summary">
-              <div className="ld-summary-row">
-                <span className="ld-summary-label">Subtotal</span>
-                <span className="ld-summary-value" data-testid="cart-page-subtotal">
-                  {formatPaisaToINR(subtotalPaisa)}
+            {/* 4. Add a Note (Optional) Card */}
+            <div className="rounded-xl bg-[#101014] border border-white/10 overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setIsNoteOpen((prev) => !prev)}
+                className="w-full p-3.5 flex items-center justify-between text-left hover:bg-white/5 transition-colors group"
+                data-testid="cart-page-note-toggle"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base" role="img" aria-label="Gift">🎁</span>
+                  <span className="text-xs font-medium text-white/90">
+                    {orderNote ? `Note: "${orderNote.slice(0, 30)}${orderNote.length > 30 ? '...' : ''}"` : 'Add a note (optional)'}
+                  </span>
+                </div>
+                <span className="text-xs text-white/40 group-hover:text-[#D4AF37] transition-colors">
+                  {isNoteOpen ? '▲' : '▼'}
+                </span>
+              </button>
+
+              {isNoteOpen && (
+                <div className="p-3 border-t border-white/5 space-y-2.5 bg-black/40">
+                  <textarea
+                    rows={2}
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="Special delivery instructions or personalized gift message..."
+                    maxLength={300}
+                    className="w-full p-2.5 rounded-lg bg-black/70 border border-white/15 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors resize-none"
+                    data-testid="cart-page-note-input"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsNoteOpen(false)}
+                      className="px-3 py-1 rounded text-[11px] text-white/50 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveNote}
+                      className="px-3 py-1 rounded bg-[#D4AF37] text-[#08080A] text-[11px] font-bold uppercase tracking-wider hover:bg-[#F3E5AB]"
+                      data-testid="cart-page-save-note-btn"
+                    >
+                      Save Note
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 5. Order Summary Card */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#101014] border border-[rgba(212,175,55,0.2)] space-y-3 shadow-lg">
+              <h3 className="text-base font-serif font-bold text-white tracking-wide border-b border-white/5 pb-2">
+                Order Summary
+              </h3>
+
+              <div className="space-y-2 text-xs sm:text-sm text-white/70">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span className="font-mono text-white font-medium" data-testid="cart-page-subtotal">
+                    {formatPaisaToINR(subtotalPaisa)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span className="font-mono text-[#D4AF37] font-medium">
+                    {isFreeShipping ? 'FREE' : formatPaisaToINR(shippingFeePaisa)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
+                <span className="text-base font-serif font-bold text-white tracking-wide">Total</span>
+                <span className="text-xl font-serif font-bold text-[#F3E5AB]" data-testid="cart-page-total">
+                  {formatPaisaToINR(totalPaisa)}
                 </span>
               </div>
+            </div>
 
-              <div className="ld-summary-shipping-note">
-                <span>Shipping calculated at checkout</span>
+            {/* 6. Proceed to Checkout CTA */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!hasUnavailableItems) {
+                  router.push('/checkout');
+                }
+              }}
+              disabled={hasUnavailableItems || items.length === 0}
+              className={`w-full py-4 rounded-full font-serif font-bold text-sm tracking-wider uppercase transition-all shadow-xl ${
+                hasUnavailableItems || items.length === 0
+                  ? 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
+                  : 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
+              }`}
+              data-testid="cart-page-checkout-btn"
+            >
+              Proceed to Checkout →
+            </button>
+
+            {/* 7. Luxury Assurance Badges (Screen 6 Row of 3) */}
+            <div className="pt-3 pb-2 grid grid-cols-3 gap-2 text-center border-t border-white/5">
+              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
+                <span className="text-sm text-[#D4AF37]" aria-hidden="true">🛡️</span>
+                <span className="font-mono uppercase tracking-wider">100% Authentic</span>
               </div>
-
-              <button
-                type="button"
-                className="ld-btn-checkout"
-                disabled={hasUnavailableItems}
-                onClick={() => {
-                  if (!hasUnavailableItems) {
-                    router.push('/checkout');
-                  }
-                }}
-                data-testid="cart-page-checkout-btn"
-              >
-                {hasUnavailableItems ? 'Remove Unavailable Items' : 'Proceed to Checkout'}
-              </button>
-
-              <button
-                type="button"
-                className="ld-btn-clear-cart"
-                onClick={clearCart}
-                data-testid="cart-page-clear-btn"
-              >
-                Clear Cart
-              </button>
+              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
+                <span className="text-sm text-[#D4AF37]" aria-hidden="true">📦</span>
+                <span className="font-mono uppercase tracking-wider">Insured Delivery</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 text-[10px] text-white/60">
+                <span className="text-sm text-[#D4AF37]" aria-hidden="true">🔄</span>
+                <span className="font-mono uppercase tracking-wider">Easy Returns</span>
+              </div>
             </div>
           </div>
         )}
       </main>
+
       <MobileBottomDock />
     </div>
   );

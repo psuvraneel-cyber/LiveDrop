@@ -69,6 +69,7 @@ export interface Drop {
   advance_amount_paisa?: number | null;
   hold_duration_days?: number | null;
   stream_url?: string | null;
+  hero_image_url?: string | null;
   live_started_at: string | null;
   closed_at: string | null;
   created_at: string;
