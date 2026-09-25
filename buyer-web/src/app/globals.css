@@ -2,6 +2,7 @@
  * LiveDrop — Luxury Boutique Noir Global Styles & Design System Tokens
  * Governing Specifications: docs/03-ui-ux-specification.md & seller-app theme tokens
  */
+@import "tailwindcss";
 
 :root {
   /* -------------------------------------------------------------------------
