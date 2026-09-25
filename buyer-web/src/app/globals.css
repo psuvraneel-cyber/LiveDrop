@@ -464,12 +464,12 @@ body {
 
 /* Bottom dock viewport clearance for mobile & desktop */
 .ld-has-bottom-dock {
-  padding-bottom: calc(52px + env(safe-area-inset-bottom, 16px) + 24px) !important;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 20px) + 40px) !important;
 }
 
 @media (min-width: 768px) {
   .ld-has-bottom-dock {
-    padding-bottom: 84px !important;
+    padding-bottom: 96px !important;
   }
 }
 
@@ -477,10 +477,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  height: 52px;
+  height: 56px;
   max-width: 480px;
   margin: 0 auto;
-  padding: 0 6px;
+  padding: 0 8px;
 }
 
 .ld-dock-tab {
@@ -489,16 +489,16 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   height: 100%;
-  color: rgba(251, 251, 251, 0.44);
+  color: rgba(251, 251, 251, 0.45);
   text-decoration: none !important;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   position: relative;
-  transition: color 0.18s ease;
+  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 

@@ -3,14 +3,15 @@
 /**
  * LiveDrop — Screen 1: Haute Couture Home Storefront
  *
- * Full-fidelity implementation of Screen 1 from the Haute Couture template:
+ * Full-fidelity implementation matching the approved Haute Couture reference template:
  * - Editorial bridal velvet hero with "HERITAGE MEETS NOW" and Cormorant Garamond typography
  * - Circular gold-ringed story reels row (Sarees, Lehengas, Jewelry, Men's Couture, Accessories)
- * - Truthful 3-state Live Commerce section:
- *   1. LIVE NOW (Active Facebook Live drop with real broadcast preview and viewer badge)
- *   2. UP NEXT (Scheduled atelier session with date/time and Notify Me action)
+ * - 1:1 Truthful 3-state Live Commerce section:
+ *   1. LIVE NOW (Active Facebook Live drop with 2.4K viewer badge, creator avatar, and circular gold action CTA)
+ *   2. UP NEXT (Scheduled atelier session with date/time and interactive Notify Me action)
  *   3. CURATED NOW (Atelier lookbook spotlight with direct boutique explore)
- * - Verified Ateliers & Boutiques directory
+ * - Verified Ateliers & Boutiques directory with royal monogram emblems
+ * - Strict mobile-first architecture (360px–430px) with expansive desktop elegance
  */
 
 import React, { useState, useMemo } from 'react';
@@ -34,31 +35,31 @@ const STORY_CIRCLES = [
   {
     id: 'sarees',
     label: 'Sarees',
-    image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=300&q=80',
+    image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=400&q=80',
     link: '/shop',
   },
   {
     id: 'lehengas',
     label: 'Lehengas',
-    image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=300&q=80',
+    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=400&q=80',
     link: '/shop',
   },
   {
     id: 'jewelry',
     label: 'Jewelry',
-    image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=300&q=80',
+    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=400&q=80',
     link: '/shop',
   },
   {
     id: 'mens',
     label: "Men's Couture",
-    image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=300&q=80',
+    image: 'https://images.unsplash.com/photo-1621609764095-b32bbe35cf3a?auto=format&fit=crop&w=400&q=80',
     link: '/shop',
   },
   {
     id: 'accessories',
     label: 'Accessories',
-    image: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?auto=format&fit=crop&w=300&q=80',
+    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=400&q=80',
     link: '/shop',
   },
 ];
@@ -158,9 +159,8 @@ export function HomeStorefront({
   const hasActiveLiveDrop = filteredActiveDrops.length > 0;
   const primaryLiveDrop = hasActiveLiveDrop ? filteredActiveDrops[0] : null;
 
-
   return (
-    <div className="ld-home-storefront ld-has-bottom-dock min-h-screen bg-[#08080A] text-[#FBFBFB] pb-24 font-sans select-none" data-testid="platform-home">
+    <div className="ld-home-storefront ld-has-bottom-dock min-h-screen bg-[#08080A] text-[#FBFBFB] pb-36 sm:pb-24 font-sans select-none" data-testid="platform-home">
       {/* 1. Scroll-Aware Luxury Top Header */}
       <LuxuryTopHeader
         searchQuery={searchQuery}
@@ -168,62 +168,69 @@ export function HomeStorefront({
       />
 
       {/* 2. Screen 1 Full-Bleed Editorial Hero */}
-      <section className="relative w-full min-h-[480px] sm:min-h-[540px] flex items-center overflow-hidden border-b border-[rgba(212,175,55,0.2)]">
-        {/* Full-bleed bridal velvet backdrop */}
+      <section className="relative w-full min-h-[520px] sm:min-h-[580px] lg:min-h-[640px] flex items-center overflow-hidden border-b border-[rgba(212,175,55,0.18)]">
+        {/* Full-bleed authentic Indian royal bridal portrait */}
         <div className="absolute inset-0 pointer-events-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1600&q=85"
+            src="https://images.unsplash.com/photo-1546804784-896d0dca3805?auto=format&fit=crop&w=1600&q=85"
             alt="Indian Luxury Couture Bride"
-            className="w-full h-full object-cover object-top sm:object-center brightness-75 scale-105 animate-subtle-zoom"
+            className="w-full h-full object-cover object-top sm:object-center brightness-80 scale-100 transition-transform duration-1000"
           />
-          {/* Obsidian & Burgundy atmospheric overlays */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#08080A] via-[#08080A]/60 to-black/30" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#08080A] via-[#08080A]/70 to-transparent" />
+          {/* Smooth obsidian & burgundy atmospheric gradient overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#08080A] via-[#08080A]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#08080A] via-[#08080A]/80 to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.12)_0%,transparent_60%)]" />
         </div>
 
-        <div className="relative max-w-4xl mx-auto px-5 sm:px-6 py-12 sm:py-16 w-full flex flex-col justify-end space-y-4">
-          <div className="inline-flex items-center gap-2">
-            <span className="text-[10px] sm:text-xs font-mono font-bold tracking-[0.25em] text-[#D4AF37] uppercase bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-[rgba(212,175,55,0.3)]">
-              HERITAGE MEETS NOW
-            </span>
-          </div>
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-8 py-14 sm:py-20 w-full flex flex-col justify-end">
+          <div className="max-w-xl space-y-4 sm:space-y-5">
+            {/* Heritage Meets Now Eyebrow */}
+            <div className="inline-flex items-center gap-2">
+              <span className="text-[11px] sm:text-xs font-mono font-bold tracking-[0.25em] text-[#D4AF37] uppercase">
+                HERITAGE MEETS NOW
+              </span>
+            </div>
 
-          <h1 className="text-3xl sm:text-5xl font-serif text-[#FBFBFB] tracking-wide leading-[1.15] max-w-md">
-            India&apos;s<br />
-            Finest<br />
-            Styles,<br />
-            Live.
-          </h1>
+            {/* Editorial Serif Headline */}
+            <h1 className="text-4xl sm:text-6xl font-serif text-[#FBFBFB] tracking-wide leading-[1.08]">
+              India&apos;s<br />
+              Finest<br />
+              Styles,<br />
+              Live.
+            </h1>
 
-          <p className="text-xs sm:text-sm text-white/75 font-sans max-w-xs sm:max-w-sm leading-relaxed">
-            Exclusive drops. Real designers. From timeless tradition to modern couture.
-          </p>
+            {/* Subtitle */}
+            <p className="text-sm sm:text-base text-white/75 font-sans max-w-sm sm:max-w-md leading-relaxed">
+              Exclusive drops. Real designers. From timeless tradition to modern couture.
+            </p>
 
-          <div className="pt-2">
-            <a
-              href="#live-now"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] text-xs font-bold tracking-wider uppercase transition-all shadow-lg shadow-[rgba(212,175,55,0.25)] hover:scale-102"
-              data-testid="explore-live-shows-btn"
-            >
-              <span>Explore Live Shows</span>
-              <span aria-hidden="true">→</span>
-            </a>
+            {/* Primary Action Button */}
+            <div className="pt-3">
+              <a
+                href="#live-drops"
+                className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] text-sm font-bold tracking-wide transition-all shadow-xl shadow-[rgba(212,175,55,0.28)] hover:scale-[1.02] active:scale-[0.97]"
+                data-testid="explore-live-shows-btn"
+              >
+                <span>Explore Live Shows</span>
+                <span aria-hidden="true" className="text-base font-bold">→</span>
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
       {/* 3. Screen 1 Circular Story Reels Row */}
-      <section className="px-4 py-6 max-w-4xl mx-auto" aria-label="Haute Couture Categories">
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none justify-start sm:justify-center">
+      <section className="px-4 py-8 sm:py-10 max-w-6xl mx-auto" aria-label="Haute Couture Categories">
+        <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-3 scrollbar-none justify-start sm:justify-center">
           {STORY_CIRCLES.map((story) => (
             <Link
               key={story.id}
-              href="/shop"
-              className="flex flex-col items-center gap-2 flex-shrink-0 group cursor-pointer"
+              href={story.link}
+              className="flex flex-col items-center gap-2.5 flex-shrink-0 group cursor-pointer"
               data-testid={`story-circle-${story.id}`}
             >
-              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-full p-[2px] bg-gradient-to-tr from-[#C88A24] via-[#D4AF37] to-[#F5D78E] shadow-md shadow-[rgba(212,175,55,0.2)] group-hover:scale-105 transition-transform duration-300">
+              <div className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] rounded-full p-[2px] bg-gradient-to-tr from-[#C88A24] via-[#D4AF37] to-[#F5D78E] shadow-md shadow-[rgba(212,175,55,0.2)] group-hover:scale-105 transition-transform duration-300">
                 <div className="w-full h-full rounded-full overflow-hidden bg-black">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -233,7 +240,7 @@ export function HomeStorefront({
                   />
                 </div>
               </div>
-              <span className="text-[11px] font-sans text-white/80 group-hover:text-[#D4AF37] transition-colors whitespace-nowrap">
+              <span className="text-xs font-sans font-medium text-white/85 group-hover:text-[#D4AF37] transition-colors whitespace-nowrap">
                 {story.label}
               </span>
             </Link>
@@ -241,16 +248,17 @@ export function HomeStorefront({
         </div>
       </section>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 space-y-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-8 space-y-12 sm:space-y-16">
         {/* 4. Screen 1: 3-State Truthful Live Commerce Section */}
-        <section id="live-now" className="space-y-4" aria-label="Live Stream Commerce" data-testid="live-drops-section">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
-            <h2 className="text-xl sm:text-2xl font-serif text-[#FBFBFB] tracking-wide">
+        <section id="live-drops" className="space-y-4 sm:space-y-6 scroll-mt-24" aria-label="Live Stream Commerce" data-testid="live-drops-section">
+          <div id="live-now" className="scroll-mt-24" />
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <h2 className="text-2xl sm:text-3xl font-serif text-[#FBFBFB] tracking-wide">
               {hasActiveLiveDrop ? 'Live Now' : 'Up Next'}
             </h2>
             <Link
               href="/shop"
-              className="text-xs text-[#D4AF37] hover:text-[#F3E5AB] font-sans font-medium tracking-wide transition-colors"
+              className="text-xs sm:text-sm text-[#D4AF37] hover:text-[#F5D78E] font-sans font-medium tracking-wide transition-colors"
             >
               View All →
             </Link>
@@ -259,7 +267,7 @@ export function HomeStorefront({
           {/* STATE 1: ACTIVE FACEBOOK LIVE DROP */}
           {hasActiveLiveDrop && primaryLiveDrop ? (
             <div
-              className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-[rgba(212,175,55,0.3)] shadow-2xl group"
+              className="relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden border border-[rgba(212,175,55,0.3)] shadow-2xl group"
               data-testid={`live-drop-card-${primaryLiveDrop.slug}`}
             >
               {/* Livestream Preview Backdrop */}
@@ -267,7 +275,7 @@ export function HomeStorefront({
               <img
                 src={
                   primaryLiveDrop.hero_image_url ||
-                  'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1200&q=80'
+                  'https://images.unsplash.com/photo-1546804784-896d0dca3805?auto=format&fit=crop&w=1200&q=85'
                 }
                 alt={primaryLiveDrop.title}
                 className="w-full h-full object-cover brightness-75 group-hover:scale-102 transition-transform duration-700"
@@ -289,7 +297,7 @@ export function HomeStorefront({
                 <button
                   type="button"
                   onClick={() => toggleSavedDrop(primaryLiveDrop.id)}
-                  className={`w-9 h-9 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors ${
+                  className={`w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center transition-colors ${
                     isDropSaved(primaryLiveDrop.id) ? 'text-[#D4AF37]' : 'text-white/70 hover:text-white'
                   }`}
                   aria-label="Save show"
@@ -301,28 +309,28 @@ export function HomeStorefront({
               </div>
 
               {/* Bottom Content Overlay */}
-              <div className="absolute bottom-0 inset-x-0 p-5 sm:p-6 flex items-end justify-between gap-4">
-                <div className="space-y-1.5 max-w-md">
-                  <h3 className="text-xl sm:text-2xl font-serif text-white tracking-wide font-medium leading-tight">
+              <div className="absolute bottom-0 inset-x-0 p-5 sm:p-7 flex items-end justify-between gap-4">
+                <div className="space-y-1.5 max-w-lg">
+                  <h3 className="text-xl sm:text-3xl font-serif text-white tracking-wide font-medium leading-tight">
                     {primaryLiveDrop.title}
                   </h3>
-                  <p className="text-xs text-white/70 font-sans line-clamp-1">
+                  <p className="text-xs sm:text-sm text-white/70 font-sans line-clamp-1">
                     Interactive live atelier presentation with instant single-piece reserve.
                   </p>
                   <div className="flex items-center gap-2 pt-1">
-                    <div className="w-6 h-6 rounded-full bg-[#D4AF37] text-black font-serif font-bold text-xs flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#C88A24] to-[#F5D78E] text-black font-serif font-bold text-xs flex items-center justify-center shadow-sm">
                       {primaryLiveDrop.profiles?.store_name?.[0] || 'A'}
                     </div>
-                    <span className="text-xs text-white/90 font-medium">
-                      {primaryLiveDrop.profiles?.store_name || 'Artisan Atelier'}
+                    <span className="text-xs sm:text-sm text-white/90 font-medium">
+                      {primaryLiveDrop.profiles?.store_name || 'Anaya Sharma'}
                     </span>
-                    <span className="text-[#D4AF37] text-xs">✓</span>
+                    <span className="text-[#38BDF8] text-xs font-bold" title="Verified Designer">✓</span>
                   </div>
                 </div>
 
                 <Link
                   href={`/drop/${primaryLiveDrop.slug}`}
-                  className="w-12 h-12 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] flex items-center justify-center font-bold text-lg shadow-xl shadow-[rgba(212,175,55,0.3)] hover:scale-105 transition-transform flex-shrink-0"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] flex items-center justify-center font-bold text-lg shadow-xl shadow-[rgba(212,175,55,0.3)] hover:scale-105 active:scale-95 transition-transform flex-shrink-0"
                   aria-label="Enter live room"
                 >
                   →
@@ -331,10 +339,10 @@ export function HomeStorefront({
             </div>
           ) : (
             /* STATE 2 & 3: UP NEXT OR CURATED ATELIER LOOKBOOK SPOTLIGHT */
-            <div className="relative w-full h-72 sm:h-96 rounded-2xl overflow-hidden border border-[rgba(212,175,55,0.25)] shadow-2xl group" data-testid="upcoming-drop-card">
+            <div className="relative w-full h-80 sm:h-[420px] rounded-3xl overflow-hidden border border-[rgba(212,175,55,0.25)] shadow-2xl group" data-testid="upcoming-drop-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1200&q=80"
+                src="https://images.unsplash.com/photo-1546804784-896d0dca3805?auto=format&fit=crop&w=1200&q=85"
                 alt="Scheduled Atelier Session"
                 className="w-full h-full object-cover brightness-70 group-hover:scale-102 transition-transform duration-700"
               />
@@ -342,14 +350,14 @@ export function HomeStorefront({
 
               {/* Top Badges */}
               <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[rgba(212,175,55,0.2)] text-[#F3E5AB] border border-[rgba(212,175,55,0.4)] font-mono font-bold text-xs tracking-wider uppercase backdrop-blur-md">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[rgba(212,175,55,0.2)] text-[#F5D78E] border border-[rgba(212,175,55,0.4)] font-mono font-bold text-xs tracking-wider uppercase backdrop-blur-md">
                   UP NEXT • SEP 28, 7:00 PM
                 </span>
 
                 <button
                   type="button"
                   onClick={() => handleNotifyMe('upcoming-anaya-session')}
-                  className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/70 hover:text-[#D4AF37] transition-colors"
+                  className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/70 hover:text-[#D4AF37] transition-colors"
                   aria-label="Save upcoming show"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -359,29 +367,29 @@ export function HomeStorefront({
               </div>
 
               {/* Bottom Content Overlay */}
-              <div className="absolute bottom-0 inset-x-0 p-5 sm:p-6 flex items-end justify-between gap-4">
-                <div className="space-y-1.5 max-w-md">
-                  <h3 className="text-xl sm:text-2xl font-serif text-white tracking-wide font-medium leading-tight">
+              <div className="absolute bottom-0 inset-x-0 p-5 sm:p-7 flex items-end justify-between gap-4">
+                <div className="space-y-1.5 max-w-lg">
+                  <h3 className="text-xl sm:text-3xl font-serif text-white tracking-wide font-medium leading-tight">
                     Saree Stories & Handloom Weaves
                   </h3>
-                  <p className="text-xs text-white/70 font-sans line-clamp-1">
+                  <p className="text-xs sm:text-sm text-white/70 font-sans line-clamp-1">
                     Handlooms, heritage silks, and singular modern drapes.
                   </p>
                   <div className="flex items-center gap-2 pt-1">
-                    <div className="w-6 h-6 rounded-full bg-[#D4AF37] text-black font-serif font-bold text-xs flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#C88A24] to-[#F5D78E] text-black font-serif font-bold text-xs flex items-center justify-center shadow-sm">
                       A
                     </div>
-                    <span className="text-xs text-white/90 font-medium">
+                    <span className="text-xs sm:text-sm text-white/90 font-medium">
                       Anaya Atelier
                     </span>
-                    <span className="text-[#D4AF37] text-xs">✓</span>
+                    <span className="text-[#38BDF8] text-xs font-bold" title="Verified Designer">✓</span>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleNotifyMe('upcoming-anaya-session')}
-                  className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] text-xs font-bold tracking-wider uppercase shadow-xl hover:scale-102 transition-all flex items-center gap-1.5 flex-shrink-0"
+                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] text-xs font-bold tracking-wider uppercase shadow-xl hover:scale-102 active:scale-95 transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
                   data-testid="notify-me-btn"
                 >
                   <span>{savedNotificationId ? 'Notified ✓' : 'Notify Me'}</span>
@@ -392,31 +400,31 @@ export function HomeStorefront({
         </section>
 
         {/* 5. Verified Designer Boutiques Directory */}
-        <section id="boutiques" className="space-y-4" aria-label="Verified Designer Boutiques" data-testid="boutiques-directory-section">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
-            <h2 className="text-xl sm:text-2xl font-serif text-[#FBFBFB] tracking-wide">
+        <section id="boutiques" className="space-y-4 sm:space-y-6" aria-label="Verified Designer Boutiques" data-testid="boutiques-directory-section">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <h2 className="text-2xl sm:text-3xl font-serif text-[#FBFBFB] tracking-wide">
               Verified Designers
             </h2>
-            <span className="text-xs text-[#D4AF37] font-mono font-medium">
+            <span className="text-xs sm:text-sm text-[#D4AF37] font-mono font-medium">
               {filteredStorefronts.length} Ateliers
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredStorefronts.map((boutique) => (
               <div
                 key={boutique.id}
-                className="p-4 sm:p-5 rounded-2xl bg-[#101014] border border-white/10 hover:border-[rgba(212,175,55,0.4)] transition-all shadow-md group flex flex-col justify-between"
+                className="p-5 sm:p-6 rounded-2xl bg-[#0E0E12] border border-white/10 hover:border-[rgba(212,175,55,0.4)] transition-all shadow-md group flex flex-col justify-between"
                 data-testid={`boutique-card-${boutique.store_slug}`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[rgba(212,175,55,0.15)] text-[#D4AF37] border border-[rgba(212,175,55,0.3)] flex items-center justify-center font-serif font-bold text-base shadow-sm">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2A0811] to-[#15151B] border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] font-serif font-bold text-lg shadow-sm group-hover:scale-105 transition-transform">
                       {boutique.store_name[0]?.toUpperCase() || 'B'}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className="text-base font-serif font-medium text-white group-hover:text-[#D4AF37] transition-colors">
+                        <h3 className="text-base sm:text-lg font-serif font-medium text-white group-hover:text-[#D4AF37] transition-colors">
                           {boutique.store_name}
                         </h3>
                         <span className="text-[#D4AF37] text-xs">✓</span>
@@ -429,7 +437,7 @@ export function HomeStorefront({
 
                   <Link
                     href={`/${boutique.store_slug}`}
-                    className="text-xs text-[#D4AF37] font-semibold group-hover:translate-x-1 transition-transform"
+                    className="text-xs sm:text-sm text-[#D4AF37] font-semibold hover:text-[#F5D78E] flex items-center gap-1 group-hover:translate-x-1 transition-transform flex-shrink-0"
                     data-testid={`visit-boutique-${boutique.store_slug}`}
                   >
                     <span data-testid={`visit-store-${boutique.store_slug}`}>
@@ -438,13 +446,13 @@ export function HomeStorefront({
                   </Link>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-3 text-xs text-white/60">
+                <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-4 text-xs text-white/60">
                   <span>Singular drops & lookbook showcase</span>
                   <a
                     href={getBoutiqueWhatsAppUrl(boutique.phone_number, boutique.store_name)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-[#25D366] hover:underline flex items-center gap-1"
+                    className="text-xs text-[#25D366] hover:underline flex items-center gap-1 font-medium"
                     data-testid={`whatsapp-store-${boutique.store_slug}`}
                   >
                     <span>WhatsApp</span>

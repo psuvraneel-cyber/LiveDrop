@@ -73,11 +73,11 @@ export function LuxuryTopHeader({
           <Link href="/#boutiques" className="ld-header-nav-link">
             Boutiques
           </Link>
-          <Link href="/#live-drops" className="ld-header-nav-link">
+          <Link href="/#live-now" className="ld-header-nav-link">
             Live Drops
           </Link>
-          <Link href="/#atelier-standards" className="ld-header-nav-link">
-            Atelier Standards
+          <Link href="/shop" className="ld-header-nav-link">
+            Categories
           </Link>
         </nav>
 
