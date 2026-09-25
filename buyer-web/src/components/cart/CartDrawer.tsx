@@ -181,11 +181,31 @@ export function CartDrawer({
             {/* Unavailable items alert banner */}
             {hasUnavailableItems && (
               <div
-                className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 flex items-start gap-2"
+                className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 space-y-2.5"
                 data-testid="cart-unavailable-banner"
               >
-                <span className="font-bold">Notice:</span>
-                <span>One or more items in your cart were claimed offline or by another buyer. Please remove them to proceed.</span>
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">Notice:</span>
+                  <span>
+                    {availableItems.length === 0
+                      ? 'All items in your bag were claimed offline or by another buyer. Please remove them to continue.'
+                      : 'One or more items in your cart were claimed offline or by another buyer. Please remove them to proceed.'}
+                  </span>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reconciledItems
+                        .filter((item) => !item.isAvailable)
+                        .forEach((item) => removeItem(item.productId));
+                    }}
+                    className="px-3 py-1 rounded bg-red-900/60 hover:bg-red-800/80 text-red-200 border border-red-500/30 text-[11px] font-mono transition-colors"
+                    data-testid="cart-remove-unavailable-btn"
+                  >
+                    Remove Unavailable Items
+                  </button>
+                </div>
               </div>
             )}
 
@@ -202,100 +222,130 @@ export function CartDrawer({
               ))}
             </div>
 
-            {/* 4. Add a Note (Optional) Card */}
-            <div className="rounded-xl bg-[#101014] border border-white/10 overflow-hidden shadow-sm">
-              <button
-                type="button"
-                onClick={() => setIsNoteOpen((prev) => !prev)}
-                className="w-full p-3.5 flex items-center justify-between text-left hover:bg-white/5 transition-colors group"
-                data-testid="cart-note-toggle"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-base" role="img" aria-label="Gift">🎁</span>
-                  <span className="text-xs font-medium text-white/90">
-                    {orderNote ? `Note: "${orderNote.slice(0, 30)}${orderNote.length > 30 ? '...' : ''}"` : 'Add a note (optional)'}
-                  </span>
-                </div>
-                <span className="text-xs text-white/40 group-hover:text-[#D4AF37] transition-colors">
-                  {isNoteOpen ? '▲' : '▼'}
-                </span>
-              </button>
+            {/* When NO items are available in the bag */}
+            {availableItems.length === 0 ? (
+              <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center space-y-3 shadow-md">
+                <p className="text-xs text-white/70">
+                  No available pieces remaining in your bag. Explore available collections from active boutique drops.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    router.push('/shop');
+                  }}
+                  className="w-full py-3 rounded-full bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#08080A] font-serif font-bold text-xs tracking-wider uppercase transition-colors shadow-md"
+                  data-testid="cart-continue-shopping-btn"
+                >
+                  Explore Collections →
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-2.5 rounded-full font-sans text-xs text-white/30 bg-transparent border border-white/5 cursor-not-allowed"
+                  data-testid="cart-checkout-btn"
+                >
+                  Checkout Unavailable (0 Pieces)
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* 4. Add a Note (Optional) Card */}
+                <div className="rounded-xl bg-[#101014] border border-white/10 overflow-hidden shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsNoteOpen((prev) => !prev)}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-white/5 transition-colors group"
+                    data-testid="cart-note-toggle"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-base" role="img" aria-label="Gift">🎁</span>
+                      <span className="text-xs font-medium text-white/90">
+                        {orderNote ? `Note: "${orderNote.slice(0, 30)}${orderNote.length > 30 ? '...' : ''}"` : 'Add a note (optional)'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-white/40 group-hover:text-[#D4AF37] transition-colors">
+                      {isNoteOpen ? '▲' : '▼'}
+                    </span>
+                  </button>
 
-              {isNoteOpen && (
-                <div className="p-3 border-t border-white/5 space-y-2.5 bg-black/40">
-                  <textarea
-                    rows={2}
-                    value={noteDraft}
-                    onChange={(e) => setNoteDraft(e.target.value)}
-                    placeholder="Special delivery instructions or personalized gift message..."
-                    maxLength={300}
-                    className="w-full p-2.5 rounded-lg bg-black/70 border border-white/15 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors resize-none"
-                    data-testid="cart-note-input"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsNoteOpen(false)}
-                      className="px-3 py-1 rounded text-[11px] text-white/50 hover:text-white"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveNote}
-                      className="px-3 py-1 rounded bg-[#D4AF37] text-[#08080A] text-[11px] font-bold uppercase tracking-wider hover:bg-[#F3E5AB]"
-                      data-testid="cart-save-note-btn"
-                    >
-                      Save Note
-                    </button>
+                  {isNoteOpen && (
+                    <div className="p-3 border-t border-white/5 space-y-2.5 bg-black/40">
+                      <textarea
+                        rows={2}
+                        value={noteDraft}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                        placeholder="Special delivery instructions or personalized gift message..."
+                        maxLength={300}
+                        className="w-full p-2.5 rounded-lg bg-black/70 border border-white/15 text-white text-xs focus:outline-none focus:border-[#D4AF37] transition-colors resize-none"
+                        data-testid="cart-note-input"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsNoteOpen(false)}
+                          className="px-3 py-1 rounded text-[11px] text-white/50 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveNote}
+                          className="px-3 py-1 rounded bg-[#D4AF37] text-[#08080A] text-[11px] font-bold uppercase tracking-wider hover:bg-[#F3E5AB]"
+                          data-testid="cart-save-note-btn"
+                        >
+                          Save Note
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Order Summary Card */}
+                <div className="p-4 rounded-2xl bg-[#101014] border border-[rgba(212,175,55,0.2)] space-y-3 shadow-lg">
+                  <h3 className="text-sm font-serif font-bold text-white tracking-wide border-b border-white/5 pb-2">
+                    Order Summary
+                  </h3>
+
+                  <div className="space-y-1.5 text-xs text-white/70">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span className="font-mono text-white" data-testid="cart-subtotal">
+                        {formatPaisaToINR(payableSubtotalPaisa)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Shipping</span>
+                      <span className="font-mono text-[#D4AF37]">
+                        {isFreeShipping ? 'FREE' : formatPaisaToINR(shippingFeePaisa)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
+                    <span className="text-sm font-serif font-bold text-white tracking-wide">Total</span>
+                    <span className="text-lg font-serif font-bold text-[#F3E5AB]" data-testid="cart-total">
+                      {formatPaisaToINR(totalPaisa)}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* 5. Order Summary Card */}
-            <div className="p-4 rounded-2xl bg-[#101014] border border-[rgba(212,175,55,0.2)] space-y-3 shadow-lg">
-              <h3 className="text-sm font-serif font-bold text-white tracking-wide border-b border-white/5 pb-2">
-                Order Summary
-              </h3>
-
-              <div className="space-y-1.5 text-xs text-white/70">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span className="font-mono text-white" data-testid="cart-subtotal">
-                    {formatPaisaToINR(payableSubtotalPaisa)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Shipping</span>
-                  <span className="font-mono text-[#D4AF37]">
-                    {isFreeShipping ? 'FREE' : formatPaisaToINR(shippingFeePaisa)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-white/10 flex justify-between items-baseline">
-                <span className="text-sm font-serif font-bold text-white tracking-wide">Total</span>
-                <span className="text-lg font-serif font-bold text-[#F3E5AB]" data-testid="cart-total">
-                  {formatPaisaToINR(totalPaisa)}
-                </span>
-              </div>
-            </div>
-
-            {/* 6. Proceed to Checkout CTA */}
-            <button
-              type="button"
-              onClick={handleProceedToCheckout}
-              disabled={hasUnavailableItems || availableItems.length === 0}
-              className={`w-full py-3.5 rounded-full font-serif font-bold text-sm tracking-wider uppercase transition-all shadow-xl ${
-                hasUnavailableItems || availableItems.length === 0
-                  ? 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
-                  : 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
-              }`}
-              data-testid="cart-checkout-btn"
-            >
-              Proceed to Checkout →
-            </button>
+                {/* 6. Proceed to Checkout CTA */}
+                <button
+                  type="button"
+                  onClick={handleProceedToCheckout}
+                  disabled={hasUnavailableItems}
+                  className={`w-full py-3.5 rounded-full font-serif font-bold text-sm tracking-wider uppercase transition-all shadow-xl ${
+                    hasUnavailableItems
+                      ? 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
+                      : 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
+                  }`}
+                  data-testid="cart-checkout-btn"
+                >
+                  {hasUnavailableItems ? 'Remove Unavailable Items to Checkout' : 'Proceed to Checkout →'}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

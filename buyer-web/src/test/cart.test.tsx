@@ -476,6 +476,15 @@ describe('TASK-2.2: StickyCartBar & CartDrawer UI Components', () => {
     expect(screen.getByTestId('cart-unavailable-banner')).toBeInTheDocument();
     expect(screen.getByTestId('cart-item-warning-prod-01')).toHaveTextContent('RESERVED — No longer available');
     expect(screen.getByTestId('cart-checkout-btn')).toBeDisabled();
+    expect(screen.getByTestId('cart-continue-shopping-btn')).toBeInTheDocument();
+    expect(screen.queryByTestId('cart-subtotal')).toBeNull(); // ₹0 summary card is suppressed
+
+    // 1-click remove unavailable items
+    const removeUnavailableBtn = screen.getByTestId('cart-remove-unavailable-btn');
+    fireEvent.click(removeUnavailableBtn);
+
+    // Cart is now empty
+    expect(screen.getByTestId('cart-empty-state')).toBeInTheDocument();
   });
 });
 
