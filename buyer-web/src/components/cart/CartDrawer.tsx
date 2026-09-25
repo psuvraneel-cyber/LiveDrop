@@ -32,7 +32,6 @@ export function CartDrawer({
   const {
     items,
     itemCount,
-    subtotalPaisa,
     orderNote,
     setOrderNote,
     removeItem,

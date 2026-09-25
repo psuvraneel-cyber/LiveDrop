@@ -25,7 +25,6 @@ function CartPageContent() {
   const {
     items,
     itemCount,
-    subtotalPaisa,
     dropId,
     orderNote,
     setOrderNote,
