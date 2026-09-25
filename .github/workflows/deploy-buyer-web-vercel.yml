@@ -73,7 +73,7 @@ jobs:
       preview_url: ${{ steps.deploy-preview.outputs.preview_url }}
       prod_url: ${{ steps.deploy-prod.outputs.prod_url }}
     env:
-      VERCEL_ORG_ID: "q2sL66F6xJd8H07oVZZ9b90a"
+      VERCEL_ORG_ID: "team_I6MR5F7nFdwmEdAgrRPy8Vh6"
       VERCEL_PROJECT_ID: "prj_IyYtkVSrnoBwq0AY62fDJU9x6RFy"
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
