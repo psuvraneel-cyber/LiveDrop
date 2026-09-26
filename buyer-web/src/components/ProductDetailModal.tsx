@@ -137,17 +137,20 @@ export function ProductDetailModal({
     }
   };
 
-  // Derive craftsmanship tags
+  // Derive craftsmanship tags (Screen 04 reference: 4 badges)
   const tags: string[] = [];
   if (product.title.toLowerCase().includes('silk') || product.description?.toLowerCase().includes('silk')) {
-    tags.push('Pure Silk');
+    tags.push('✦ Pure Handloom Silk');
+  } else {
+    tags.push('✦ Handcrafted Artisan Weave');
   }
   if (product.title.toLowerCase().includes('zari') || product.description?.toLowerCase().includes('zari')) {
-    tags.push('Zari Weave');
+    tags.push('✦ Zari Woven Border');
   } else {
-    tags.push('Handcrafted Weave');
+    tags.push('✦ Hand-Embroidered Detailing');
   }
-  tags.push('Handpicked');
+  tags.push('✦ Blouse Piece Included');
+  tags.push('✦ Dry Clean Only');
 
   // Stock status pill
   let stockBadge = 'Available';
@@ -272,6 +275,14 @@ export function ProductDetailModal({
                   </button>
                 </>
               )}
+
+              {/* Photo Counter Badge (Screen 04) */}
+              <div
+                className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-white font-mono text-[10px]"
+                data-testid="product-detail-counter"
+              >
+                {activeImageIndex + 1}/{images.length || 1}
+              </div>
             </div>
 
             {/* Thumbnail Strip */}
@@ -331,6 +342,17 @@ export function ProductDetailModal({
                   {tag}
                 </span>
               ))}
+            </div>
+
+            {/* Delivery & Authentic Guarantees (Screen 04) */}
+            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5 text-xs text-[#AAA49A]">
+              <div className="flex items-center gap-2 text-[#F4F1EA] font-semibold text-xs">
+                <span>🚚</span>
+                <span>Complimentary Insured Delivery</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-[#AAA49A]">
+                Dispatch within 24–48 hours directly from {storeName}. Includes 48-hour authentic artisanal verification guarantee.
+              </p>
             </div>
 
             {/* Boutique Seller Profile Card */}

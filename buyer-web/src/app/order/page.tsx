@@ -39,6 +39,7 @@ function formatOrderStatus(status?: string, paymentStatus?: string, fulfilmentSt
 
 export default function OrderLookupPage() {
   const router = useRouter();
+  const [activeOrderTab, setActiveOrderTab] = useState<'recent' | 'saved'>('recent');
   const [orderQuery, setOrderQuery] = useState('');
   const [orderToken, setOrderToken] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -132,8 +133,45 @@ export default function OrderLookupPage() {
           </p>
         </div>
 
+        {/* Luxury Segmented Tabs matching Screen 10 */}
+        <div className="flex items-center justify-center gap-8 border-b border-white/10 px-2" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeOrderTab === 'recent'}
+            onClick={() => setActiveOrderTab('recent')}
+            className={`pb-3 text-xs sm:text-sm font-sans font-medium transition-all relative cursor-pointer ${
+              activeOrderTab === 'recent'
+                ? 'text-[#D4AF37] font-bold'
+                : 'text-[#AAA49A] hover:text-white'
+            }`}
+          >
+            <span>Recent Orders ({cachedOrders.length})</span>
+            {activeOrderTab === 'recent' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37] rounded-full" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeOrderTab === 'saved'}
+            onClick={() => setActiveOrderTab('saved')}
+            className={`pb-3 text-xs sm:text-sm font-sans font-medium transition-all relative cursor-pointer ${
+              activeOrderTab === 'saved'
+                ? 'text-[#D4AF37] font-bold'
+                : 'text-[#AAA49A] hover:text-white'
+            }`}
+          >
+            <span>Saved Pieces</span>
+            {activeOrderTab === 'saved' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37] rounded-full" />
+            )}
+          </button>
+        </div>
+
         {/* 1. Recent Orders on This Device */}
-        {cachedOrders.length > 0 && (
+        {activeOrderTab === 'recent' && cachedOrders.length > 0 && (
           <div className="ld-recent-orders-card p-4 sm:p-5 rounded-2xl bg-[#121211] border border-white/10 space-y-3.5 shadow-lg">
             <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
               <h2 className="ld-recent-orders-title text-sm sm:text-base font-serif font-semibold text-[#F4F1EA]">
@@ -156,25 +194,30 @@ export default function OrderLookupPage() {
                     className="ld-recent-order-link p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 group"
                     data-testid={`recent-order-item-${ord.id}`}
                   >
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="ld-recent-order-code font-mono text-xs sm:text-sm font-bold text-white group-hover:text-[#E2C27A] transition-colors truncate">
-                          {formattedCode}
-                        </span>
-                        {ord.paymentStatus && (
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-[#C79A45]/15 text-[#E2C27A] border border-[#C79A45]/30 font-medium">
-                            {formatOrderStatus(undefined, ord.paymentStatus, ord.fulfilmentStatus)}
-                          </span>
-                        )}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-14 rounded-lg bg-[#181715] border border-white/10 flex-shrink-0 flex items-center justify-center text-[#D4AF37] font-serif font-bold text-sm">
+                        ✦
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-[#AAA49A]">
-                        <span>{ord.storeName || 'Independent Boutique'}</span>
-                        {typeof ord.totalPaisa === 'number' && ord.totalPaisa > 0 && (
-                          <>
-                            <span>•</span>
-                            <span className="font-mono text-white/80">{formatPaisaToINR(ord.totalPaisa)}</span>
-                          </>
-                        )}
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="ld-recent-order-code font-mono text-xs sm:text-sm font-bold text-white group-hover:text-[#E2C27A] transition-colors truncate">
+                            {formattedCode}
+                          </span>
+                          {ord.paymentStatus && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-[#C79A45]/15 text-[#E2C27A] border border-[#C79A45]/30 font-medium">
+                              {formatOrderStatus(undefined, ord.paymentStatus, ord.fulfilmentStatus)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-[#AAA49A]">
+                          <span>{ord.storeName || 'Independent Boutique'}</span>
+                          {typeof ord.totalPaisa === 'number' && ord.totalPaisa > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="font-mono text-white/80">{formatPaisaToINR(ord.totalPaisa)}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -245,7 +288,7 @@ export default function OrderLookupPage() {
         </form>
       </main>
 
-      <MobileBottomDock />
+      <MobileBottomDock activeTabOverride="orders" />
     </div>
   );
 }

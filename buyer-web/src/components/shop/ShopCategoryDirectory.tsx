@@ -20,6 +20,7 @@ import { filterProductionProducts, filterProductionStorefronts } from '../../lib
 import { LuxuryTopHeader } from '../navigation/LuxuryTopHeader';
 import { MobileBottomDock } from '../navigation/MobileBottomDock';
 import { ProductCard } from '../ProductCard';
+import { FilterSheet, FilterState } from './FilterSheet';
 
 export interface ShopCategoryDirectoryProps {
   storefronts?: PublicSellerStorefront[];
@@ -43,8 +44,15 @@ export function ShopCategoryDirectory({
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc'>('featured');
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [filterState, setFilterState] = useState<FilterState>({
+    category: null,
+    priceRange: [0, 5000000],
+    availability: 'all',
+    sizes: [],
+  });
 
-  // Filter products by category tab and search query with production hygiene
+  // Filter products by category tab, search query, price, availability, and sizes
   const filteredProducts = useMemo(() => {
     let list = filterProductionProducts(initialProducts);
 
@@ -71,6 +79,28 @@ export function ShopCategoryDirectory({
       });
     }
 
+    // Filter by price range
+    list = list.filter(
+      (p) => p.price_paisa >= filterState.priceRange[0] && p.price_paisa <= filterState.priceRange[1]
+    );
+
+    // Filter by availability
+    if (filterState.availability === 'in_stock') {
+      list = list.filter((p) => p.status === 'available' || (p.quantity_available ?? 1) > 0);
+    } else if (filterState.availability === 'reserved') {
+      list = list.filter((p) => p.status === 'reserved');
+    } else if (filterState.availability === 'sold') {
+      list = list.filter((p) => p.status === 'sold');
+    }
+
+    // Filter by sizes
+    if (filterState.sizes.length > 0) {
+      list = list.filter((p) => {
+        const text = `${p.title || ''} ${p.description || ''}`.toLowerCase();
+        return filterState.sizes.some((size) => text.includes(size.toLowerCase()));
+      });
+    }
+
     if (sortBy === 'price-asc') {
       list.sort((a, b) => a.price_paisa - b.price_paisa);
     } else if (sortBy === 'price-desc') {
@@ -78,7 +108,7 @@ export function ShopCategoryDirectory({
     }
 
     return list;
-  }, [initialProducts, activeTab, searchQuery, sortBy]);
+  }, [initialProducts, activeTab, searchQuery, sortBy, filterState]);
 
   const filteredBoutiques = useMemo(() => {
     const valid = filterProductionStorefronts(storefronts);
@@ -168,6 +198,30 @@ export function ShopCategoryDirectory({
                 <option value="price-desc">Price: High to Low</option>
               </select>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFilterSheetOpen(true)}
+              data-testid="shop-filter-btn"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181715] hover:bg-white/10 text-xs text-[#F4F1EA] border border-white/10 transition-colors cursor-pointer"
+              aria-label="Open filter sheet"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#C79A45]">
+                <line x1="4" y1="21" x2="4" y2="14" />
+                <line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" />
+                <line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" />
+                <line x1="9" y1="8" x2="15" y2="8" />
+                <line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
+              <span>Filter</span>
+              {(filterState.category || filterState.priceRange[1] < 5000000 || filterState.availability !== 'all' || filterState.sizes.length > 0) && (
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -297,7 +351,23 @@ export function ShopCategoryDirectory({
         )}
       </main>
 
-      {/* 7. Bottom Navigation Dock */}
+      {/* 7. Haute Couture Filters Bottom Sheet Modal (Screen 05) */}
+      <FilterSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        filters={filterState}
+        onApplyFilters={(newFilters) => {
+          setFilterState(newFilters);
+          if (newFilters.category) {
+            setActiveTab(newFilters.category);
+          } else {
+            setActiveTab('all');
+          }
+        }}
+        totalMatchingPieces={filteredProducts.length}
+      />
+
+      {/* 8. Bottom Navigation Dock */}
       <MobileBottomDock />
     </div>
   );

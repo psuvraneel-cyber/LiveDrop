@@ -5,21 +5,27 @@
 @import "tailwindcss";
 
 @theme {
+  --font-serif: var(--font-display);
+  --font-sans: var(--font-sans);
   --color-ld-bg: #08080A;
   --color-ld-surface: #0E0E12;
   --color-ld-surface-elevated: #16161C;
   --color-ld-surface-subtle: #121217;
   --color-ld-border: rgba(255, 255, 255, 0.08);
   --color-ld-border-gold: rgba(212, 175, 55, 0.25);
+  --color-ld-border-gold-strong: rgba(212, 175, 55, 0.4);
   --color-ld-text-primary: #FBFBFB;
   --color-ld-text-secondary: rgba(244, 241, 234, 0.72);
   --color-ld-text-muted: #AAA49A;
   --color-ld-gold: #D4AF37;
   --color-ld-gold-soft: #F5D78E;
   --color-ld-gold-deep: #C88A24;
+  --color-ld-gold-muted: #8A7B4C;
+  --color-ld-burgundy: #2C1820;
   --color-ld-live: #EF4444;
   --color-ld-success: #10B981;
   --color-ld-warning: #F59E0B;
+  --color-ld-sold: #4A4A52;
 }
 
 :root {
@@ -323,7 +329,7 @@ body,
 /* Safe area padding for mobile bottom navigation dock — ensures zero content clipping */
 .ld-has-bottom-dock,
 .ld-home-storefront {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px) !important;
 }
 
 @media (min-width: 768px) {
@@ -438,8 +444,13 @@ body,
 
 .ld-header-crest-icon {
   color: var(--champagne-gold);
-  font-size: 16px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ld-header-brand-text {
@@ -502,8 +513,10 @@ body,
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--ivory-text);
   border-radius: 50%;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -520,11 +533,12 @@ body,
 
 .ld-header-bag-badge {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  min-width: 17px;
-  height: 17px;
-  border-radius: 9px;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
   background: var(--champagne-gold);
   color: #08080A;
   font-size: 10px;
@@ -532,7 +546,8 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 4px;
+  padding: 0;
+  line-height: 1;
 }
 
 .ld-header-search-wrap {
@@ -753,7 +768,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: space-around;
-  height: 56px;
+  height: 60px;
   max-width: 480px;
   margin: 0 auto;
   padding: 0 8px;
@@ -767,7 +782,7 @@ body,
   justify-content: center;
   gap: 3px;
   height: 100%;
-  color: rgba(251, 251, 251, 0.45);
+  color: #AAA49A;
   text-decoration: none !important;
   font-size: 10px;
   font-weight: 500;
@@ -780,7 +795,7 @@ body,
 
 .ld-dock-tab:hover,
 .ld-dock-tab.active {
-  color: var(--champagne-gold);
+  color: #D4AF37;
 }
 
 .ld-dock-icon-wrap {
@@ -799,7 +814,7 @@ body,
   transform: translateX(-50%);
   width: 16px;
   height: 2px;
-  background: var(--champagne-gold);
+  background: #D4AF37;
   border-radius: 1px;
 }
 

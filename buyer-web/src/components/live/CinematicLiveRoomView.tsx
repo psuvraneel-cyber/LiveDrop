@@ -9,6 +9,7 @@ import { ProductQuickViewDrawer } from '../product/ProductQuickViewDrawer';
 import { CartDrawer } from '../cart/CartDrawer';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 import { useOptionalCart } from '../../lib/cart/cart-context';
+import { MobileBottomDock } from '../navigation/MobileBottomDock';
 
 export interface CinematicLiveRoomViewProps {
   drop: PublicDropCatalog;
@@ -41,6 +42,23 @@ export function CinematicLiveRoomView({
   const [likesCount, setLikesCount] = useState(2480);
   const [hasLiked, setHasLiked] = useState(false);
   const [flyingHearts, setFlyingHearts] = useState<{ id: number; left: number }[]>([]);
+  const [comments, setComments] = useState<MockChatMessage[]>(INITIAL_COMMENTS);
+  const [chatInput, setChatInput] = useState('');
+
+  const handleSendChat = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!chatInput.trim()) return;
+    setComments((prev) => [
+      ...prev,
+      {
+        id: `c-${Date.now()}`,
+        sender: 'You',
+        avatar: 'Y',
+        message: chatInput.trim(),
+      },
+    ]);
+    setChatInput('');
+  };
 
   // Cart integration
   const cart = useOptionalCart();
@@ -250,8 +268,8 @@ export function CinematicLiveRoomView({
       </aside>
 
       {/* 4. BOTTOM-LEFT FLOATING CHAT OVERLAY */}
-      <div className="absolute left-4 bottom-48 z-10 max-w-[70%] pointer-events-none space-y-1.5">
-        {INITIAL_COMMENTS.map((chat) => (
+      <div className="absolute left-4 bottom-[calc(190px+env(safe-area-inset-bottom,0px))] z-10 max-w-[70%] pointer-events-none space-y-1.5">
+        {comments.map((chat) => (
           <div
             key={chat.id}
             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/10 text-xs shadow-lg animate-in fade-in slide-in-from-left duration-300"
@@ -350,6 +368,49 @@ export function CinematicLiveRoomView({
           </div>
         </div>
       )}
+
+      {/* 6. LIVE CHAT INPUT ROW (Screen 03) */}
+      <form
+        onSubmit={handleSendChat}
+        className="relative z-20 px-4 py-2 pb-[calc(64px+env(safe-area-inset-bottom,0px))] bg-[#08080A]/95 border-t border-white/10 flex items-center gap-2 pointer-events-auto"
+        data-testid="live-chat-form"
+      >
+        <button
+          type="button"
+          className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer text-base flex-shrink-0"
+          aria-label="Add emoji reaction"
+          onClick={() => {
+            setChatInput((prev) => prev + '✨');
+          }}
+        >
+          😊
+        </button>
+
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Say something..."
+            data-testid="live-chat-input"
+            aria-label="Send live chat message"
+            className="w-full bg-[#16161C] border border-white/15 focus:border-[#D4AF37] rounded-full px-4 py-2 text-xs text-[#FBFBFB] placeholder-white/40 focus:outline-none transition-colors"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={!chatInput.trim()}
+          data-testid="live-chat-send-btn"
+          aria-label="Send message"
+          className="w-9 h-9 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] disabled:opacity-40 disabled:cursor-not-allowed text-[#08080A] flex items-center justify-center transition-all shadow-md active:scale-95 flex-shrink-0 cursor-pointer"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </form>
 
       {/* 6. SWIPE-UP FULL CATALOG DRAWER (Facebook Live continues playing in background!) */}
       {isCatalogExpanded && (
@@ -456,6 +517,9 @@ export function CinematicLiveRoomView({
         catalogProducts={products}
         drop={drop}
       />
+
+      {/* 9. MOBILE BOTTOM DOCK (Screen 03) */}
+      <MobileBottomDock activeTabOverride="live" />
     </div>
   );
 }

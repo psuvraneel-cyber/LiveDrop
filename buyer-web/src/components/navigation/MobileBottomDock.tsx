@@ -48,10 +48,19 @@ function setHashLocation(hash: string) {
   }
 }
 
-export function MobileBottomDock() {
+export interface MobileBottomDockProps {
+  cartItemCount?: number;
+  activeTabOverride?: 'home' | 'live' | 'shop' | 'orders' | 'bag';
+}
+
+export function MobileBottomDock({
+  cartItemCount,
+  activeTabOverride,
+}: MobileBottomDockProps = {}) {
   const pathname = useSafePathname();
   const cart = useOptionalCart();
   const itemCount = cart?.itemCount ?? 0;
+  const effectiveItemCount = cartItemCount ?? itemCount;
   const isHydrated = cart?.isHydrated ?? false;
   const openDrawer = cart?.openDrawer;
   const isDrawerOpen = cart?.isDrawerOpen ?? false;
@@ -62,18 +71,18 @@ export function MobileBottomDock() {
     getHashServerSnapshot
   );
 
-  // Don't render on live drop fullscreen room if it conflicts with real-time controls
-  if (pathname?.startsWith('/drop/')) {
+  // Don't render on live drop fullscreen room unless explicitly requested with activeTabOverride
+  if (!activeTabOverride && pathname?.startsWith('/drop/')) {
     return null;
   }
 
-  // Determine active tab based on route and hash
+  // Determine active tab based on route, hash, or override
   const isHomeBase = pathname === '/' || pathname === '';
-  const isLiveActive = isHomeBase && (currentHash === '#live-drops' || currentHash === '#live-now');
-  const isShopActive = pathname === '/shop';
-  const isOrdersActive = pathname?.startsWith('/order');
-  const isBagActive = pathname === '/cart' || pathname === '/checkout' || isDrawerOpen;
-  const isHomeActive = isHomeBase && !isLiveActive && !isShopActive && !isOrdersActive && !isBagActive;
+  const isLiveActive = activeTabOverride === 'live' || (!activeTabOverride && isHomeBase && (currentHash === '#live-drops' || currentHash === '#live-now'));
+  const isShopActive = activeTabOverride === 'shop' || (!activeTabOverride && pathname === '/shop');
+  const isOrdersActive = activeTabOverride === 'orders' || (!activeTabOverride && pathname?.startsWith('/order'));
+  const isBagActive = activeTabOverride === 'bag' || (!activeTabOverride && (pathname === '/cart' || pathname === '/checkout' || isDrawerOpen));
+  const isHomeActive = activeTabOverride === 'home' || (!activeTabOverride && isHomeBase && !isLiveActive && !isShopActive && !isOrdersActive && !isBagActive);
 
   return (
     <nav
@@ -81,11 +90,11 @@ export function MobileBottomDock() {
       aria-label="Buyer Navigation Dock"
       data-testid="mobile-bottom-dock"
     >
-      <div className="ld-bottom-dock-inner">
+      <div className="ld-bottom-dock-inner h-[60px]">
         {/* 1. Home */}
         <Link
           href="/"
-          className={`ld-dock-tab ${isHomeActive ? 'active' : ''}`}
+          className={`ld-dock-tab ${isHomeActive ? 'active text-[#D4AF37]' : 'text-[#AAA49A]'}`}
           aria-label="Home"
           aria-current={isHomeActive ? 'page' : undefined}
           data-testid="dock-home-tab"
@@ -98,13 +107,13 @@ export function MobileBottomDock() {
             </svg>
           </div>
           <span className="ld-dock-label">Home</span>
-          {isHomeActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          {isHomeActive && <span className="ld-dock-active-line bg-[#D4AF37]" aria-hidden="true" />}
         </Link>
 
         {/* 2. Live */}
         <Link
           href="/#live-drops"
-          className={`ld-dock-tab ${isLiveActive ? 'active' : ''}`}
+          className={`ld-dock-tab ${isLiveActive ? 'active text-[#D4AF37]' : 'text-[#AAA49A]'}`}
           aria-label="Live Drops"
           data-testid="dock-live-tab"
           onClick={() => setHashLocation('#live-drops')}
@@ -117,13 +126,13 @@ export function MobileBottomDock() {
             <span className="ld-dock-live-dot" aria-hidden="true" />
           </div>
           <span className="ld-dock-label">Live</span>
-          {isLiveActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          {isLiveActive && <span className="ld-dock-active-line bg-[#D4AF37]" aria-hidden="true" />}
         </Link>
 
         {/* 3. Shop */}
         <Link
           href="/shop"
-          className={`ld-dock-tab ${isShopActive ? 'active' : ''}`}
+          className={`ld-dock-tab ${isShopActive ? 'active text-[#D4AF37]' : 'text-[#AAA49A]'}`}
           aria-label="Shop"
           aria-current={isShopActive ? 'page' : undefined}
           data-testid="dock-shop-tab"
@@ -136,13 +145,13 @@ export function MobileBottomDock() {
             </svg>
           </div>
           <span className="ld-dock-label">Shop</span>
-          {isShopActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          {isShopActive && <span className="ld-dock-active-line bg-[#D4AF37]" aria-hidden="true" />}
         </Link>
 
         {/* 4. Orders */}
         <Link
           href="/order"
-          className={`ld-dock-tab ${isOrdersActive ? 'active' : ''}`}
+          className={`ld-dock-tab ${isOrdersActive ? 'active text-[#D4AF37]' : 'text-[#AAA49A]'}`}
           aria-label="Orders"
           aria-current={isOrdersActive ? 'page' : undefined}
           data-testid="dock-orders-tab"
@@ -156,14 +165,14 @@ export function MobileBottomDock() {
             </svg>
           </div>
           <span className="ld-dock-label">Orders</span>
-          {isOrdersActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+          {isOrdersActive && <span className="ld-dock-active-line bg-[#D4AF37]" aria-hidden="true" />}
         </Link>
 
         {/* 5. Bag */}
         {openDrawer ? (
           <button
             type="button"
-            className={`ld-dock-tab ${isBagActive ? 'active' : ''}`}
+            className={`ld-dock-tab ${isBagActive ? 'active text-[#D4AF37]' : 'text-[#AAA49A]'}`}
             aria-label="Shopping Bag"
             data-testid="dock-bag-tab"
             onClick={openDrawer}
@@ -172,19 +181,19 @@ export function MobileBottomDock() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              {isHydrated && itemCount > 0 && (
+              {isHydrated && effectiveItemCount > 0 && (
                 <span className="ld-dock-badge">
-                  {itemCount}
+                  {effectiveItemCount}
                 </span>
               )}
             </div>
             <span className="ld-dock-label">Bag</span>
-            {isBagActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+            {isBagActive && <span className="ld-dock-active-line bg-[#D4AF37]" aria-hidden="true" />}
           </button>
         ) : (
           <Link
             href="/cart"
-            className={`ld-dock-tab ${isBagActive ? 'active' : ''}`}
+            className={`ld-dock-tab ${isBagActive ? 'active text-[#D4AF37]' : 'text-[#AAA49A]'}`}
             aria-label="Shopping Bag"
             data-testid="dock-bag-tab"
           >
@@ -192,14 +201,14 @@ export function MobileBottomDock() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              {isHydrated && itemCount > 0 && (
+              {isHydrated && effectiveItemCount > 0 && (
                 <span className="ld-dock-badge">
-                  {itemCount}
+                  {effectiveItemCount}
                 </span>
               )}
             </div>
             <span className="ld-dock-label">Bag</span>
-            {isBagActive && <span className="ld-dock-active-line" aria-hidden="true" />}
+            {isBagActive && <span className="ld-dock-active-line bg-[#D4AF37]" aria-hidden="true" />}
           </Link>
         )}
       </div>

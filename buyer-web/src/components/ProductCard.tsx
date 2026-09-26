@@ -19,6 +19,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   const cart = useOptionalCart();
 
   const isAvailable = product.status === 'available';
@@ -74,7 +75,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
         onClick={() => setIsDetailOpen(true)}
       >
       {/* Media Thumbnail Container (3:4 aspect ratio) */}
-      <div className="ld-card-media">
+      <div className="ld-card-media relative">
         {/* Flash Code Badge (Top-Left, High Contrast Monospace) */}
         <span
           className="ld-flash-badge"
@@ -83,6 +84,24 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
         >
           {product.code}
         </span>
+
+        {/* Favorite Heart Button (Top-Right) */}
+        <button
+          type="button"
+          className={`ld-card-heart-btn absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
+            isFavorite ? 'text-[#D4AF37]' : 'text-white/80 hover:text-white'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsFavorite(!isFavorite);
+          }}
+          aria-label={isFavorite ? `Remove ${product.title} from favorites` : `Add ${product.title} to favorites`}
+          data-testid={`favorite-btn-${product.id}`}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill={isFavorite ? '#D4AF37' : 'none'} stroke="currentColor" strokeWidth="2">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+        </button>
 
         {/* Product Image or Branded Fallback */}
         {currentImageUrl && !isCurrentError ? (

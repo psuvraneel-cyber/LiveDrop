@@ -143,7 +143,7 @@ function OrderTrackingContent() {
             </div>
           </div>
         </main>
-        <MobileBottomDock />
+        <MobileBottomDock activeTabOverride="orders" />
       </div>
     );
   }
@@ -165,7 +165,7 @@ function OrderTrackingContent() {
           dropSlug={order.store_slug || null}
         />
       </main>
-      <MobileBottomDock />
+      <MobileBottomDock activeTabOverride="orders" />
     </div>
   );
 }

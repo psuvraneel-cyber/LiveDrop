@@ -42,6 +42,16 @@ const CATEGORY_CHIPS = [
   { id: 'accessories', label: 'Accessories' },
 ];
 
+const CATEGORY_IMAGES: Record<string, string> = {
+  all: '',
+  sarees: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=120&auto=format&fit=crop&q=80',
+  kurtis: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=120&auto=format&fit=crop&q=80',
+  lehengas: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=120&auto=format&fit=crop&q=80',
+  dupattas: 'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?w=120&auto=format&fit=crop&q=80',
+  jewellery: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=120&auto=format&fit=crop&q=80',
+  accessories: 'https://images.unsplash.com/photo-1611591475852-5a48d88e0a81?w=120&auto=format&fit=crop&q=80',
+};
+
 export function HomeStorefront({
   activeDrops = [],
   storefronts = [],
@@ -181,107 +191,172 @@ export function HomeStorefront({
         onSearchChange={setSearchQuery}
       />
 
-      {/* 2. Compact Live Drop Spotlight Hero (280–320px mobile) */}
-      <section
-        id="live-drops"
-        className="relative w-full h-[280px] sm:h-[310px] md:h-[360px] flex items-center overflow-hidden border-b border-white/10 bg-[#121211] scroll-mt-16"
-        aria-label="LiveDrop Spotlight Hero"
-        data-testid={hasActiveLiveDrop ? "live-drop-hero" : "spotlight-hero"}
-      >
-        <div className="absolute inset-0 pointer-events-none">
-          {heroBackground ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={heroBackground}
-              alt={hasActiveLiveDrop && primaryLiveDrop ? primaryLiveDrop.title : 'LiveDrop Spotlight'}
-              className="w-full h-full object-cover object-top sm:object-center brightness-60 transition-transform duration-700"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#1b1613] via-[#121211] to-[#090909]" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#090909] via-[#090909]/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#090909]/90 via-[#090909]/40 to-transparent" />
-        </div>
+      {/* 2. Inset Haute-Couture Live Drop Spotlight Hero (Screen 01 Reference) */}
+      <div className="w-full max-w-6xl mx-auto px-4 pt-3 pb-2">
+        <section
+          id="live-drops"
+          className="relative w-full h-[320px] sm:h-[360px] md:h-[400px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#121211] scroll-mt-16 shadow-2xl"
+          aria-label="LiveDrop Spotlight Hero"
+          data-testid={hasActiveLiveDrop ? "live-drop-hero" : "spotlight-hero"}
+        >
+          <div className="absolute inset-0 pointer-events-none">
+            {heroBackground ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={heroBackground}
+                alt={hasActiveLiveDrop && primaryLiveDrop ? primaryLiveDrop.title : 'LiveDrop Spotlight'}
+                className="w-full h-full object-cover object-top sm:object-center brightness-60 transition-transform duration-700"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-[#1b1613] via-[#121211] to-[#090909]" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#08080A] via-[#08080A]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#08080A]/85 via-transparent to-transparent" />
+          </div>
 
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-8 w-full flex flex-col justify-end pb-5 sm:pb-7">
-          <div className="max-w-xl space-y-2 sm:space-y-3">
-            {/* Live Indicator or Eyebrow */}
-            {hasActiveLiveDrop && primaryLiveDrop ? (
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E5484D] text-white font-mono font-bold text-[10px] tracking-wider uppercase shadow-md">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                  LIVE NOW
+          <div className="relative w-full p-4 sm:p-6 flex flex-col justify-end">
+            <div className="max-w-xl space-y-2">
+              {/* Live Indicator or Eyebrow */}
+              {hasActiveLiveDrop && primaryLiveDrop ? (
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EF4444] text-white font-mono font-bold text-[10px] tracking-wider uppercase shadow-md">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    LIVE NOW
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Headline */}
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#FBFBFB] tracking-wide leading-tight">
+                {hasActiveLiveDrop && primaryLiveDrop
+                  ? primaryLiveDrop.title
+                  : 'NO LIVE DROP'}
+              </h1>
+
+              {/* Subtitle / Boutique Attribution */}
+              <p className="text-xs sm:text-sm text-[#F4F1EA]/80 font-sans max-w-md leading-snug">
+                {hasActiveLiveDrop && primaryLiveDrop
+                  ? `${primaryLiveDrop.profiles?.store_name || 'Independent Boutique'}`
+                  : 'Explore pieces from independent boutiques.'}
+              </p>
+
+              {/* Luxury Feature Tags (Screen 01) */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pb-1">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[10px] text-white/90">
+                  <span className="text-[#D4AF37]">✦</span> Live shopping
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[10px] text-white/90">
+                  <span className="text-[#D4AF37]">✦</span> Exclusive pieces
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[10px] text-white/90">
+                  <span className="text-[#D4AF37]">✦</span> Handpicked
                 </span>
               </div>
-            ) : null}
 
-            {/* Concise Headline */}
-            <h1 className="text-2xl sm:text-4xl font-serif text-[#F4F1EA] tracking-wide leading-tight">
-              {hasActiveLiveDrop && primaryLiveDrop
-                ? primaryLiveDrop.title
-                : 'NO LIVE DROP'}
-            </h1>
+              {/* Action CTA & Pagination Dots Row */}
+              <div className="pt-1 flex items-center justify-between">
+                {hasActiveLiveDrop && primaryLiveDrop ? (
+                  <Link
+                    href={`/drop/${primaryLiveDrop.slug}`}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    data-testid="shop-live-hero-btn"
+                  >
+                    <span>Shop Live Drop</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href="/shop"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    data-testid="explore-live-shows-btn"
+                  >
+                    <span>Shop Collections</span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                )}
 
-            {/* Subtitle / Boutique Attribution */}
-            <p className="text-xs sm:text-sm text-[#AAA49A] font-sans max-w-md leading-snug">
-              {hasActiveLiveDrop && primaryLiveDrop
-                ? `${primaryLiveDrop.profiles?.store_name || 'Independent Boutique'}`
-                : 'Explore pieces from independent boutiques.'}
-            </p>
-
-            {/* Action CTA */}
-            <div className="pt-1">
-              {hasActiveLiveDrop && primaryLiveDrop ? (
-                <Link
-                  href={`/drop/${primaryLiveDrop.slug}`}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                  data-testid="shop-live-hero-btn"
-                >
-                  <span>Shop Live Drop</span>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              ) : (
-                <Link
-                  href="/shop"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                  data-testid="explore-live-shows-btn"
-                >
-                  <span>Shop Collections</span>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              )}
+                {/* Slider pagination indicators (Screen 01) */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-[10px] text-white/70">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                  <span className="ml-1 font-mono text-[9px]">1/4</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      {/* 3. Compact Horizontal Category Rail (Normal document flow, 52-60px height) */}
+      {/* 3. Category Discovery Rail (Screen 01: Square 'All' card + circular photo avatars) */}
       <section
-        className="px-4 sm:px-8 py-3.5 border-b border-white/5 bg-[#121211]"
+        className="w-full max-w-6xl mx-auto px-4 sm:px-8 py-4 border-b border-white/5"
         aria-label="Product Categories"
       >
         <div
-          className="max-w-6xl mx-auto flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none"
+          className="flex items-center gap-3.5 overflow-x-auto pb-1 scrollbar-none"
           role="tablist"
           data-testid="category-chips-rail"
         >
-          {CATEGORY_CHIPS.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              role="tab"
-              aria-selected={selectedCategory === cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide transition-all whitespace-nowrap cursor-pointer ${
-                selectedCategory === cat.id
-                  ? 'active bg-[#C79A45] text-[#090909] font-bold shadow-md'
-                  : 'bg-white/5 text-[#AAA49A] hover:bg-white/10 hover:text-white border border-white/5'
-              }`}
-              data-testid={`category-chip-${cat.id}`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {CATEGORY_CHIPS.map((cat) => {
+            const isAll = cat.id === 'all';
+            const isSelected = selectedCategory === cat.id;
+            const categoryImage = CATEGORY_IMAGES[cat.id];
+
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex flex-col items-center gap-1.5 transition-transform flex-shrink-0 cursor-pointer ${
+                  isSelected ? 'scale-105 active' : 'opacity-85 hover:opacity-100'
+                }`}
+                data-testid={`category-chip-${cat.id}`}
+              >
+                {isAll ? (
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all ${
+                      isSelected
+                        ? 'bg-[#D4AF37] text-[#08080A] ring-2 ring-[#D4AF37]/50'
+                        : 'bg-[#16161C] text-[#D4AF37] border border-white/10'
+                    }`}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="7" height="7" x="3" y="3" rx="1" />
+                      <rect width="7" height="7" x="14" y="3" rx="1" />
+                      <rect width="7" height="7" x="14" y="14" rx="1" />
+                      <rect width="7" height="7" x="3" y="14" rx="1" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div
+                    className={`relative w-12 h-12 rounded-full overflow-hidden border-2 transition-all ${
+                      isSelected
+                        ? 'border-[#D4AF37] ring-2 ring-[#D4AF37]/40 scale-105'
+                        : 'border-white/15 hover:border-white/40'
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={categoryImage}
+                      alt={cat.label}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+                <span
+                  className={`text-[11px] font-sans tracking-wide whitespace-nowrap ${
+                    isSelected ? 'text-[#D4AF37] font-semibold' : 'text-[#AAA49A]'
+                  }`}
+                >
+                  {cat.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
