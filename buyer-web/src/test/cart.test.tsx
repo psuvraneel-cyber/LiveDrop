@@ -546,12 +546,13 @@ describe('TASK-2.2: CartEmptyState Component', () => {
     render(<CartEmptyState onBrowse={handleBrowse} />);
 
     expect(screen.getByTestId('cart-empty-state')).toBeInTheDocument();
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+    expect(screen.getByText('Your bag is empty')).toBeInTheDocument();
     expect(
-      screen.getByText('Browse the live catalog to add items to your bag.')
+      screen.getByText('Discover unique pieces from independent boutiques.')
     ).toBeInTheDocument();
 
     const browseBtn = screen.getByTestId('cart-browse-btn');
+    expect(browseBtn).toHaveTextContent('Explore Shop');
     fireEvent.click(browseBtn);
     expect(handleBrowse).toHaveBeenCalledTimes(1);
   });

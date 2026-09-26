@@ -170,42 +170,42 @@ export function CartDrawer({
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scrollbar-none">
-            {/* Informational Stock Notice */}
-            <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
-              <span className="text-[#D4AF37] mt-0.5">✦</span>
-              <span className="leading-relaxed">
-                Garments are held temporarily during active checkout. Live drops are single-piece limited editions.
-              </span>
-            </div>
+            {/* Informational Stock Notice - shown only when there are available items */}
+            {availableItems.length > 0 && (
+              <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
+                <span className="text-[#D4AF37] mt-0.5">✦</span>
+                <span className="leading-relaxed">
+                  Garments are held temporarily during active checkout. Live drops are single-piece limited editions.
+                </span>
+              </div>
+            )}
 
-            {/* Unavailable items alert banner */}
+            {/* Simplified Unavailable items alert banner */}
             {hasUnavailableItems && (
               <div
-                className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 space-y-2.5"
+                className="p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-xs text-red-300 flex items-center justify-between gap-3"
                 data-testid="cart-unavailable-banner"
               >
-                <div className="flex items-start gap-2">
-                  <span className="font-bold">Notice:</span>
-                  <span>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                  <span className="font-sans font-medium text-white/90">
                     {availableItems.length === 0
-                      ? 'All items in your bag were claimed offline or by another buyer. Please remove them to continue.'
-                      : 'One or more items in your cart were claimed offline or by another buyer. Please remove them to proceed.'}
+                      ? `${reconciledItems.length} item${reconciledItems.length > 1 ? 's' : ''} unavailable`
+                      : `${availableItems.length} available · ${reconciledItems.length - availableItems.length} unavailable`}
                   </span>
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      reconciledItems
-                        .filter((item) => !item.isAvailable)
-                        .forEach((item) => removeItem(item.productId));
-                    }}
-                    className="px-3 py-1 rounded bg-red-900/60 hover:bg-red-800/80 text-red-200 border border-red-500/30 text-[11px] font-mono transition-colors"
-                    data-testid="cart-remove-unavailable-btn"
-                  >
-                    Remove Unavailable Items
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    reconciledItems
+                      .filter((item) => !item.isAvailable)
+                      .forEach((item) => removeItem(item.productId));
+                  }}
+                  className="px-3 py-1 rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-200 border border-red-500/30 text-[11px] font-sans font-medium transition-colors flex-shrink-0"
+                  data-testid="cart-remove-unavailable-btn"
+                >
+                  {availableItems.length === 0 ? 'Remove' : 'Remove unavailable'}
+                </button>
               </div>
             )}
 
@@ -224,9 +224,9 @@ export function CartDrawer({
 
             {/* When NO items are available in the bag */}
             {availableItems.length === 0 ? (
-              <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center space-y-3 shadow-md">
-                <p className="text-xs text-white/70">
-                  No available pieces remaining in your bag. Explore available collections from active boutique drops.
+              <div className="p-4 rounded-xl bg-[#121211] border border-white/10 text-center space-y-3 shadow-md">
+                <p className="text-xs text-[#AAA49A]">
+                  No available pieces remain in your bag.
                 </p>
                 <button
                   type="button"
@@ -234,7 +234,7 @@ export function CartDrawer({
                     onClose();
                     router.push('/shop');
                   }}
-                  className="w-full py-3 rounded-full bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#08080A] font-serif font-bold text-xs tracking-wider uppercase transition-colors shadow-md"
+                  className="w-full py-3 rounded-full bg-[#C79A45] hover:bg-[#E2C27A] text-[#090909] font-serif font-bold text-xs tracking-wider uppercase transition-colors shadow-md"
                   data-testid="cart-continue-shopping-btn"
                 >
                   Explore Collections →
@@ -242,11 +242,10 @@ export function CartDrawer({
                 <button
                   type="button"
                   disabled
-                  className="w-full py-2.5 rounded-full font-sans text-xs text-white/30 bg-transparent border border-white/5 cursor-not-allowed"
+                  className="hidden"
                   data-testid="cart-checkout-btn"
-                >
-                  Checkout Unavailable (0 Pieces)
-                </button>
+                  aria-hidden="true"
+                />
               </div>
             ) : (
               <>

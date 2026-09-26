@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getBuyerClient } from '../../../lib/supabase/client';
 import { getOrderByToken } from '../../../lib/data/buyer-catalog';
-import { getCachedOrderToken, clearCachedOrderToken } from '../../../lib/cart/cart-storage';
+import { getCachedOrderToken, clearCachedOrderToken, saveRecentOrderSummary } from '../../../lib/cart/cart-storage';
 import { OrderReceipt } from '../../../types/domain';
 import { CheckoutSuccessView } from '../../../components/checkout/CheckoutSuccessView';
 import { MobileBottomDock } from '../../../components/navigation/MobileBottomDock';
@@ -62,6 +62,15 @@ function OrderTrackingContent() {
           setOrder(receipt);
           setActiveToken(resolvedToken);
           setIsLoading(false);
+          saveRecentOrderSummary({
+            id: receipt.id,
+            token: resolvedToken,
+            orderCode: receipt.order_code,
+            storeName: receipt.store_name,
+            totalPaisa: receipt.total_paisa,
+            paymentStatus: receipt.payment_status,
+            fulfilmentStatus: receipt.fulfilment_status,
+          });
         }
       } catch (err) {
         if (active) {

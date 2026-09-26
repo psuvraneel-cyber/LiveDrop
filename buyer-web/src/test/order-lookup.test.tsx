@@ -23,8 +23,8 @@ describe('Order Lookup Page (/order)', () => {
   it('renders order lookup page with heading and inputs', () => {
     render(<OrderLookupPage />);
     expect(screen.getByText('Track Your Order')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Order Identifier/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Order Security Token/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Order Number/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Receipt Access Key/i)).toBeInTheDocument();
   });
 
   it('displays validation error if submitted without order id or token', () => {
@@ -32,20 +32,20 @@ describe('Order Lookup Page (/order)', () => {
     const submitBtn = screen.getByRole('button', { name: /Retrieve Order Receipt/i });
     
     fireEvent.click(submitBtn);
-    expect(screen.getByText('Please enter your Order ID')).toBeInTheDocument();
+    expect(screen.getByText(/Please enter your order number or tracking link/i)).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
 
-    const idInput = screen.getByLabelText(/Order Identifier/i);
+    const idInput = screen.getByLabelText(/Order Number/i);
     fireEvent.change(idInput, { target: { value: 'ord-123' } });
     fireEvent.click(submitBtn);
-    expect(screen.getByText('Please enter your Order Access Token')).toBeInTheDocument();
+    expect(screen.getByText(/Please enter your receipt access key/i)).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('routes to order receipt on valid form submission', () => {
     render(<OrderLookupPage />);
-    const idInput = screen.getByLabelText(/Order Identifier/i);
-    const tokenInput = screen.getByLabelText(/Order Security Token/i);
+    const idInput = screen.getByLabelText(/Order Number/i);
+    const tokenInput = screen.getByLabelText(/Receipt Access Key/i);
     const submitBtn = screen.getByRole('button', { name: /Retrieve Order Receipt/i });
 
     fireEvent.change(idInput, { target: { value: 'ord-999' } });
@@ -62,4 +62,30 @@ describe('Order Lookup Page (/order)', () => {
     expect(screen.getByText('Recent Orders on This Device')).toBeInTheDocument();
     expect(screen.getByText(/Order #ord-abc-/i)).toBeInTheDocument();
   });
+
+  it('routes directly when buyer pastes a full tracking URL with token', () => {
+    render(<OrderLookupPage />);
+    const idInput = screen.getByLabelText(/Order Number/i);
+    const submitBtn = screen.getByRole('button', { name: /Retrieve Order Receipt/i });
+
+    fireEvent.change(idInput, {
+      target: { value: 'https://livedrop.store/order/ord-link-555?token=link-token-xyz' },
+    });
+    fireEvent.click(submitBtn);
+
+    expect(mockPush).toHaveBeenCalledWith('/order/ord-link-555?token=link-token-xyz');
+  });
+
+  it('routes automatically with cached token when buyer enters an order code saved on device', () => {
+    window.localStorage.setItem('livedrop_order_token_ord-device-777', 'device-tok-999');
+    render(<OrderLookupPage />);
+    const idInput = screen.getByLabelText(/Order Number/i);
+    const submitBtn = screen.getByRole('button', { name: /Retrieve Order Receipt/i });
+
+    fireEvent.change(idInput, { target: { value: 'ord-device-777' } });
+    fireEvent.click(submitBtn);
+
+    expect(mockPush).toHaveBeenCalledWith('/order/ord-device-777?token=device-tok-999');
+  });
 });
+

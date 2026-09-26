@@ -121,6 +121,15 @@ describe('HomeStorefront Component Tests', () => {
     expect(screen.getByTestId('boutique-card-suvs-atelier')).toBeInTheDocument();
     expect(screen.getByTestId('visit-boutique-suvs-atelier')).toBeInTheDocument();
     expect(screen.getByTestId('whatsapp-store-suvs-atelier')).toBeInTheDocument();
+    expect(screen.queryByTestId('boutique-live-badge-suvs-atelier')).toBeNull();
+  });
+
+  it('renders LIVE badge on boutique card only when boutique has an active drop', () => {
+    renderWithProviders(
+      <HomeStorefront activeDrops={[mockLiveDrop]} storefronts={[mockBoutique]} />
+    );
+
+    expect(screen.getByTestId('boutique-live-badge-suvs-atelier')).toBeInTheDocument();
   });
 });
 

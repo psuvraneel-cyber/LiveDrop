@@ -133,8 +133,8 @@ function CartPageContent() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4" role="main">
-        {/* Informational Stock Notice */}
-        {items.length > 0 && (
+        {/* Informational Stock Notice - shown only when there are available items */}
+        {items.length > 0 && availableItems.length > 0 && (
           <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
             <span className="text-[#D4AF37] mt-0.5">✦</span>
             <span className="leading-relaxed">
@@ -143,41 +143,38 @@ function CartPageContent() {
           </div>
         )}
 
-        {/* Unavailable items alert banner */}
+        {/* Simplified Unavailable items alert banner */}
         {hasUnavailableItems && (
-          <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 space-y-2.5" data-testid="page-cart-unavailable-banner">
-            <div className="flex items-start gap-2.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <span>
+          <div
+            className="p-3.5 rounded-xl bg-red-950/30 border border-red-500/30 text-xs text-red-300 flex items-center justify-between gap-3"
+            data-testid="page-cart-unavailable-banner"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+              <span className="font-sans font-medium text-white/90">
                 {availableItems.length === 0
-                  ? 'All items in your bag were claimed offline or by another buyer. Please remove them to continue.'
-                  : 'Some items in your cart were claimed by another buyer. Please remove them to proceed.'}
+                  ? `${reconciledItems.length} item${reconciledItems.length > 1 ? 's' : ''} unavailable`
+                  : `${availableItems.length} available · ${reconciledItems.length - availableItems.length} unavailable`}
               </span>
             </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  reconciledItems
-                    .filter((item) => !item.isAvailable)
-                    .forEach((item) => removeItem(item.productId));
-                }}
-                className="px-3 py-1 rounded bg-red-900/60 hover:bg-red-800/80 text-red-200 border border-red-500/30 text-[11px] font-mono transition-colors"
-                data-testid="page-cart-remove-unavailable-btn"
-              >
-                Remove Unavailable Items
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                reconciledItems
+                  .filter((item) => !item.isAvailable)
+                  .forEach((item) => removeItem(item.productId));
+              }}
+              className="px-3 py-1 rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-200 border border-red-500/30 text-[11px] font-sans font-medium transition-colors flex-shrink-0"
+              data-testid="page-cart-remove-unavailable-btn"
+            >
+              {availableItems.length === 0 ? 'Remove' : 'Remove unavailable'}
+            </button>
           </div>
         )}
 
         {items.length === 0 ? (
-          <div className="py-12 flex justify-center">
-            <CartEmptyState />
+          <div className="min-h-[50vh] flex items-center justify-center py-12">
+            <CartEmptyState browseHref="/shop" />
           </div>
         ) : (
           <div className="space-y-4">
@@ -196,13 +193,13 @@ function CartPageContent() {
 
             {/* When NO items are available in the bag */}
             {availableItems.length === 0 ? (
-              <div className="p-5 rounded-2xl bg-[#101014] border border-white/10 text-center space-y-3.5 shadow-lg">
-                <p className="text-xs sm:text-sm text-white/70 max-w-sm mx-auto">
-                  No available pieces remaining in your bag. Explore available collections from active boutique drops.
+              <div className="p-5 rounded-2xl bg-[#121211] border border-white/10 text-center space-y-3.5 shadow-lg">
+                <p className="text-xs sm:text-sm text-[#AAA49A] max-w-sm mx-auto">
+                  No available pieces remain in your bag.
                 </p>
                 <Link
                   href="/shop"
-                  className="inline-block w-full py-3.5 rounded-full bg-[#D4AF37] hover:bg-[#F3E5AB] text-[#08080A] font-serif font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors shadow-md text-center"
+                  className="inline-block w-full py-3.5 rounded-full bg-[#C79A45] hover:bg-[#E2C27A] text-[#090909] font-serif font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors shadow-md text-center"
                   data-testid="page-cart-continue-shopping-btn"
                 >
                   Explore Collections →
@@ -210,11 +207,10 @@ function CartPageContent() {
                 <button
                   type="button"
                   disabled
-                  className="w-full py-2.5 rounded-full font-sans text-xs text-white/30 bg-transparent border border-white/5 cursor-not-allowed"
+                  className="hidden"
                   data-testid="cart-page-checkout-btn"
-                >
-                  Checkout Unavailable (0 Pieces)
-                </button>
+                  aria-hidden="true"
+                />
               </div>
             ) : (
               <>

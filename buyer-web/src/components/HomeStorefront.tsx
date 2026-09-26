@@ -175,7 +175,8 @@ export function HomeStorefront({
 
       {/* 2. Compact Live Drop Spotlight Hero (280–320px mobile) */}
       <section
-        className="relative w-full h-[280px] sm:h-[320px] md:h-[360px] flex items-center overflow-hidden border-b border-white/10 bg-[#121211]"
+        id="live-drops"
+        className="relative w-full h-[280px] sm:h-[310px] md:h-[360px] flex items-center overflow-hidden border-b border-white/10 bg-[#121211] scroll-mt-16"
         aria-label="LiveDrop Spotlight Hero"
         data-testid={hasActiveLiveDrop ? "live-drop-hero" : "spotlight-hero"}
       >
@@ -216,10 +217,10 @@ export function HomeStorefront({
                 : 'No Live Drop Right Now'}
             </h1>
 
-            {/* Subtitle */}
-            <p className="text-xs sm:text-sm text-[#AAA49A] font-sans max-w-md leading-relaxed">
+            {/* Subtitle / Boutique Attribution */}
+            <p className="text-xs sm:text-sm text-[#AAA49A] font-sans max-w-md leading-snug">
               {hasActiveLiveDrop && primaryLiveDrop
-                ? `Presented by ${primaryLiveDrop.profiles?.store_name || 'Independent Boutique'}. Single-piece exclusive drops reserve instantly.`
+                ? `${primaryLiveDrop.profiles?.store_name || 'Independent Boutique'}`
                 : 'Explore the latest pieces from independent boutiques.'}
             </p>
 
@@ -281,61 +282,7 @@ export function HomeStorefront({
 
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-10 sm:space-y-14">
-        {/* 4. Live Drops Spotlight Section (When Live) */}
-        {hasActiveLiveDrop && primaryLiveDrop && (
-          <section id="live-drops" className="space-y-4 scroll-mt-24" aria-label="Active Live Drop" data-testid="live-drops-section">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#E5484D] animate-pulse" />
-                <h2 className="text-xl sm:text-2xl font-serif text-[#F4F1EA] tracking-wide">
-                  Live Drop
-                </h2>
-              </div>
-              <Link
-                href={`/drop/${primaryLiveDrop.slug}`}
-                className="text-xs sm:text-sm text-[#C79A45] hover:text-[#E2C27A] font-sans font-medium transition-colors"
-              >
-                Enter Room →
-              </Link>
-            </div>
-
-            <div
-              className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden border border-[rgba(199,154,69,0.3)] shadow-lg group bg-[#121211]"
-              data-testid={`live-drop-card-${primaryLiveDrop.slug}`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={
-                  primaryLiveDrop.hero_image_url ||
-                  'https://images.unsplash.com/photo-1546804784-896d0dca3805?auto=format&fit=crop&w=1200&q=80'
-                }
-                alt={primaryLiveDrop.title}
-                className="w-full h-full object-cover brightness-70 group-hover:scale-102 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-              <div className="absolute bottom-0 inset-x-0 p-5 sm:p-6 flex items-end justify-between gap-4">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-mono font-bold text-[#E2C27A] uppercase tracking-wider">
-                    {primaryLiveDrop.profiles?.store_name || 'Boutique'}
-                  </span>
-                  <h3 className="text-lg sm:text-2xl font-serif text-white font-medium leading-tight">
-                    {primaryLiveDrop.title}
-                  </h3>
-                </div>
-
-                <Link
-                  href={`/drop/${primaryLiveDrop.slug}`}
-                  className="px-5 py-2.5 rounded-full bg-[#C79A45] hover:bg-[#E2C27A] text-[#090909] font-bold text-xs tracking-wide transition-all shadow-md flex-shrink-0"
-                >
-                  Join Drop →
-                </Link>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* 5. Featured Products Section (2-col mobile, 4-col desktop) */}
+        {/* 4. Featured Products Section (2-col mobile, 4-col desktop) */}
         <section id="featured-products" className="space-y-4" aria-label="Featured Products" data-testid="featured-products-section">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div>
@@ -383,7 +330,7 @@ export function HomeStorefront({
           )}
         </section>
 
-        {/* 6. Live & Verified Boutiques Discovery Rail (Compact horizontal scroll on mobile) */}
+        {/* 5. Live & Verified Boutiques Discovery Rail (Horizontal scroll-snap on mobile) */}
         <section id="boutiques" className="space-y-3 scroll-mt-24" aria-label="Live Boutiques" data-testid="boutiques-directory-section">
           <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
             <div>
@@ -402,54 +349,76 @@ export function HomeStorefront({
             </Link>
           </div>
 
-          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto pb-2 scrollbar-none">
-            {filteredStorefronts.map((boutique) => (
-              <div
-                key={boutique.id}
-                className="flex-shrink-0 w-64 sm:w-auto p-3.5 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 shadow-sm"
-                data-testid={`boutique-card-${boutique.store_slug}`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
-                    {boutique.store_name[0]?.toUpperCase() || 'B'}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1">
-                      <h3 className="text-xs sm:text-sm font-semibold text-white truncate">
-                        {boutique.store_name}
-                      </h3>
-                      <span className="text-[#C79A45] text-xs flex-shrink-0" title="Verified">✓</span>
-                    </div>
-                    <span className="text-[11px] text-[#AAA49A] block truncate">
-                      Independent Atelier
-                    </span>
-                  </div>
-                </div>
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
+            {filteredStorefronts.map((boutique) => {
+              const isLive = resolvedActiveDrops.some(
+                (d) =>
+                  d.seller_id === boutique.id ||
+                  (d.profiles?.store_name &&
+                    d.profiles.store_name.toLowerCase() === boutique.store_name.toLowerCase())
+              );
 
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Link
-                    href={`/${boutique.store_slug}`}
-                    className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors px-2 py-1 rounded bg-white/5 hover:bg-white/10"
-                    data-testid={`visit-boutique-${boutique.store_slug}`}
-                  >
-                    Visit →
-                  </Link>
-                  <a
-                    href={getBoutiqueWhatsAppUrl(boutique.phone_number, boutique.store_name)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-[#25D366] hover:text-[#2fe671] p-1 transition-colors"
-                    title="WhatsApp Boutique"
-                    aria-label={`WhatsApp ${boutique.store_name}`}
-                    data-testid={`whatsapp-store-${boutique.store_slug}`}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                    </svg>
-                  </a>
+              return (
+                <div
+                  key={boutique.id}
+                  className="flex-shrink-0 w-64 sm:w-auto p-3.5 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex flex-col justify-between gap-3 shadow-sm snap-start"
+                  data-testid={`boutique-card-${boutique.store_slug}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
+                        {boutique.store_name[0]?.toUpperCase() || 'B'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <h3 className="text-xs sm:text-sm font-semibold text-white truncate">
+                            {boutique.store_name}
+                          </h3>
+                          <span className="text-[#C79A45] text-xs flex-shrink-0" title="Verified">✓</span>
+                        </div>
+                        <span className="text-[11px] text-[#AAA49A] block truncate">
+                          Independent Boutique
+                        </span>
+                      </div>
+                    </div>
+
+                    {isLive && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E5484D]/15 border border-[#E5484D]/40 text-[#E5484D] text-[10px] font-mono font-bold uppercase tracking-wider flex-shrink-0"
+                        data-testid={`boutique-live-badge-${boutique.store_slug}`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#E5484D] animate-pulse" />
+                        LIVE
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <Link
+                      href={`/${boutique.store_slug}`}
+                      className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors flex items-center gap-1 group"
+                      data-testid={`visit-boutique-${boutique.store_slug}`}
+                    >
+                      <span>Visit</span>
+                      <span aria-hidden="true" className="group-hover:translate-x-0.5 transition-transform">→</span>
+                    </Link>
+                    <a
+                      href={getBoutiqueWhatsAppUrl(boutique.phone_number, boutique.store_name)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#25D366] hover:text-[#2fe671] p-1 transition-colors"
+                      title="WhatsApp Boutique"
+                      aria-label={`WhatsApp ${boutique.store_name}`}
+                      data-testid={`whatsapp-store-${boutique.store_slug}`}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                      </svg>
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 

@@ -25,7 +25,7 @@ import {
   getOrCreateCheckoutIdempotencyKey,
   clearCheckoutIdempotencyKey,
 } from '../../lib/checkout/idempotency';
-import { cacheOrderToken } from '../../lib/cart/cart-storage';
+import { cacheOrderToken, saveRecentOrderSummary } from '../../lib/cart/cart-storage';
 import {
   CheckoutFormErrors,
   CheckoutFormState,
@@ -266,6 +266,14 @@ function CheckoutPageContent() {
 
       // Cache token strictly for this order ID in localStorage for resume-safe tracking
       cacheOrderToken(response.order_id, response.order_token);
+      saveRecentOrderSummary({
+        id: response.order_id,
+        token: response.order_token,
+        orderCode: response.order_code,
+        totalPaisa: response.total_paisa,
+        paymentStatus: response.payment_status,
+        fulfilmentStatus: response.fulfilment_status,
+      });
 
       // Update URL safely without full page reload for bookmarkability & back-button safety
       if (typeof window !== 'undefined') {

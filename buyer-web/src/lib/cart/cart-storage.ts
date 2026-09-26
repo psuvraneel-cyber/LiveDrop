@@ -235,3 +235,86 @@ export function clearCachedOrderToken(orderId: string): void {
     // Ignore error
   }
 }
+
+export interface CachedOrderSummary {
+  id: string;
+  token: string;
+  orderCode?: string;
+  storeName?: string;
+  totalPaisa?: number;
+  paymentStatus?: string;
+  fulfilmentStatus?: string;
+  createdAt?: number;
+}
+
+export const RECENT_ORDERS_STORAGE_KEY = 'livedrop_recent_orders_v1';
+
+/**
+ * Saves or updates rich recent order summary on this device.
+ */
+export function saveRecentOrderSummary(summary: CachedOrderSummary): void {
+  if (!summary.id || !summary.token || typeof window === 'undefined') return;
+  try {
+    cacheOrderToken(summary.id, summary.token);
+
+    const current = getRecentOrders();
+    const existingIndex = current.findIndex((o) => o.id === summary.id);
+    let updated: CachedOrderSummary;
+
+    if (existingIndex >= 0) {
+      updated = {
+        ...current[existingIndex],
+        ...summary,
+        createdAt: current[existingIndex].createdAt || summary.createdAt || Date.now(),
+      };
+      current.splice(existingIndex, 1);
+    } else {
+      updated = {
+        ...summary,
+        createdAt: summary.createdAt || Date.now(),
+      };
+    }
+
+    current.unshift(updated);
+    const trimmed = current.slice(0, 20);
+    window.localStorage.setItem(RECENT_ORDERS_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    // Gracefully handle storage errors
+  }
+}
+
+/**
+ * Retrieves all recent orders safely stored on this device.
+ */
+export function getRecentOrders(): CachedOrderSummary[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_ORDERS_STORAGE_KEY);
+    const list: CachedOrderSummary[] = raw ? JSON.parse(raw) : [];
+
+    const seenIds = new Set(list.map((o) => o.id));
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith('livedrop_order_token_')) {
+        const id = key.replace('livedrop_order_token_', '');
+        if (id && !seenIds.has(id)) {
+          const token = window.localStorage.getItem(key);
+          if (token) {
+            seenIds.add(id);
+            list.push({
+              id,
+              token,
+              orderCode: id.startsWith('ord-') ? id : (id.length > 8 ? `LD${id.slice(0, 6).toUpperCase()}` : id),
+              createdAt: 0,
+            });
+          }
+        }
+      }
+    }
+
+    return list;
+  } catch {
+    return [];
+  }
+}
+

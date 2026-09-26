@@ -84,14 +84,6 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
           {product.code}
         </span>
 
-        {/* Availability Badge (Top-Right, compact) */}
-        <span
-          className={`ld-status-badge ${statusClass}`}
-          data-testid={`status-badge-${product.id}`}
-        >
-          {statusText}
-        </span>
-
         {/* Product Image or Branded Fallback */}
         {currentImageUrl && !isCurrentError ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -158,15 +150,6 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
 
       {/* Product Details - Compact Mobile Density */}
       <div className="ld-card-body">
-        <div className="ld-card-header-row">
-          <span className="ld-card-code-subtle">{product.code}</span>
-          {product.size && (
-            <span className="ld-product-size" title={`Size: ${product.size}`}>
-              {product.size}
-            </span>
-          )}
-        </div>
-
         <h3 className="ld-product-title" title={product.title}>
           {product.title}
         </h3>
@@ -176,6 +159,19 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
             <span className="ld-product-price">
               {formatPaisaToINR(product.price_paisa)}
             </span>
+            <div className="ld-card-sub-info">
+              {product.size && (
+                <span className="ld-product-size" title={`Size: ${product.size}`}>
+                  {product.size}
+                </span>
+              )}
+              <span
+                className={`ld-status-badge ${statusClass}`}
+                data-testid={`status-badge-${product.id}`}
+              >
+                {statusText}
+              </span>
+            </div>
           </div>
 
           {/* Compact Cart Action */}
