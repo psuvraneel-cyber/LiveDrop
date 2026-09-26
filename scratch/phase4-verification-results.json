@@ -1,0 +1,237 @@
+{
+  "screenshots": [
+    "scratch/phase4-home-mobile.png",
+    "scratch/phase4-shop-mobile.png",
+    "scratch/phase4-shop-desktop.png",
+    "scratch/phase4-product-card-states.png"
+  ],
+  "overflowChecks": [
+    {
+      "viewport": "mobile-360",
+      "route": "/",
+      "scrollWidth": 360,
+      "innerWidth": 360,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-360",
+      "route": "/shop",
+      "scrollWidth": 360,
+      "innerWidth": 360,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-375",
+      "route": "/",
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-375",
+      "route": "/shop",
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-390",
+      "route": "/",
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-390",
+      "route": "/shop",
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-412",
+      "route": "/",
+      "scrollWidth": 412,
+      "innerWidth": 412,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-412",
+      "route": "/shop",
+      "scrollWidth": 412,
+      "innerWidth": 412,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-430",
+      "route": "/",
+      "scrollWidth": 430,
+      "innerWidth": 430,
+      "passed": true
+    },
+    {
+      "viewport": "mobile-430",
+      "route": "/shop",
+      "scrollWidth": 430,
+      "innerWidth": 430,
+      "passed": true
+    },
+    {
+      "viewport": "tablet-768",
+      "route": "/",
+      "scrollWidth": 768,
+      "innerWidth": 768,
+      "passed": true
+    },
+    {
+      "viewport": "tablet-768",
+      "route": "/shop",
+      "scrollWidth": 768,
+      "innerWidth": 768,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1024",
+      "route": "/",
+      "scrollWidth": 1024,
+      "innerWidth": 1024,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1024",
+      "route": "/shop",
+      "scrollWidth": 1024,
+      "innerWidth": 1024,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1280",
+      "route": "/",
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1280",
+      "route": "/shop",
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1440",
+      "route": "/",
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1440",
+      "route": "/shop",
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1600",
+      "route": "/",
+      "scrollWidth": 1600,
+      "innerWidth": 1600,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1600",
+      "route": "/shop",
+      "scrollWidth": 1600,
+      "innerWidth": 1600,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1920",
+      "route": "/",
+      "scrollWidth": 1920,
+      "innerWidth": 1920,
+      "passed": true
+    },
+    {
+      "viewport": "desktop-1920",
+      "route": "/shop",
+      "scrollWidth": 1920,
+      "innerWidth": 1920,
+      "passed": true
+    }
+  ],
+  "aspectRatioChecks": [
+    {
+      "width": 212,
+      "height": 283,
+      "ratio": 0.75,
+      "passed": true
+    },
+    {
+      "width": 212,
+      "height": 283,
+      "ratio": 0.75,
+      "passed": true
+    },
+    {
+      "width": 212,
+      "height": 283,
+      "ratio": 0.75,
+      "passed": true
+    },
+    {
+      "width": 212,
+      "height": 283,
+      "ratio": 0.75,
+      "passed": true
+    }
+  ],
+  "gridDensityChecks": [
+    {
+      "viewport": "1440px desktop",
+      "columns": 5,
+      "expected": "4 or 5",
+      "passed": true
+    },
+    {
+      "viewport": "390px mobile",
+      "columns": 2,
+      "expected": 2,
+      "passed": true
+    }
+  ],
+  "functionalChecks": [
+    {
+      "test": "Product card click opens detail modal",
+      "passed": true
+    },
+    {
+      "test": "Add-to-bag increments cart count",
+      "initial": 0,
+      "updated": 1,
+      "passed": true
+    },
+    {
+      "test": "Sort selector selects price-desc",
+      "passed": true
+    },
+    {
+      "test": "Empty state triggers on zero match with Section 31 copy & Explore Live Drops CTA",
+      "passed": true
+    },
+    {
+      "test": "Category tab click activates selection",
+      "passed": true
+    },
+    {
+      "test": "Mobile bottom dock clearance verified",
+      "dockOcclusion": {
+        "passed": true,
+        "reason": "Dock or footer not present"
+      },
+      "passed": true
+    }
+  ],
+  "errors": []
+}

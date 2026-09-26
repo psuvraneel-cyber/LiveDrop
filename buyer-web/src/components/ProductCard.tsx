@@ -73,7 +73,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
         aria-label={`${product.code}: ${product.title} - ${formatPaisaToINR(product.price_paisa)} - ${statusText}`}
         onClick={() => setIsDetailOpen(true)}
       >
-      {/* Media Thumbnail Container (1:1 aspect ratio) */}
+      {/* Media Thumbnail Container (3:4 aspect ratio) */}
       <div className="ld-card-media">
         {/* Flash Code Badge (Top-Left, High Contrast Monospace) */}
         <span
@@ -102,6 +102,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
               <span className="ld-fallback-brand-name">LiveDrop</span>
             </div>
             <span className="ld-image-fallback-text">{product.code}</span>
+            <span className="text-[10px] text-[#AAA49A] font-sans">Image unavailable</span>
           </div>
         )}
 
