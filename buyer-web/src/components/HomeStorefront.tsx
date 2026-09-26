@@ -176,6 +176,11 @@ export function HomeStorefront({
 
   const hasActiveLiveDrop = filteredActiveDrops.length > 0;
   const primaryLiveDrop = hasActiveLiveDrop ? filteredActiveDrops[0] : null;
+  const heroSlides = filteredActiveDrops.length > 0
+    ? filteredActiveDrops
+    : (primaryLiveDrop ? [primaryLiveDrop] : []);
+  const heroSlideCount = heroSlides.length;
+
   const heroBackground = hasActiveLiveDrop
     ? (primaryLiveDrop?.hero_image_url || '/hero-live-drop.jpg' || (allAvailableProducts.length > 0 ? allAvailableProducts[0].image_url : null))
     : null;
@@ -192,7 +197,7 @@ export function HomeStorefront({
       />
 
       {/* 2. Inset Haute-Couture Live Drop Spotlight Hero (Screen 01 Reference) */}
-      <div className="ld-home-hero-wrap w-full max-w-6xl mx-auto px-4 pt-3 pb-2">
+      <div className="ld-home-hero-wrap w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2">
         <section
           id="live-drops"
           className="relative w-full h-[300px] sm:h-[320px] md:h-[350px] lg:h-[360px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#0e0e10] scroll-mt-16 shadow-2xl"
@@ -220,26 +225,26 @@ export function HomeStorefront({
           </div>
 
           <div className="ld-hero-inner-content relative z-10 w-full p-4 sm:p-6 pb-5 sm:pb-6 flex flex-col justify-end">
-            <div className="max-w-xl space-y-1.5 sm:space-y-2">
+            <div className="w-[85%] sm:w-[65%] md:w-[48%] lg:w-[42%] max-w-lg space-y-2 sm:space-y-2.5">
               {/* Live Indicator or Eyebrow */}
               {hasActiveLiveDrop && primaryLiveDrop ? (
-                <div className="inline-flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EF4444] text-white font-mono font-bold text-[10px] tracking-wider uppercase shadow-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                <div className="inline-flex items-center">
+                  <span className="inline-flex items-center gap-2 h-7 sm:h-8 px-3 rounded-full bg-[#DC2626] text-white font-sans font-bold text-[11px] sm:text-xs tracking-wider uppercase shadow-lg shadow-red-950/40">
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white animate-pulse" />
                     LIVE NOW
                   </span>
                 </div>
               ) : null}
 
               {/* Headline */}
-              <h1 className="text-xl sm:text-2xl md:text-3xl max-w-[220px] sm:max-w-md font-serif text-[#FBFBFB] tracking-wide leading-tight drop-shadow-md">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-serif text-[#FBFBFB] tracking-wide leading-tight drop-shadow-md">
                 {hasActiveLiveDrop && primaryLiveDrop
                   ? primaryLiveDrop.title
                   : 'NO LIVE DROP'}
               </h1>
 
               {/* Subtitle / Boutique Attribution */}
-              <p className="text-xs sm:text-sm text-[#F4F1EA]/80 font-sans max-w-xs leading-snug drop-shadow">
+              <p className="text-xs sm:text-sm text-[#F4F1EA]/85 font-sans leading-snug drop-shadow line-clamp-2">
                 {hasActiveLiveDrop && primaryLiveDrop
                   ? `${primaryLiveDrop.profiles?.store_name || 'Independent Boutique'}`
                   : 'Explore pieces from independent boutiques.'}
@@ -259,7 +264,7 @@ export function HomeStorefront({
               </div>
 
               {/* Action CTA & Pagination Dots Row */}
-              <div className="pt-1 flex items-center justify-between">
+              <div className="pt-1 flex items-center justify-between gap-3">
                 {hasActiveLiveDrop && primaryLiveDrop ? (
                   <Link
                     href={`/drop/${primaryLiveDrop.slug}`}
@@ -280,13 +285,18 @@ export function HomeStorefront({
                   </Link>
                 )}
 
-                {/* Slider pagination indicators (Screen 01) */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-[10px] text-white/70">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                  <span className="ml-1 font-mono text-[9px]">1/4</span>
-                </div>
+                {/* Slider pagination indicators (derived dynamically from actual active slides) */}
+                {heroSlideCount > 1 ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-[10px] text-white/70">
+                    {heroSlides.map((_, idx) => (
+                      <span
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? 'bg-[#D4AF37]' : 'bg-white/40'}`}
+                      />
+                    ))}
+                    <span className="ml-1 font-mono text-[9px]">1/{heroSlideCount}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -295,7 +305,7 @@ export function HomeStorefront({
 
       {/* 3. Category Discovery Rail (Screen 01: Square 'All' card + circular photo avatars) */}
       <section
-        className="w-full max-w-6xl mx-auto px-4 sm:px-8 py-4 border-b border-white/5"
+        className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 border-b border-white/5"
         aria-label="Product Categories"
       >
         <div
@@ -366,7 +376,7 @@ export function HomeStorefront({
       </section>
 
       {/* Main Content Area */}
-      <main className="ld-home-main max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-10 sm:space-y-14">
+      <main className="ld-home-main max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-10 sm:space-y-14">
         {/* 4. Featured Products Section (2-col mobile, 4-col desktop) */}
         <section id="featured-products" className="space-y-4" aria-label="Featured Products" data-testid="featured-products-section">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -416,11 +426,11 @@ export function HomeStorefront({
           )}
         </section>
 
-        {/* 5. Live & Verified Boutiques Discovery Rail (Horizontal scroll-snap on mobile) */}
-        <section id="boutiques" className="space-y-3 scroll-mt-24" aria-label="Live Boutiques" data-testid="boutiques-directory-section">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+        {/* 5. Live & Verified Boutiques Discovery Rail (Horizontal scroll-snap on mobile, 3-col grid on desktop) */}
+        <section id="boutiques" className="space-y-4 scroll-mt-24" aria-label="Live Boutiques" data-testid="boutiques-directory-section">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div>
-              <h2 className="text-lg sm:text-xl font-serif text-[#F4F1EA] tracking-wide">
+              <h2 className="text-xl sm:text-2xl font-serif text-[#F4F1EA] tracking-wide">
                 Live Boutiques
               </h2>
               <span className="text-xs text-[#AAA49A]">
@@ -437,7 +447,7 @@ export function HomeStorefront({
           </div>
 
           {filteredStorefronts.length > 0 ? (
-            <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
+            <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-none snap-x snap-mandatory">
               {filteredStorefronts.map((boutique) => {
                 const isLive = resolvedActiveDrops.some(
                   (d) =>
@@ -449,16 +459,16 @@ export function HomeStorefront({
                 return (
                   <div
                     key={boutique.id}
-                    className="flex-shrink-0 w-64 sm:w-auto p-3.5 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex flex-col justify-between gap-3 shadow-sm snap-start"
+                    className="flex-shrink-0 w-[270px] sm:w-auto p-4 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex flex-col justify-between gap-3.5 shadow-sm snap-start"
                     data-testid={`boutique-card-${boutique.store_slug}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
                           {boutique.store_name[0]?.toUpperCase() || 'B'}
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <h3 className="text-xs sm:text-sm font-semibold text-white truncate">
                               {boutique.store_name}
                             </h3>
@@ -481,10 +491,10 @@ export function HomeStorefront({
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
                       <Link
                         href={`/${boutique.store_slug}`}
-                        className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors flex items-center gap-1 group min-h-[44px]"
+                        className="min-h-[44px] min-w-[44px] inline-flex items-center gap-1.5 text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors group"
                         data-testid={`visit-boutique-${boutique.store_slug}`}
                       >
                         <span>Visit</span>
@@ -494,7 +504,7 @@ export function HomeStorefront({
                         href={getBoutiqueWhatsAppUrl(boutique.phone_number, boutique.store_name)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-xs text-[#25D366] hover:text-[#2fe671] p-2 transition-colors rounded-full hover:bg-white/5"
+                        className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-xs text-[#25D366] hover:text-[#2fe671] p-2 transition-colors rounded-full hover:bg-white/5"
                         title="WhatsApp Boutique"
                         aria-label={`WhatsApp ${boutique.store_name}`}
                         data-testid={`whatsapp-store-${boutique.store_slug}`}
@@ -532,11 +542,37 @@ export function HomeStorefront({
         </section>
       </main>
 
-      {/* 8. Restrained Footer */}
-      <footer className="border-t border-white/5 py-8 px-4 text-center text-xs text-[#AAA49A] space-y-2">
-        <p className="font-serif text-sm text-[#F4F1EA]">LiveDrop</p>
-        <p>Live commerce for independent Indian fashion boutiques.</p>
-        <p className="font-mono text-[11px] text-white/30">© {new Date().getFullYear()} LiveDrop Technologies</p>
+      {/* 8. Restrained Luxury Footer */}
+      <footer className="w-full border-t border-white/10 bg-[#090909] py-8 sm:py-10 px-4 sm:px-6 lg:px-8 text-center text-xs text-[#AAA49A]">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* Responsive Navigation Links */}
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium tracking-wide">
+            <Link href="/" className="text-[#F4F1EA]/80 hover:text-[#D4AF37] transition-colors min-h-[36px] inline-flex items-center">
+              Home
+            </Link>
+            <Link href="/shop" className="text-[#F4F1EA]/80 hover:text-[#D4AF37] transition-colors min-h-[36px] inline-flex items-center">
+              Shop All
+            </Link>
+            <Link href="/#live-drops" className="text-[#F4F1EA]/80 hover:text-[#D4AF37] transition-colors min-h-[36px] inline-flex items-center">
+              Live Drops
+            </Link>
+            <Link href="/#boutiques" className="text-[#F4F1EA]/80 hover:text-[#D4AF37] transition-colors min-h-[36px] inline-flex items-center">
+              Boutiques
+            </Link>
+            <Link href="/order" className="text-[#F4F1EA]/80 hover:text-[#D4AF37] transition-colors min-h-[36px] inline-flex items-center">
+              Orders
+            </Link>
+          </nav>
+
+          <div className="space-y-1 pt-1">
+            <p className="font-serif text-sm text-[#F4F1EA] tracking-wider">LiveDrop</p>
+            <p className="text-[11px] text-[#AAA49A]/80">Haute-couture live commerce for independent Indian fashion boutiques.</p>
+          </div>
+
+          <p className="font-mono text-[10px] text-white/30 pt-1">
+            © {new Date().getFullYear()} LiveDrop Technologies. All rights reserved.
+          </p>
+        </div>
       </footer>
 
       {/* 9. 5-Tab Navigation Dock */}

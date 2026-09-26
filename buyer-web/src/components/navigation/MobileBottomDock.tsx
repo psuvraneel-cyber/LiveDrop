@@ -86,7 +86,7 @@ export function MobileBottomDock({
 
   return (
     <nav
-      className="ld-bottom-dock"
+      className="ld-bottom-dock md:hidden"
       aria-label="Buyer Navigation Dock"
       data-testid="mobile-bottom-dock"
     >

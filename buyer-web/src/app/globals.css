@@ -335,23 +335,36 @@ body,
 }
 
 @media (min-width: 768px) {
-
   .ld-has-bottom-dock,
   .ld-home-storefront {
-    padding-bottom: 48px !important;
+    padding-bottom: 0px !important;
   }
 }
 
 /* Bulletproof Structural Layout Containers for Mobile Viewport */
 .ld-home-hero-wrap {
   width: 100%;
-  max-width: 1152px;
+  max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 16px;
   padding-right: 16px;
   padding-top: 12px;
   padding-bottom: 8px;
+}
+
+@media (min-width: 640px) {
+  .ld-home-hero-wrap {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ld-home-hero-wrap {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
 }
 
 .ld-hero-inner-content {
@@ -371,13 +384,28 @@ body,
 }
 
 .ld-home-main {
-  max-width: 1152px;
+  width: 100%;
+  max-width: 1280px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 16px;
   padding-right: 16px;
   padding-top: 24px;
   padding-bottom: 40px;
+}
+
+@media (min-width: 640px) {
+  .ld-home-main {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ld-home-main {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
 }
 
 .ld-gold-pill-btn {
@@ -693,16 +721,7 @@ body,
 
 @media (min-width: 768px) {
   .ld-bottom-dock {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 440px;
-    bottom: 16px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--ld-border);
-    box-shadow: var(--shadow-elevated);
-    padding-bottom: 0;
+    display: none !important;
   }
 }
 
