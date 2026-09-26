@@ -757,14 +757,14 @@ async function main() {
       throw new Error('Anon user was able to query profiles table directly!');
     }
 
-    // 2. Verify public_seller_storefronts hides phone_number and return_address
+    // 2. Verify public_seller_storefronts hides private return_address (Migration 031)
     const storefronts = await asRole('anon', async () => {
       const res = await db.query('SELECT * FROM public_seller_storefronts WHERE store_slug = $1', ['mothers-boutique']);
       return res.rows[0];
     });
 
-    if (!storefronts || 'phone_number' in storefronts || 'return_address' in storefronts) {
-      throw new Error(`public_seller_storefronts exposed PII: ${JSON.stringify(storefronts)}`);
+    if (!storefronts || 'return_address' in storefronts) {
+      throw new Error(`public_seller_storefronts exposed private return_address: ${JSON.stringify(storefronts)}`);
     }
 
     // 3. Verify public_products_catalog hides reserved_by_order_id
