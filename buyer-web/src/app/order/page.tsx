@@ -4,6 +4,7 @@ import React, { useState, useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MobileBottomDock } from '../../components/navigation/MobileBottomDock';
+import { GlobalBuyerHeader } from '../../components/navigation/GlobalBuyerHeader';
 import { getRecentOrders, CachedOrderSummary } from '../../lib/cart/cart-storage';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 
@@ -109,18 +110,12 @@ export default function OrderLookupPage() {
 
   return (
     <div className="ld-home-storefront ld-has-bottom-dock min-h-screen bg-[#090909] text-[#F4F1EA]">
-      <header className="ld-navbar" role="banner">
-        <div className="ld-navbar-inner">
-          <Link href="/" className="ld-brand-emblem" aria-label="LiveDrop Home">
-            <span className="ld-brand-sparkle">✦</span>
-            <span className="ld-brand-title">LiveDrop</span>
-            <span className="ld-brand-sub">ORDERS</span>
-          </Link>
-          <Link href="/" className="ld-nav-link text-xs sm:text-sm text-[#AAA49A] hover:text-[#C79A45] transition-colors">
-            ← Return to Boutiques
-          </Link>
-        </div>
-      </header>
+      <GlobalBuyerHeader
+        variant="minimal"
+        backHref="/"
+        backLabel="Return to Boutiques"
+        title="LiveDrop ORDERS"
+      />
 
       <main className="ld-container ld-order-lookup-main max-w-xl mx-auto px-4 py-8 space-y-8" role="main">
         {/* Header Mental Model: Track Your Order */}

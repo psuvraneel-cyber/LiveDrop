@@ -1,0 +1,206 @@
+{
+  "viewports": [
+    {
+      "name": "360x800 (Small Mobile)",
+      "width": 360,
+      "height": 800,
+      "isMobile": true,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 360,
+      "innerWidth": 360,
+      "dockPresent": true,
+      "dockHeight": 57,
+      "dockZIndex": "45",
+      "passed": true
+    },
+    {
+      "name": "375x812 (iPhone Mini)",
+      "width": 375,
+      "height": 812,
+      "isMobile": true,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "dockPresent": true,
+      "dockHeight": 57,
+      "dockZIndex": "45",
+      "passed": true
+    },
+    {
+      "name": "390x844 (iPhone Standard)",
+      "width": 390,
+      "height": 844,
+      "isMobile": true,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 390,
+      "innerWidth": 390,
+      "dockPresent": true,
+      "dockHeight": 57,
+      "dockZIndex": "45",
+      "passed": true
+    },
+    {
+      "name": "412x915 (Android Flagship)",
+      "width": 412,
+      "height": 915,
+      "isMobile": true,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 412,
+      "innerWidth": 412,
+      "dockPresent": true,
+      "dockHeight": 57,
+      "dockZIndex": "45",
+      "passed": true
+    },
+    {
+      "name": "430x932 (iPhone Pro Max)",
+      "width": 430,
+      "height": 932,
+      "isMobile": true,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 430,
+      "innerWidth": 430,
+      "dockPresent": true,
+      "dockHeight": 57,
+      "dockZIndex": "45",
+      "passed": true
+    },
+    {
+      "name": "1280x800 (Desktop Laptop)",
+      "width": 1280,
+      "height": 800,
+      "isMobile": false,
+      "headerCount": 1,
+      "headerHeight": 60,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 1280,
+      "innerWidth": 1280,
+      "dockPresent": true,
+      "dockHeight": 58,
+      "dockZIndex": "45",
+      "passed": true
+    },
+    {
+      "name": "1440x900 (Desktop Large)",
+      "width": 1440,
+      "height": 900,
+      "isMobile": false,
+      "headerCount": 1,
+      "headerHeight": 60,
+      "headerTop": 0,
+      "headerZIndex": "40",
+      "hasHorizontalOverflow": false,
+      "scrollWidth": 1440,
+      "innerWidth": 1440,
+      "dockPresent": true,
+      "dockHeight": 58,
+      "dockZIndex": "45",
+      "passed": true
+    }
+  ],
+  "scrollStability": {
+    "totalSteps": 34,
+    "anyHiddenClass": false,
+    "anyHeightChange": false,
+    "anyTopDetachment": false,
+    "passed": true
+  },
+  "routeCoverage": [
+    {
+      "path": "/",
+      "label": "Home",
+      "status": 200,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerClass": "ld-global-header ld-luxury-header",
+      "hasDock": true,
+      "passed": true
+    },
+    {
+      "path": "/shop",
+      "label": "Shop Catalog",
+      "status": 200,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerClass": "ld-global-header ld-luxury-header",
+      "hasDock": true,
+      "passed": true
+    },
+    {
+      "path": "/cart",
+      "label": "Cart Page",
+      "status": 200,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerClass": "ld-global-header ld-checkout-header",
+      "hasDock": true,
+      "passed": true
+    },
+    {
+      "path": "/checkout",
+      "label": "Checkout",
+      "status": 200,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerClass": "ld-global-header ld-checkout-header",
+      "hasDock": false,
+      "passed": true
+    },
+    {
+      "path": "/order",
+      "label": "Order Lookup",
+      "status": 200,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerClass": "ld-global-header ld-checkout-header",
+      "hasDock": true,
+      "passed": true
+    },
+    {
+      "path": "/order/test-id-123",
+      "label": "Order Tracking Direct",
+      "status": 200,
+      "headerCount": 1,
+      "headerHeight": 56,
+      "headerClass": "ld-global-header ld-checkout-header",
+      "hasDock": true,
+      "passed": true
+    }
+  ],
+  "drawers": [
+    {
+      "name": "Search Expansion",
+      "passed": true
+    },
+    {
+      "name": "Cart Drawer Open/Close",
+      "passed": true
+    },
+    {
+      "name": "Bottom Dock Tab Navigation",
+      "passed": true
+    }
+  ]
+}

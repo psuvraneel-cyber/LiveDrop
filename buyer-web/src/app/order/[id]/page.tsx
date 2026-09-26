@@ -17,6 +17,7 @@ import { getCachedOrderToken, clearCachedOrderToken, saveRecentOrderSummary } fr
 import { OrderReceipt } from '../../../types/domain';
 import { CheckoutSuccessView } from '../../../components/checkout/CheckoutSuccessView';
 import { MobileBottomDock } from '../../../components/navigation/MobileBottomDock';
+import { GlobalBuyerHeader } from '../../../components/navigation/GlobalBuyerHeader';
 
 function OrderTrackingContent() {
   const params = useParams();
@@ -106,14 +107,13 @@ function OrderTrackingContent() {
   if (isTokenMissing || !order) {
     return (
       <div className="ld-checkout-page ld-has-bottom-dock" data-testid="order-token-error-page">
-        <header className="ld-checkout-header">
-          <div className="ld-checkout-nav">
-            <Link href="/" className="ld-back-link" data-testid="order-return-home-btn">
-              ← Return Home
-            </Link>
-            <span className="ld-checkout-brand">LiveDrop</span>
-          </div>
-        </header>
+        <GlobalBuyerHeader
+          variant="minimal"
+          backHref="/"
+          backLabel="Return Home"
+          backTestId="order-return-home-btn"
+          title="LiveDrop"
+        />
 
         <main className="ld-container ld-checkout-main" role="main">
           <div className="ld-checkout-empty" data-testid="order-access-restricted">
@@ -150,14 +150,13 @@ function OrderTrackingContent() {
 
   return (
     <div className="ld-checkout-page ld-has-bottom-dock" data-testid="order-tracking-page">
-      <header className="ld-checkout-header">
-        <div className="ld-checkout-nav">
-          <Link href="/" className="ld-back-link" data-testid="order-home-link">
-            ← Return Home
-          </Link>
-          <span className="ld-checkout-brand">LiveDrop</span>
-        </div>
-      </header>
+      <GlobalBuyerHeader
+        variant="minimal"
+        backHref="/"
+        backLabel="Return Home"
+        backTestId="order-home-link"
+        title="LiveDrop"
+      />
 
       <main className="ld-container ld-checkout-main" role="main">
         <CheckoutSuccessView

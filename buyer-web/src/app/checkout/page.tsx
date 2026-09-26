@@ -21,6 +21,7 @@ import {
   createOrderWithReservation,
   getOrderByToken,
 } from '../../lib/data/buyer-catalog';
+import { GlobalBuyerHeader } from '../../components/navigation/GlobalBuyerHeader';
 import {
   getOrCreateCheckoutIdempotencyKey,
   clearCheckoutIdempotencyKey,
@@ -321,14 +322,12 @@ function CheckoutPageContent() {
   if (existingOrder) {
     return (
       <div className="ld-checkout-page" data-testid="checkout-page-receipt">
-        <header className="ld-checkout-header">
-          <div className="ld-checkout-nav">
-            <Link href="/" className="ld-back-link">
-              ← Return Home
-            </Link>
-            <span className="ld-checkout-brand">LiveDrop</span>
-          </div>
-        </header>
+        <GlobalBuyerHeader
+          variant="minimal"
+          backHref="/"
+          backLabel="Return Home"
+          title="LiveDrop"
+        />
 
         <main className="ld-container ld-checkout-main" role="main">
           <CheckoutSuccessView order={existingOrder} orderToken={urlToken || undefined} />
@@ -341,14 +340,12 @@ function CheckoutPageContent() {
   if (urlOrderId && receiptError) {
     return (
       <div className="ld-checkout-page" data-testid="checkout-receipt-error">
-        <header className="ld-checkout-header">
-          <div className="ld-checkout-nav">
-            <Link href="/" className="ld-back-link">
-              ← Return Home
-            </Link>
-            <span className="ld-checkout-brand">LiveDrop</span>
-          </div>
-        </header>
+        <GlobalBuyerHeader
+          variant="minimal"
+          backHref="/"
+          backLabel="Return Home"
+          title="LiveDrop"
+        />
         <main className="ld-container ld-checkout-main" role="main">
           <div className="ld-checkout-empty">
             <h2 className="ld-checkout-empty-title">Order Receipt Not Found</h2>
@@ -366,11 +363,10 @@ function CheckoutPageContent() {
   if (submittedOrder && submissionStatus === 'success') {
     return (
       <div className="ld-checkout-page" data-testid="checkout-page-success">
-        <header className="ld-checkout-header">
-          <div className="ld-checkout-nav">
-            <span className="ld-checkout-brand">LiveDrop</span>
-          </div>
-        </header>
+        <GlobalBuyerHeader
+          variant="minimal"
+          title="LiveDrop"
+        />
         <main className="ld-container ld-checkout-main" role="main">
           <div className="ld-checkout-breadcrumbs" aria-label="Checkout Progress">
             <div className="ld-step-item completed">
@@ -401,14 +397,12 @@ function CheckoutPageContent() {
   if (items.length === 0) {
     return (
       <div className="ld-checkout-page" data-testid="checkout-page-empty">
-        <header className="ld-checkout-header">
-          <div className="ld-checkout-nav">
-            <Link href="/cart" className="ld-back-link">
-              ← Back to Bag
-            </Link>
-            <span className="ld-checkout-brand">LiveDrop</span>
-          </div>
-        </header>
+        <GlobalBuyerHeader
+          variant="minimal"
+          backHref="/cart"
+          backLabel="Back to Bag"
+          title="LiveDrop"
+        />
         <main className="ld-container ld-checkout-main" role="main">
           <EmptyCheckoutState />
         </main>
@@ -422,28 +416,13 @@ function CheckoutPageContent() {
 
   return (
     <div className="ld-checkout-page" data-testid="checkout-page">
-      <header className="ld-checkout-header">
-        <div className="ld-checkout-nav">
-          <Link href="/cart" className="ld-back-link" data-testid="checkout-back-cart-btn">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            <span>Back to Bag</span>
-          </Link>
-          <span className="ld-checkout-brand">LiveDrop</span>
-        </div>
-      </header>
+      <GlobalBuyerHeader
+        variant="minimal"
+        backHref="/cart"
+        backLabel="Back to Bag"
+        backTestId="checkout-back-cart-btn"
+        title="LiveDrop"
+      />
 
       <main className="ld-container ld-checkout-main" role="main">
         {/* Breadcrumb Steps matching luxury template */}

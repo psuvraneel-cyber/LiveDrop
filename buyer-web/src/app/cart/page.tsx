@@ -19,6 +19,7 @@ import { getBuyerClient } from '../../lib/supabase/client';
 import { getPublicProductsForDrop } from '../../lib/data/buyer-catalog';
 import { PublicProductView } from '../../types/domain';
 import { MobileBottomDock } from '../../components/navigation/MobileBottomDock';
+import { GlobalBuyerHeader } from '../../components/navigation/GlobalBuyerHeader';
 
 function CartPageContent() {
   const router = useRouter();
@@ -98,28 +99,16 @@ function CartPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090909] text-[#F4F1EA] pb-24 font-sans" data-testid="cart-page">
+    <div className="min-h-screen bg-[#090909] text-[#F4F1EA] pb-24 font-sans ld-has-bottom-dock" data-testid="cart-page">
       {/* 1. Header: Back Arrow '<' + Title 'Your Cart (N)' */}
-      <header className="px-4 py-4 border-b border-white/10 sticky top-0 bg-[#08080A]/95 backdrop-blur-md z-10">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors"
-              aria-label="Back to home"
-              data-testid="cart-back-btn"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-            </Link>
-            <h1 className="text-lg sm:text-xl font-serif tracking-wide text-white font-medium">
-              Your Cart {itemCount > 0 ? `(${itemCount})` : ''}
-            </h1>
-          </div>
-
-          {items.length > 0 && (
+      <GlobalBuyerHeader
+        variant="minimal"
+        backHref="/"
+        backLabel=""
+        backTestId="cart-back-btn"
+        title={`Your Cart ${itemCount > 0 ? `(${itemCount})` : ''}`}
+        rightAction={
+          items.length > 0 ? (
             <button
               type="button"
               onClick={clearCart}
@@ -128,9 +117,9 @@ function CartPageContent() {
             >
               Clear
             </button>
-          )}
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4" role="main">
         {/* Informational Stock Notice - shown only when there are available items */}

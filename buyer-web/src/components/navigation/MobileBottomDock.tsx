@@ -173,7 +173,7 @@ export function MobileBottomDock() {
                 <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               {isHydrated && itemCount > 0 && (
-                <span className="ld-header-bag-badge" style={{ position: 'absolute', top: -4, right: -8, width: 16, height: 16, fontSize: 10 }}>
+                <span className="ld-dock-badge">
                   {itemCount}
                 </span>
               )}
@@ -193,7 +193,7 @@ export function MobileBottomDock() {
                 <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               {isHydrated && itemCount > 0 && (
-                <span className="ld-header-bag-badge" style={{ position: 'absolute', top: -4, right: -8, width: 16, height: 16, fontSize: 10 }}>
+                <span className="ld-dock-badge">
                   {itemCount}
                 </span>
               )}

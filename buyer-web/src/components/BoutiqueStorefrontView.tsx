@@ -9,6 +9,7 @@ import { ProductCard } from './ProductCard';
 import { CartDrawer } from './cart/CartDrawer';
 import { StickyCartBar } from './cart/StickyCartBar';
 import { MobileBottomDock } from './navigation/MobileBottomDock';
+import { GlobalBuyerHeader } from './navigation/GlobalBuyerHeader';
 
 export interface BoutiqueStorefrontViewProps {
   storefront: PublicSellerStorefront;
@@ -63,8 +64,6 @@ export function BoutiqueStorefrontView({
   const isDrawerOpen = cart?.isDrawerOpen ?? false;
   const openDrawer = cart?.openDrawer ?? (() => {});
   const closeDrawer = cart?.closeDrawer ?? (() => {});
-  const itemCount = cart?.itemCount ?? 0;
-  const isHydrated = cart?.isHydrated ?? false;
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
@@ -103,61 +102,13 @@ export function BoutiqueStorefrontView({
   return (
     <div className="ld-home-storefront ld-has-bottom-dock" data-testid="boutique-storefront">
       {/* 1. Global Boutique Navigation Bar */}
-      <header className="ld-navbar" role="banner">
-        <div className="ld-navbar-inner">
-          <div className="ld-navbar-left">
-            <Link href="/" className="ld-brand-emblem" aria-label="LiveDrop Home">
-              <span className="ld-brand-sparkle">✦</span>
-              <span className="ld-brand-title">LiveDrop</span>
-              <span className="ld-brand-sub">BOUTIQUE</span>
-            </Link>
-          </div>
-
-          <div className="ld-navbar-center">
-            <span className="ld-storefront-nav-name" data-testid="storefront-name-badge">
-              {storeName}
-            </span>
-          </div>
-
-          <div className="ld-navbar-right">
-            <button
-              type="button"
-              className="ld-share-btn"
-              onClick={handleCopyLink}
-              title="Copy boutique link"
-              aria-label="Copy boutique link"
-              data-testid="copy-storefront-link-btn"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect width="13" height="13" x="9" y="9" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-              <span>{copiedLink ? 'Copied!' : 'Share'}</span>
-            </button>
-
-            {hasLiveDrop && (
-              <button
-                type="button"
-                className="ld-nav-cart-btn"
-                onClick={openDrawer}
-                aria-label={`Shopping bag with ${itemCount} items`}
-                data-testid="storefront-cart-btn"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                  <path d="M3 6h18" />
-                  <path d="M16 10a4 4 0 0 1-8 0" />
-                </svg>
-                {isHydrated && itemCount > 0 && (
-                  <span className="ld-nav-cart-badge" data-testid="storefront-cart-badge">
-                    {itemCount}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <GlobalBuyerHeader
+        variant="boutique"
+        storeName={storeName}
+        onShare={handleCopyLink}
+        isCopied={copiedLink}
+        hasLiveDrop={hasLiveDrop}
+      />
 
       {/* 2. Boutique Profile Header Hero */}
       <section className="ld-storefront-hero" data-testid="storefront-hero">
