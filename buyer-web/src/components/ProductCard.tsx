@@ -88,7 +88,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
         {/* Favorite Heart Button (Top-Right) */}
         <button
           type="button"
-          className={`ld-card-heart-btn absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
+          className={`ld-card-heart-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
             isFavorite ? 'text-[#D4AF37]' : 'text-white/80 hover:text-white'
           }`}
           onClick={(e) => {
@@ -98,7 +98,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
           aria-label={isFavorite ? `Remove ${product.title} from favorites` : `Add ${product.title} to favorites`}
           data-testid={`favorite-btn-${product.id}`}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill={isFavorite ? '#D4AF37' : 'none'} stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill={isFavorite ? '#D4AF37' : 'none'} stroke="currentColor" strokeWidth="2">
             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
           </svg>
         </button>

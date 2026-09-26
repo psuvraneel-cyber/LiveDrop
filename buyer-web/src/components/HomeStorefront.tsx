@@ -192,7 +192,7 @@ export function HomeStorefront({
       />
 
       {/* 2. Inset Haute-Couture Live Drop Spotlight Hero (Screen 01 Reference) */}
-      <div className="w-full max-w-6xl mx-auto px-4 pt-3 pb-2">
+      <div className="ld-home-hero-wrap w-full max-w-6xl mx-auto px-4 pt-3 pb-2">
         <section
           id="live-drops"
           className="relative w-full h-[300px] sm:h-[320px] md:h-[350px] lg:h-[360px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#0e0e10] scroll-mt-16 shadow-2xl"
@@ -219,7 +219,7 @@ export function HomeStorefront({
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
           </div>
 
-          <div className="relative z-10 w-full p-4 sm:p-6 pb-5 sm:pb-6 flex flex-col justify-end">
+          <div className="ld-hero-inner-content relative z-10 w-full p-4 sm:p-6 pb-5 sm:pb-6 flex flex-col justify-end">
             <div className="max-w-xl space-y-1.5 sm:space-y-2">
               {/* Live Indicator or Eyebrow */}
               {hasActiveLiveDrop && primaryLiveDrop ? (
@@ -263,7 +263,7 @@ export function HomeStorefront({
                 {hasActiveLiveDrop && primaryLiveDrop ? (
                   <Link
                     href={`/drop/${primaryLiveDrop.slug}`}
-                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    className="ld-gold-pill-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] min-h-[44px]"
                     data-testid="shop-live-hero-btn"
                   >
                     <span>Shop Live Drop</span>
@@ -272,7 +272,7 @@ export function HomeStorefront({
                 ) : (
                   <Link
                     href="/shop"
-                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    className="ld-gold-pill-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] min-h-[44px]"
                     data-testid="explore-live-shows-btn"
                   >
                     <span>Shop Collections</span>
@@ -366,7 +366,7 @@ export function HomeStorefront({
       </section>
 
       {/* Main Content Area */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-10 sm:space-y-14">
+      <main className="ld-home-main max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-10 sm:space-y-14">
         {/* 4. Featured Products Section (2-col mobile, 4-col desktop) */}
         <section id="featured-products" className="space-y-4" aria-label="Featured Products" data-testid="featured-products-section">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -484,7 +484,7 @@ export function HomeStorefront({
                     <div className="flex items-center justify-between pt-2 border-t border-white/5">
                       <Link
                         href={`/${boutique.store_slug}`}
-                        className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors flex items-center gap-1 group"
+                        className="text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors flex items-center gap-1 group min-h-[44px]"
                         data-testid={`visit-boutique-${boutique.store_slug}`}
                       >
                         <span>Visit</span>
@@ -494,12 +494,12 @@ export function HomeStorefront({
                         href={getBoutiqueWhatsAppUrl(boutique.phone_number, boutique.store_name)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-[#25D366] hover:text-[#2fe671] p-1 transition-colors"
+                        className="min-w-[44px] min-h-[44px] flex items-center justify-center text-xs text-[#25D366] hover:text-[#2fe671] p-2 transition-colors rounded-full hover:bg-white/5"
                         title="WhatsApp Boutique"
                         aria-label={`WhatsApp ${boutique.store_name}`}
                         data-testid={`whatsapp-store-${boutique.store_slug}`}
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                         </svg>
                       </a>

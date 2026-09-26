@@ -3,6 +3,8 @@
  * Governing Specification: Item 32 & 33 in UI/UX Reset Mandate
  */
 @import "tailwindcss";
+@source "..";
+@source "../**/*.{ts,tsx}";
 
 @theme {
   --font-serif: var(--font-display);
@@ -329,15 +331,80 @@ body,
 /* Safe area padding for mobile bottom navigation dock — ensures zero content clipping */
 .ld-has-bottom-dock,
 .ld-home-storefront {
-  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+  padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 32px) !important;
 }
 
 @media (min-width: 768px) {
 
   .ld-has-bottom-dock,
   .ld-home-storefront {
-    padding-bottom: 40px !important;
+    padding-bottom: 48px !important;
   }
+}
+
+/* Bulletproof Structural Layout Containers for Mobile Viewport */
+.ld-home-hero-wrap {
+  width: 100%;
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+.ld-hero-inner-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+@media (min-width: 640px) {
+  .ld-hero-inner-content {
+    padding: 24px;
+  }
+}
+
+.ld-home-main {
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 24px;
+  padding-bottom: 40px;
+}
+
+.ld-gold-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  min-height: 44px;
+  border-radius: 9999px;
+  background: #D4AF37;
+  color: #08080A;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ld-gold-pill-btn:hover {
+  background: #E5C158;
+  transform: translateY(-1px);
+}
+
+.ld-gold-pill-btn:active {
+  transform: scale(0.97);
 }
 
 /* Base Mobile-First Layout Container */
@@ -469,9 +536,9 @@ body,
 
 .ld-header-subtitle {
   font-family: var(--font-sans);
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   color: var(--ld-text-muted);
   line-height: 1;
   margin-top: 1px;
