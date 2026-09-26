@@ -4,101 +4,181 @@
  */
 @import "tailwindcss";
 
+@theme {
+  --color-ld-bg: #08080A;
+  --color-ld-surface: #0E0E12;
+  --color-ld-surface-elevated: #16161C;
+  --color-ld-surface-subtle: #121217;
+  --color-ld-border: rgba(255, 255, 255, 0.08);
+  --color-ld-border-gold: rgba(212, 175, 55, 0.25);
+  --color-ld-text-primary: #FBFBFB;
+  --color-ld-text-secondary: rgba(244, 241, 234, 0.72);
+  --color-ld-text-muted: #AAA49A;
+  --color-ld-gold: #D4AF37;
+  --color-ld-gold-soft: #F5D78E;
+  --color-ld-gold-deep: #C88A24;
+  --color-ld-live: #EF4444;
+  --color-ld-success: #10B981;
+  --color-ld-warning: #F59E0B;
+}
+
 :root {
-  /* -------------------------------------------------------------------------
-     Unified LiveDrop Design Tokens (Black / Ivory / Restrained Gold)
-     ------------------------------------------------------------------------- */
-  --ld-bg: #090909;
-  --ld-surface: #121211;
-  --ld-surface-2: #181715;
+  /* =========================================================================
+     LiveDrop Unified Buyer Design Tokens — Phase 1 (Single Source of Truth)
+     Obsidian Black / Warm Ivory / Champagne Gold / Burgundy Accent
+     ========================================================================= */
 
-  --ld-text: #F4F1EA;
+  /* Surface & Background Hierarchy */
+  --ld-bg: #08080A;
+  --ld-surface: #0E0E12;
+  --ld-surface-elevated: #16161C;
+  --ld-surface-subtle: #121217;
+  --ld-surface-2: var(--ld-surface-elevated);
+
+  /* Border Tokens */
+  --ld-border: rgba(255, 255, 255, 0.08);
+  --ld-border-hover: rgba(255, 255, 255, 0.16);
+  --ld-border-gold: rgba(212, 175, 55, 0.25);
+  --ld-border-gold-strong: rgba(212, 175, 55, 0.45);
+
+  /* Typography / Text Palette */
+  --ld-text-primary: #FBFBFB;
+  --ld-text-secondary: rgba(244, 241, 234, 0.72);
   --ld-text-muted: #AAA49A;
+  --ld-text-tertiary: rgba(170, 164, 154, 0.6);
+  --ld-text: var(--ld-text-primary);
 
-  --ld-gold: #C79A45;
-  --ld-gold-soft: #E2C27A;
+  /* Champagne & Warm Gold Palette */
+  --ld-gold: #D4AF37;
+  --ld-gold-soft: #F5D78E;
+  --ld-gold-deep: #C88A24;
+  --ld-gold-muted: rgba(212, 175, 55, 0.15);
+  --ld-gold-gradient: linear-gradient(135deg, #F5D78E 0%, #D4AF37 50%, #C88A24 100%);
+  --ld-gold-gradient-hover: linear-gradient(135deg, #FFF0B8 0%, #F5D78E 50%, #D4AF37 100%);
 
-  --ld-live: #E5484D;
-  --ld-success: #3FA56B;
-  --ld-warning: #D89A38;
+  /* Deep Burgundy Accents (Haute Couture Indian Luxury) */
+  --ld-burgundy: #1A0D11;
+  --ld-burgundy-accent: #2D141C;
+  --ld-burgundy-glow: rgba(45, 20, 28, 0.35);
 
-  --ld-border: rgba(255, 255, 255, 0.09);
-  --ld-border-gold: rgba(199, 154, 69, 0.3);
+  /* Status Colors */
+  --ld-live: #EF4444;
+  --ld-live-bg: rgba(239, 68, 68, 0.12);
+  --ld-live-border: rgba(239, 68, 68, 0.3);
 
-  /* Geometry & Layout */
+  --ld-success: #10B981;
+  --ld-success-bg: rgba(16, 185, 129, 0.12);
+  --ld-success-border: rgba(16, 185, 129, 0.3);
+
+  --ld-warning: #F59E0B;
+  --ld-warning-bg: rgba(245, 158, 11, 0.12);
+  --ld-warning-border: rgba(245, 158, 11, 0.3);
+
+  --ld-sold: #6B7280;
+  --ld-sold-bg: rgba(107, 114, 128, 0.16);
+  --ld-sold-border: rgba(107, 114, 128, 0.25);
+
+  /* Geometry & Layout Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Corner Radii Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
   --radius-card: 14px;
   --radius-feature: 18px;
-  --radius-pill: 9999px;
-  --radius-sm: 8px;
+
   --max-width-mobile: 680px;
   --touch-target-min: 48px;
 
   /* Typography Stacks */
-  --font-display: var(--font-display, 'Cormorant Garamond', Georgia, serif);
-  --font-sans: var(--font-sans, 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Backward-Compatible Palette Aliases */
+  /* Elevation & Shadows Scale — Restrained luxury, no excessive neon */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.65);
+  --shadow-elevated: 0 16px 48px rgba(0, 0, 0, 0.75);
+  --shadow-gold: 0 4px 20px rgba(212, 175, 55, 0.22);
+
+  /* Motion & Transition Scale */
+  --motion-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-standard: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-slow: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* -------------------------------------------------------------------------
+     Backward-Compatible Palette Aliases (Guarantees zero regressions)
+     ------------------------------------------------------------------------- */
   --noir-black: var(--ld-bg);
   --noir-card: var(--ld-surface);
-  --noir-elevated: var(--ld-surface-2);
-  --burgundy-deep: #1A0D11;
-  --burgundy-accent: #2D141C;
-  --burgundy-glow: rgba(45, 20, 28, 0.2);
+  --noir-elevated: var(--ld-surface-elevated);
+
+  --burgundy-deep: var(--ld-burgundy);
+  --burgundy-accent: var(--ld-burgundy-accent);
+  --burgundy-glow: var(--ld-burgundy-glow);
+
   --champagne-gold: var(--ld-gold);
-  --champagne-muted: rgba(199, 154, 69, 0.16);
+  --champagne-muted: var(--ld-gold-muted);
   --champagne-hairline: var(--ld-border);
-  --ivory-text: var(--ld-text);
+
+  --ivory-text: var(--ld-text-primary);
   --ivory-muted: var(--ld-text-muted);
 
   --obsidian: var(--ld-bg);
   --obsidian-surface: var(--ld-surface);
-  --obsidian-elevated: var(--ld-surface-2);
-  --input-background: var(--ld-surface-2);
+  --obsidian-elevated: var(--ld-surface-elevated);
+
+  --input-background: var(--ld-surface-elevated);
   --card-border: var(--ld-border);
   --card-border-gold: var(--ld-border-gold);
 
   --gold-primary: var(--ld-gold);
-  --gold-secondary: #B58632;
+  --gold-secondary: var(--ld-gold-deep);
   --gold-light: var(--ld-gold-soft);
-  --gold-muted: rgba(199, 154, 69, 0.18);
-  --gold-gradient: linear-gradient(135deg, #C79A45 0%, #B58632 100%);
-  --gold-gradient-hover: linear-gradient(135deg, #D4AF37 0%, #C79A45 100%);
+  --gold-muted: var(--ld-gold-muted);
+  --gold-gradient: var(--ld-gold-gradient);
+  --gold-gradient-hover: var(--ld-gold-gradient-hover);
   --gold-glow: none;
 
   --primary-emerald: var(--ld-success);
-  --primary-emerald-hover: #328B59;
+  --primary-emerald-hover: #059669;
   --whatsapp-teal: #25D366;
 
   --stock-available: var(--ld-success);
-  --stock-available-bg: rgba(63, 165, 107, 0.16);
-  --stock-available-text: #4ADE80;
+  --stock-available-bg: var(--ld-success-bg);
+  --stock-available-text: #34D399;
 
   --stock-reserved: var(--ld-warning);
-  --stock-reserved-bg: rgba(216, 154, 56, 0.16);
+  --stock-reserved-bg: var(--ld-warning-bg);
   --stock-reserved-text: #FBBF24;
 
-  --stock-sold: #6B7280;
-  --stock-sold-bg: rgba(107, 114, 128, 0.22);
-  --stock-sold-text: #9CA3AF;
+  --stock-sold: var(--ld-sold);
+  --stock-sold-bg: var(--ld-sold-bg);
+  --stock-sold-text: var(--ld-sold);
 
   --error-crimson: var(--ld-live);
-  --error-bg: rgba(229, 72, 77, 0.16);
+  --error-bg: var(--ld-live-bg);
 
   --bg-page: var(--ld-bg);
   --surface-card: var(--ld-surface);
-  --surface-elevated: var(--ld-surface-2);
-  --text-primary: var(--ld-text);
-  --text-secondary: rgba(244, 241, 234, 0.72);
+  --surface-elevated: var(--ld-surface-elevated);
+  --text-primary: var(--ld-text-primary);
+  --text-secondary: var(--ld-text-secondary);
   --text-muted: var(--ld-text-muted);
   --border-subtle: var(--ld-border);
   --border-focus: var(--ld-gold);
-
-  /* Shadows — Restrained, no excessive glow */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --shadow-gold: none;
 }
 
 /* Reset & Box Sizing */
@@ -113,10 +193,14 @@ a, button, [role="button"], a:hover, a:focus, a:active, a:visited {
   text-decoration: none !important;
 }
 
+/* Strict Typography Discipline: Functional UI locked to Clean Sans */
+html, body, button, input, textarea, select {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 html {
-  font-family: var(--font-sans);
-  background-color: var(--bg-page);
-  color: var(--text-primary);
+  background-color: var(--ld-bg);
+  color: var(--ld-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
@@ -128,8 +212,77 @@ body {
   display: flex;
   flex-direction: column;
   background-color: var(--ld-bg);
-  color: var(--ld-text);
+  color: var(--ld-text-primary);
   overflow-x: hidden;
+}
+
+/* =========================================================================
+   Standardized Typography Utility Hierarchy
+   ========================================================================= */
+.ld-text-display {
+  font-family: var(--font-display), 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ld-text-primary);
+}
+
+.ld-text-heading {
+  font-family: var(--font-display), 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.4rem, 3.5vw, 2.1rem);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ld-text-primary);
+}
+
+.ld-text-section {
+  font-family: var(--font-display), 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ld-text-primary);
+}
+
+.ld-text-body {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ld-text-secondary);
+}
+
+.ld-text-metadata {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--ld-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.ld-text-caption {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ld-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.ld-text-button {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.ld-text-price {
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ld-text-primary);
+  letter-spacing: -0.01em;
 }
 
 /* Safe area padding for mobile bottom navigation dock — ensures zero content clipping */
