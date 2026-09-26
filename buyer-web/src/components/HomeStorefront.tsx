@@ -176,9 +176,9 @@ export function HomeStorefront({
 
   const hasActiveLiveDrop = filteredActiveDrops.length > 0;
   const primaryLiveDrop = hasActiveLiveDrop ? filteredActiveDrops[0] : null;
-  const heroBackground =
-    primaryLiveDrop?.hero_image_url ||
-    (allAvailableProducts.length > 0 ? allAvailableProducts[0].image_url : null);
+  const heroBackground = hasActiveLiveDrop
+    ? (primaryLiveDrop?.hero_image_url || '/hero-live-drop.jpg' || (allAvailableProducts.length > 0 ? allAvailableProducts[0].image_url : null))
+    : null;
 
   return (
     <div
@@ -195,27 +195,32 @@ export function HomeStorefront({
       <div className="w-full max-w-6xl mx-auto px-4 pt-3 pb-2">
         <section
           id="live-drops"
-          className="relative w-full h-[320px] sm:h-[360px] md:h-[400px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#121211] scroll-mt-16 shadow-2xl"
+          className="relative w-full h-[300px] sm:h-[320px] md:h-[350px] lg:h-[360px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#0e0e10] scroll-mt-16 shadow-2xl"
           aria-label="LiveDrop Spotlight Hero"
           data-testid={hasActiveLiveDrop ? "live-drop-hero" : "spotlight-hero"}
         >
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {heroBackground ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={heroBackground}
                 alt={hasActiveLiveDrop && primaryLiveDrop ? primaryLiveDrop.title : 'LiveDrop Spotlight'}
-                className="w-full h-full object-cover object-top sm:object-center brightness-60 transition-transform duration-700"
+                className="w-full h-full object-cover object-[78%_26%] sm:object-[75%_32%] select-none brightness-95 contrast-[1.03] scale-[1.22] sm:scale-100 origin-[78%_26%] transition-transform duration-700"
+                style={{ objectPosition: '78% 26%' }}
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-[#1b1613] via-[#121211] to-[#090909]" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#08080A] via-[#08080A]/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#08080A]/85 via-transparent to-transparent" />
+            {/* Directional read gradient - deep dark coverage on the left for text contrast */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#08080A] via-[#08080A]/85 via-48% to-transparent" />
+            {/* Vertical bottom gradient - seamless melt into dark background without harsh border */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#08080A] via-[#08080A]/60 via-30% to-transparent" />
+            {/* Subtle top ambient vignette */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
           </div>
 
-          <div className="relative w-full p-4 sm:p-6 flex flex-col justify-end">
-            <div className="max-w-xl space-y-2">
+          <div className="relative z-10 w-full p-4 sm:p-6 pb-5 sm:pb-6 flex flex-col justify-end">
+            <div className="max-w-xl space-y-1.5 sm:space-y-2">
               {/* Live Indicator or Eyebrow */}
               {hasActiveLiveDrop && primaryLiveDrop ? (
                 <div className="inline-flex items-center gap-2">
@@ -227,28 +232,28 @@ export function HomeStorefront({
               ) : null}
 
               {/* Headline */}
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#FBFBFB] tracking-wide leading-tight">
+              <h1 className="text-xl sm:text-2xl md:text-3xl max-w-[220px] sm:max-w-md font-serif text-[#FBFBFB] tracking-wide leading-tight drop-shadow-md">
                 {hasActiveLiveDrop && primaryLiveDrop
                   ? primaryLiveDrop.title
                   : 'NO LIVE DROP'}
               </h1>
 
               {/* Subtitle / Boutique Attribution */}
-              <p className="text-xs sm:text-sm text-[#F4F1EA]/80 font-sans max-w-md leading-snug">
+              <p className="text-xs sm:text-sm text-[#F4F1EA]/80 font-sans max-w-xs leading-snug drop-shadow">
                 {hasActiveLiveDrop && primaryLiveDrop
                   ? `${primaryLiveDrop.profiles?.store_name || 'Independent Boutique'}`
                   : 'Explore pieces from independent boutiques.'}
               </p>
 
               {/* Luxury Feature Tags (Screen 01) */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pb-1">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[10px] text-white/90">
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 pb-0.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] sm:text-[10px] text-white/90">
                   <span className="text-[#D4AF37]">✦</span> Live shopping
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[10px] text-white/90">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] sm:text-[10px] text-white/90">
                   <span className="text-[#D4AF37]">✦</span> Exclusive pieces
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-[10px] text-white/90">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] sm:text-[10px] text-white/90">
                   <span className="text-[#D4AF37]">✦</span> Handpicked
                 </span>
               </div>
@@ -258,7 +263,7 @@ export function HomeStorefront({
                 {hasActiveLiveDrop && primaryLiveDrop ? (
                   <Link
                     href={`/drop/${primaryLiveDrop.slug}`}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                     data-testid="shop-live-hero-btn"
                   >
                     <span>Shop Live Drop</span>
@@ -267,7 +272,7 @@ export function HomeStorefront({
                 ) : (
                   <Link
                     href="/shop"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                     data-testid="explore-live-shows-btn"
                   >
                     <span>Shop Collections</span>
@@ -276,7 +281,7 @@ export function HomeStorefront({
                 )}
 
                 {/* Slider pagination indicators (Screen 01) */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-[10px] text-white/70">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-[10px] text-white/70">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
                   <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
                   <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
