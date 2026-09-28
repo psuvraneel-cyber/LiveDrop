@@ -260,7 +260,16 @@ export function BoutiqueStorefrontView({
                         <article key={prod.id} className="ld-showcase-card" data-testid={`showcase-card-${prod.code}`}>
                           <div
                             className="ld-showcase-img-wrap"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Preview image of ${prod.title}`}
                             onClick={() => displayImg !== '/placeholder-garment.svg' && setSelectedImage({ url: displayImg, title: prod.title })}
+                            onKeyDown={(e) => {
+                              if ((e.key === 'Enter' || e.key === ' ') && displayImg !== '/placeholder-garment.svg') {
+                                e.preventDefault();
+                                setSelectedImage({ url: displayImg, title: prod.title });
+                              }
+                            }}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -289,7 +298,8 @@ export function BoutiqueStorefrontView({
                             href={formatWhatsAppUrl(storefront.phone_number, storeName, prod, storeSlug)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ld-btn-whatsapp-inquire"
+                            className="ld-btn-whatsapp-inquire min-h-[44px]"
+                            aria-label={`Inquire about ${prod.code}: ${prod.title} on WhatsApp`}
                             data-testid={`whatsapp-inquire-btn-${prod.code}`}
                           >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -343,7 +353,14 @@ export function BoutiqueStorefrontView({
 
       {/* Image Preview Modal */}
       {selectedImage && (
-        <div className="ld-modal-backdrop" onClick={() => setSelectedImage(null)}>
+        <div
+          className="ld-modal-backdrop"
+          onClick={() => setSelectedImage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          data-testid="image-preview-modal"
+        >
           <div className="ld-img-preview-modal" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"

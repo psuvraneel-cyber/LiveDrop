@@ -1,0 +1,2 @@
+import Link from "next/link";
+export function SectionTitle({title,subtitle,href="/shop"}:{title:string;subtitle?:string;href?:string}){return <div className="mb-3 flex items-end justify-between gap-4"><div><h2 className="ld-serif text-[25px] leading-tight lg:text-[32px]">{title}</h2>{subtitle&&<p className="mt-1 text-xs text-white/52 lg:text-sm">{subtitle}</p>}</div><Link href={href} className="shrink-0 text-xs font-semibold text-[#f3c653] lg:text-sm">View All →</Link></div>}

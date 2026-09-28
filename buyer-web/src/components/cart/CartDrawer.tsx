@@ -43,12 +43,64 @@ export function CartDrawer({
   const [noteDraft, setNoteDraft] = useState(orderNote);
   const [prevOrderNote, setPrevOrderNote] = useState(orderNote);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
   const router = useRouter();
 
   if (prevOrderNote !== orderNote) {
     setPrevOrderNote(orderNote);
     setNoteDraft(orderNote);
   }
+
+  // Focus trap and focus restoration
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement | null;
+      const timer = setTimeout(() => {
+        const closeBtn = drawerRef.current?.querySelector<HTMLElement>('[data-testid="cart-drawer-close"]');
+        if (closeBtn) {
+          closeBtn.focus();
+        } else {
+          drawerRef.current?.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (previousActiveElement.current) {
+      previousActiveElement.current.focus();
+      previousActiveElement.current = null;
+    }
+  }, [isOpen]);
+
+  // Tab key trap inside drawer
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !drawerRef.current) return;
+
+      const focusables = drawerRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
+  }, [isOpen]);
 
   // Close on Escape key
   useEffect(() => {
@@ -120,13 +172,20 @@ export function CartDrawer({
         aria-labelledby="cart-drawer-title"
         data-testid="cart-drawer"
       >
+        {/* Screen-reader polite announcement */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {itemCount === 0
+            ? 'Your shopping bag is empty'
+            : `Shopping bag with ${itemCount} piece${itemCount > 1 ? 's' : ''}, subtotal ${formatPaisaToINR(payableSubtotalPaisa)}`}
+        </div>
+
         {/* 1. Header: Back Arrow '<' + Title 'Your Cart (N)' */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0 bg-[#08080A]/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
               aria-label="Back to shopping"
               data-testid="cart-back-btn"
             >
@@ -145,7 +204,7 @@ export function CartDrawer({
               <button
                 type="button"
                 onClick={clearCart}
-                className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors"
+                className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors min-h-[44px] px-2 flex items-center cursor-pointer"
                 data-testid="cart-clear-btn"
               >
                 Clear
@@ -154,7 +213,7 @@ export function CartDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
               aria-label="Close cart drawer"
               data-testid="cart-drawer-close"
             >

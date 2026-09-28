@@ -138,13 +138,13 @@ describe('CinematicLiveRoomView Component Tests', () => {
       </CartProvider>
     );
 
-    const initialLikes = screen.getByText('2480');
-    expect(initialLikes).toBeInTheDocument();
+    const initialLikes = screen.getByTestId('live-room-like-count');
+    expect(initialLikes).toHaveTextContent('0');
 
     const likeBtn = screen.getByLabelText('Like live stream');
     fireEvent.click(likeBtn);
 
-    expect(screen.getByText('2481')).toBeInTheDocument();
+    expect(screen.getByTestId('live-room-like-count')).toHaveTextContent('1');
   });
 
   it('invokes onExitToGrid when back button is tapped', () => {

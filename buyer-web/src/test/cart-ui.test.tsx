@@ -14,7 +14,9 @@ import { CartProvider, useCart, resetCartStore } from '../lib/cart/cart-context'
 import { CartDrawer } from '../components/cart/CartDrawer';
 import { CartItemRow } from '../components/cart/CartItemRow';
 import { CartItem } from '../types/cart';
-import { PublicProductView } from '../types/domain';
+import { PublicProductView, PublicDropCatalog } from '../types/domain';
+import { AppProviders } from '../components/providers/AppProviders';
+import { PublicDropView } from '../components/PublicDropView';
 
 const mockItem: CartItem = {
   productId: 'prod-lehenga-1',
@@ -130,4 +132,54 @@ describe('CartDrawer Screen 6 Tests', () => {
     // Verify saved note
     expect(screen.getByText(/Please gift wrap/i)).toBeInTheDocument();
   });
+
+  it('REGRESSION: ensures exactly one CartDrawer instance exists in DOM when mounted inside AppProviders and PublicDropView', () => {
+    render(
+      <AppProviders>
+        <PublicDropView
+          slug="silk-showcase"
+          initialDrop={{
+            id: 'drop-bridal-1',
+            seller_id: 'seller-1',
+            title: 'Silk Showcase',
+            slug: 'silk-showcase',
+            status: 'live',
+            shipping_fee_paisa: 8000,
+            free_shipping_threshold_paisa: 200000,
+            profiles: {
+              store_name: "Mother's Boutique",
+              store_slug: 'mothers-boutique',
+              upi_id: 'mothersboutique@okaxis',
+              upi_qr_url: null,
+              default_shipping_fee_paisa: 8000,
+              free_shipping_threshold_paisa: 200000,
+              advance_confirmation_enabled: true,
+              advance_amount_paisa: 50000,
+              hold_duration_days: 2,
+            },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            live_started_at: new Date().toISOString(),
+            closed_at: null,
+          } as unknown as PublicDropCatalog}
+          initialProducts={[mockProduct]}
+        />
+      </AppProviders>
+    );
+
+    // Add item to bag
+    const addBtn = screen.getByTestId('cart-btn-prod-lehenga-1');
+    fireEvent.click(addBtn);
+
+    // Open cart drawer from sticky bar
+    const viewCartBtn = screen.getByTestId('sticky-view-cart-btn');
+    fireEvent.click(viewCartBtn);
+
+    // Assert strictly that only one drawer exists in the entire DOM (strict mode compliance)
+    const drawers = screen.getAllByTestId('cart-drawer');
+    expect(drawers).toHaveLength(1);
+    expect(drawers[0]).toBeInTheDocument();
+    expect(screen.getByTestId('cart-subtotal')).toHaveTextContent('₹1,89,000');
+  });
 });
+

@@ -378,7 +378,11 @@ function PublicDropContent({
             }}
           />
         ) : (
-          <ProductGrid products={filteredProducts} dropId={drop.id} />
+          <ProductGrid
+            products={filteredProducts}
+            dropId={drop.id}
+            storeName={drop.profiles?.store_name}
+          />
         )}
       </main>
 

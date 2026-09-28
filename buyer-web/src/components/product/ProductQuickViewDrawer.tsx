@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { PublicProductView } from '../../types/domain';
 import { formatPaisaToINR } from '../../lib/utils/currency';
@@ -99,12 +99,17 @@ function ProductQuickViewContent({
         <button
           type="button"
           onClick={onClose}
-          className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
+          className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
           aria-label="Close product quick view"
           data-testid="quick-view-close-btn"
         >
           ✕
         </button>
+      </div>
+
+      {/* Screen-reader polite live announcement */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {product.title} is {product.status === 'available' ? 'Available' : product.status === 'reserved' ? 'Reserved' : 'Sold Out'}. {isInCart ? 'This piece is in your shopping bag.' : ''}
       </div>
 
       {/* Scrollable Content */}
@@ -143,7 +148,7 @@ function ProductQuickViewContent({
           <button
             type="button"
             onClick={handleShare}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
+            className="absolute top-3 right-3 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
             aria-label="Share this garment"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -280,7 +285,7 @@ function ProductQuickViewContent({
           {addedMessage ? (
             <span>✓ {addedMessage}</span>
           ) : isInCart ? (
-            <span>In Your Bag • Add Another</span>
+            <span>In Your Bag</span>
           ) : isAvailable ? (
             <>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25">
@@ -307,6 +312,60 @@ export function ProductQuickViewDrawer({
   onClose,
   onOpenCart,
 }: ProductQuickViewDrawerProps) {
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  // Focus trap and focus restoration
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement | null;
+      const timer = setTimeout(() => {
+        const closeBtn = drawerRef.current?.querySelector<HTMLElement>('[data-testid="quick-view-close-btn"]');
+        if (closeBtn) {
+          closeBtn.focus();
+        } else {
+          drawerRef.current?.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (previousActiveElement.current) {
+      previousActiveElement.current.focus();
+      previousActiveElement.current = null;
+    }
+  }, [isOpen]);
+
+  // Tab key trap inside quick view drawer
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !drawerRef.current) return;
+
+      const focusables = drawerRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
+  }, [isOpen]);
+
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -324,6 +383,7 @@ export function ProductQuickViewDrawer({
 
   return (
     <div
+      ref={drawerRef}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm transition-opacity duration-300"
       role="dialog"
       aria-modal="true"

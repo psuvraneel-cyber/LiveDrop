@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PublicProductView } from '../types/domain';
 import { formatPaisaToINR } from '../lib/utils/currency';
@@ -22,9 +22,9 @@ export function ProductDetailModal({
   isOpen,
   onClose,
   dropId,
-  storeName = 'Priya Boutique',
-  storeRating = '4.9',
-  storeReviewsCount = 128,
+  storeName = 'LiveDrop Boutique',
+  storeRating,
+  storeReviewsCount,
   onAddToCart,
 }: ProductDetailModalProps) {
   const router = useRouter();
@@ -35,6 +35,9 @@ export function ProductDetailModal({
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
 
   // Reset active image when product changes
   if (product?.id !== prevProductId) {
@@ -54,6 +57,57 @@ export function ProductDetailModal({
     return () => {
       document.body.style.overflow = '';
     };
+  }, [isOpen]);
+
+  // Focus trap and focus restoration
+  useEffect(() => {
+    if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement | null;
+      const timer = setTimeout(() => {
+        const closeBtn = sheetRef.current?.querySelector<HTMLElement>('[data-testid="product-detail-close-btn"]');
+        if (closeBtn) {
+          closeBtn.focus();
+        } else {
+          sheetRef.current?.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (previousActiveElement.current) {
+      previousActiveElement.current.focus();
+      previousActiveElement.current = null;
+    }
+  }, [isOpen]);
+
+  // Tab key focus trap
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !sheetRef.current) return;
+
+      const focusables = sheetRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleTabKey);
+    return () => window.removeEventListener('keydown', handleTabKey);
   }, [isOpen]);
 
   // Escape key listener
@@ -161,9 +215,6 @@ export function ProductDetailModal({
   } else if (isSold) {
     stockBadge = 'Sold Out';
     stockBadgeClass = 'ld-badge-sold';
-  } else if (product.quantity_available && product.quantity_available <= 3) {
-    stockBadge = `Only ${product.quantity_available} Left`;
-    stockBadgeClass = 'ld-badge-urgent';
   }
 
   return (
@@ -177,9 +228,15 @@ export function ProductDetailModal({
     >
       <div
         className="ld-product-sheet"
+        ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
         data-testid={`product-detail-sheet-${product.id}`}
       >
+        {/* Screen-reader polite live region for availability and cart state */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          Status: {isAvailable ? 'In Stock' : isReserved ? 'On Hold' : 'Sold'}. {inCart ? 'This piece is in your shopping bag.' : ''}
+        </div>
+
         {/* Mobile Pull Indicator */}
         <div className="ld-sheet-handle-bar" aria-hidden="true">
           <div className="ld-sheet-handle" />
@@ -362,16 +419,22 @@ export function ProductDetailModal({
               </div>
               <div className="ld-sheet-boutique-meta">
                 <span className="ld-sheet-boutique-name">{storeName}</span>
-                <span className="ld-sheet-boutique-rating">
-                  ★ {storeRating} ({storeReviewsCount} verified reviews)
-                </span>
+                {storeRating ? (
+                  <span className="ld-sheet-boutique-rating">
+                    ★ {storeRating} {storeReviewsCount ? `(${storeReviewsCount} reviews)` : ''}
+                  </span>
+                ) : (
+                  <span className="ld-sheet-boutique-rating">
+                    ✦ Verified Atelier • Handcrafted Originals
+                  </span>
+                )}
               </div>
               <button
                 type="button"
                 className="ld-sheet-boutique-btn"
                 onClick={onClose}
               >
-                View Shop
+                Done
               </button>
             </div>
           </div>

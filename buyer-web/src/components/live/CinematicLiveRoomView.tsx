@@ -18,47 +18,18 @@ export interface CinematicLiveRoomViewProps {
   onExitToGrid?: () => void;
 }
 
-interface MockChatMessage {
-  id: string;
-  sender: string;
-  avatar: string;
-  message: string;
-}
-
-const INITIAL_COMMENTS: MockChatMessage[] = [
-  { id: 'c1', sender: 'Priya M.', avatar: 'P', message: 'That zari border is breathtaking! ✨' },
-  { id: 'c2', sender: 'Ananya S.', avatar: 'A', message: 'Is this pure handloom silk?' },
-  { id: 'c3', sender: 'Kavita R.', avatar: 'K', message: 'Just claimed #A01! Can’t wait ❤️' },
-];
-
 export function CinematicLiveRoomView({
   drop,
   products,
+  realtimeStatus = 'connected',
   onExitToGrid,
 }: CinematicLiveRoomViewProps) {
   const [isCatalogExpanded, setIsCatalogExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<PublicProductView | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
-  const [likesCount, setLikesCount] = useState(2480);
+  const [likesCount, setLikesCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [flyingHearts, setFlyingHearts] = useState<{ id: number; left: number }[]>([]);
-  const [comments, setComments] = useState<MockChatMessage[]>(INITIAL_COMMENTS);
-  const [chatInput, setChatInput] = useState('');
-
-  const handleSendChat = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!chatInput.trim()) return;
-    setComments((prev) => [
-      ...prev,
-      {
-        id: `c-${Date.now()}`,
-        sender: 'You',
-        avatar: 'Y',
-        message: chatInput.trim(),
-      },
-    ]);
-    setChatInput('');
-  };
 
   // Cart integration
   const cart = useOptionalCart();
@@ -179,12 +150,13 @@ export function CinematicLiveRoomView({
             <span>LIVE</span>
           </div>
 
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs font-mono">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span>{(likesCount / 1000).toFixed(1)}k</span>
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs font-mono"
+            title={realtimeStatus === 'connected' ? 'Realtime catalog active' : `Updates: ${realtimeStatus}`}
+            data-testid="live-room-catalog-pill"
+          >
+            <span className="text-[#D4AF37] font-bold">{availableProducts.length}</span>
+            <span className="text-white/60">available</span>
           </div>
         </div>
       </header>
@@ -237,7 +209,7 @@ export function CinematicLiveRoomView({
               <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
             </svg>
           </button>
-          <span className="text-[10px] font-mono text-white/80 mt-1 font-medium">
+          <span className="text-[10px] font-mono text-white/80 mt-1 font-medium" data-testid="live-room-like-count">
             {likesCount}
           </span>
         </div>
@@ -267,26 +239,18 @@ export function CinematicLiveRoomView({
         </button>
       </aside>
 
-      {/* 4. BOTTOM-LEFT FLOATING CHAT OVERLAY */}
-      <div className="absolute left-4 bottom-[calc(190px+env(safe-area-inset-bottom,0px))] z-10 max-w-[70%] pointer-events-none space-y-1.5">
-        {comments.map((chat) => (
-          <div
-            key={chat.id}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/10 text-xs shadow-lg animate-in fade-in slide-in-from-left duration-300"
-          >
-            <span className="w-5 h-5 rounded-full bg-white/15 text-white text-[10px] font-bold flex items-center justify-center">
-              {chat.avatar}
-            </span>
-            <span className="font-semibold text-white/90 text-[11px]">{chat.sender}:</span>
-            <span className="text-white/80 text-[11px] truncate">{chat.message}</span>
-          </div>
-        ))}
+      {/* 4. BOTTOM-LEFT ATELIER BADGE */}
+      <div className="absolute left-4 bottom-[calc(180px+env(safe-area-inset-bottom,0px))] z-10 max-w-[80%] pointer-events-none space-y-1.5">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-[rgba(212,175,55,0.25)] text-xs text-white/90 shadow-lg">
+          <span className="text-[#D4AF37]">✦</span>
+          <span className="text-[11px] font-medium tracking-wide">Live Runway Drop • Tap piece below to claim</span>
+        </div>
       </div>
 
       {/* 5. PINNED PRODUCT BOTTOM SHEET (Screen 3) */}
       {pinnedProduct && (
         <div
-          className="relative z-20 mt-auto px-4 pb-3 pt-2 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-auto"
+          className="relative z-20 mt-auto px-4 pb-[calc(72px+env(safe-area-inset-bottom,0px))] pt-2 bg-gradient-to-t from-black via-black/95 to-transparent pointer-events-auto"
           data-testid="pinned-product-card"
         >
           {/* Top affordance button to expand full catalog */}
@@ -368,49 +332,6 @@ export function CinematicLiveRoomView({
           </div>
         </div>
       )}
-
-      {/* 6. LIVE CHAT INPUT ROW (Screen 03) */}
-      <form
-        onSubmit={handleSendChat}
-        className="relative z-20 px-4 py-2 pb-[calc(64px+env(safe-area-inset-bottom,0px))] bg-[#08080A]/95 border-t border-white/10 flex items-center gap-2 pointer-events-auto"
-        data-testid="live-chat-form"
-      >
-        <button
-          type="button"
-          className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer text-base flex-shrink-0"
-          aria-label="Add emoji reaction"
-          onClick={() => {
-            setChatInput((prev) => prev + '✨');
-          }}
-        >
-          😊
-        </button>
-
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Say something..."
-            data-testid="live-chat-input"
-            aria-label="Send live chat message"
-            className="w-full bg-[#16161C] border border-white/15 focus:border-[#D4AF37] rounded-full px-4 py-2 text-xs text-[#FBFBFB] placeholder-white/40 focus:outline-none transition-colors"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={!chatInput.trim()}
-          data-testid="live-chat-send-btn"
-          aria-label="Send message"
-          className="w-9 h-9 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] disabled:opacity-40 disabled:cursor-not-allowed text-[#08080A] flex items-center justify-center transition-all shadow-md active:scale-95 flex-shrink-0 cursor-pointer"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
-      </form>
 
       {/* 6. SWIPE-UP FULL CATALOG DRAWER (Facebook Live continues playing in background!) */}
       {isCatalogExpanded && (

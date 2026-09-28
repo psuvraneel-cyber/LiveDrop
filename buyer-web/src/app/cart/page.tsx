@@ -112,7 +112,7 @@ function CartPageContent() {
             <button
               type="button"
               onClick={clearCart}
-              className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors"
+              className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors min-h-[44px] px-2 flex items-center cursor-pointer"
               data-testid="cart-page-clear-btn"
             >
               Clear
@@ -122,6 +122,13 @@ function CartPageContent() {
       />
 
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4" role="main">
+        {/* Screen-reader polite live region for cart updates */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {items.length === 0
+            ? 'Your shopping bag is empty'
+            : `Shopping bag contains ${itemCount} piece${itemCount > 1 ? 's' : ''}, payable subtotal ${formatPaisaToINR(payableSubtotalPaisa)}`}
+        </div>
+
         {/* Informational Stock Notice - shown only when there are available items */}
         {items.length > 0 && availableItems.length > 0 && (
           <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
@@ -153,7 +160,7 @@ function CartPageContent() {
                   .filter((item) => !item.isAvailable)
                   .forEach((item) => removeItem(item.productId));
               }}
-              className="px-3 py-1 rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-200 border border-red-500/30 text-[11px] font-sans font-medium transition-colors flex-shrink-0"
+              className="px-3.5 py-2 min-h-[44px] rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-200 border border-red-500/30 text-[11px] font-sans font-medium transition-colors flex items-center justify-center flex-shrink-0 cursor-pointer"
               data-testid="page-cart-remove-unavailable-btn"
             >
               {availableItems.length === 0 ? 'Remove' : 'Remove unavailable'}

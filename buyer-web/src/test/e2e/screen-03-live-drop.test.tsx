@@ -44,7 +44,7 @@ describe('Tier 1: Screen 03 — Live Drop Room', () => {
     expect(screen.getByTestId('live-room-back-btn')).toBeInTheDocument();
   });
 
-  it('renders floating live chat overlay with transparent message bubbles', () => {
+  it('renders authentic atelier runway drop badge without fake comments', () => {
     renderWithProviders(
       <CinematicLiveRoomView
         drop={mockLiveDrop}
@@ -52,10 +52,8 @@ describe('Tier 1: Screen 03 — Live Drop Room', () => {
       />
     );
 
-    // Initial comments
-    expect(screen.getByText(/That zari border is breathtaking!/i)).toBeInTheDocument();
-    expect(screen.getByText(/Is this pure handloom silk\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/Just claimed #A01!/i)).toBeInTheDocument();
+    // Authentic runway drop badge
+    expect(screen.getByText(/Live Runway Drop • Tap piece below to claim/i)).toBeInTheDocument();
   });
 
   it('renders pinned spotlight product card with code, title, and price in integer Paisa', () => {
@@ -85,12 +83,12 @@ describe('Tier 1: Screen 03 — Live Drop Room', () => {
     const likeBtn = screen.getByLabelText('Like live stream');
     expect(likeBtn).toBeInTheDocument();
 
-    const initialLikes = screen.getByText('2480');
-    expect(initialLikes).toBeInTheDocument();
+    const initialLikes = screen.getByTestId('live-room-like-count');
+    expect(initialLikes).toHaveTextContent('0');
 
     // Click like
     fireEvent.click(likeBtn);
-    expect(screen.getByText('2481')).toBeInTheDocument();
+    expect(screen.getByTestId('live-room-like-count')).toHaveTextContent('1');
   });
 
   it('adds spotlight product to cart when clicking Add to Bag on pinned card', async () => {

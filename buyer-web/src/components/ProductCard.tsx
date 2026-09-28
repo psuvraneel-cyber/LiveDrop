@@ -20,7 +20,17 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const cardRef = React.useRef<HTMLElement>(null);
   const cart = useOptionalCart();
+
+  const handleOpenDetail = () => {
+    setIsDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    cardRef.current?.focus();
+  };
 
   const isAvailable = product.status === 'available';
   const isReserved = product.status === 'reserved';
@@ -69,10 +79,21 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
   return (
     <>
       <article
+        ref={cardRef}
+        tabIndex={0}
+        role="button"
+        aria-haspopup="dialog"
+        aria-expanded={isDetailOpen}
         className={`ld-product-card ${!isAvailable ? 'unavailable' : ''}`}
         data-testid={`product-card-${product.id}`}
         aria-label={`${product.code}: ${product.title} - ${formatPaisaToINR(product.price_paisa)} - ${statusText}`}
-        onClick={() => setIsDetailOpen(true)}
+        onClick={handleOpenDetail}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            handleOpenDetail();
+          }
+        }}
       >
       {/* Media Thumbnail Container (3:4 aspect ratio) */}
       <div className="ld-card-media relative">
@@ -88,12 +109,15 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
         {/* Favorite Heart Button (Top-Right) */}
         <button
           type="button"
-          className={`ld-card-heart-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
+          className={`ld-card-heart-btn absolute top-2 right-2 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
             isFavorite ? 'text-[#D4AF37]' : 'text-white/80 hover:text-white'
           }`}
           onClick={(e) => {
             e.stopPropagation();
             setIsFavorite(!isFavorite);
+          }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
           }}
           aria-label={isFavorite ? `Remove ${product.title} from favorites` : `Add ${product.title} to favorites`}
           data-testid={`favorite-btn-${product.id}`}
@@ -246,7 +270,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
     <ProductDetailModal
       product={product}
       isOpen={isDetailOpen}
-      onClose={() => setIsDetailOpen(false)}
+      onClose={handleCloseDetail}
       dropId={dropId}
       storeName={storeName}
       onAddToCart={onAddToCart}

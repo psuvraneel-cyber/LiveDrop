@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#152332"/><stop offset="1" stop-color="#294a68"/></linearGradient><linearGradient id="silk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#476d8c"/><stop offset=".65" stop-color="#8a2047"/><stop offset="1" stop-color="#2a1524"/></linearGradient></defs>
+<rect width="800" height="1000" fill="url(#bg)"/><circle cx="640" cy="190" r="170" fill="#fff" opacity=".08"/><circle cx="170" cy="250" r="115" fill="#fff" opacity=".05"/>
+<path d="M140 840 Q185 580 320 420 Q400 330 500 420 Q635 560 690 840 L600 920 L260 920 Z" fill="url(#silk)" stroke="#f3c653" stroke-width="10" opacity=".96"/>
+<path d="M320 450 Q360 360 430 360 Q500 365 535 450 Q470 525 410 620 Q350 530 320 450" fill="#476d8c" opacity=".94"/>
+<circle cx="430" cy="275" r="86" fill="#a87052"/>
+<path d="M350 245 Q430 165 510 242" fill="none" stroke="#241714" stroke-width="55" stroke-linecap="round"/>
+<path d="M410 206 Q432 178 458 176" stroke="#f3c653" stroke-width="8" fill="none"/>
+<path d="M180 740 Q410 700 655 750" stroke="#f3c653" stroke-width="18" opacity=".75" fill="none"/>
+<text x="40" y="70" font-family="Georgia,serif" font-size="34" fill="#f8f4ec">LiveDrop</text><text x="42" y="108" font-family="Arial,sans-serif" font-size="17" fill="#f3c653" letter-spacing="5">INDIAN LUXURY LIVE</text>
+</svg>

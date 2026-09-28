@@ -1,0 +1,5 @@
+import Link from "next/link";
+import { ArrowLeft, PackageCheck } from "lucide-react";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+
+export default function OrderPage(){return <main className="min-h-screen bg-[#080a09] pb-24"><header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-white/8 bg-[#080a09]/92 px-4 backdrop-blur"><Link href="/" className="rounded-full border border-white/8 p-2"><ArrowLeft size={18}/></Link><div className="ld-serif text-xl">Track Your Order</div></header><div className="mx-auto max-w-2xl px-4 py-10 text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-[#f3c653]/30 bg-[#f3c653]/8 text-[#f3c653]"><PackageCheck/></div><h1 className="ld-serif mt-5 text-4xl">Your Orders</h1><p className="mt-3 text-sm text-white/55">Order tracking will appear here once a real order is connected to the buyer backend.</p><Link href="/shop" className="ld-gold-button mt-6">Continue Shopping →</Link></div><MobileBottomNav active="orders"/></main>}

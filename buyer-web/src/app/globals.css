@@ -37,32 +37,40 @@
      ========================================================================= */
 
   /* Surface & Background Hierarchy */
-  --ld-bg: #08080A;
-  --ld-surface: #0E0E12;
-  --ld-surface-elevated: #16161C;
-  --ld-surface-subtle: #121217;
-  --ld-surface-2: var(--ld-surface-elevated);
+  --ld-bg: #070807;
+  --ld-surface: #0d0f0d;
+  --ld-surface-elevated: #121512;
+  --ld-surface-subtle: #0d0f0d;
+  --ld-surface-2: #121512;
+  --ld-surface-3: #181b18;
 
   /* Border Tokens */
   --ld-border: rgba(255, 255, 255, 0.08);
   --ld-border-hover: rgba(255, 255, 255, 0.16);
-  --ld-border-gold: rgba(212, 175, 55, 0.25);
-  --ld-border-gold-strong: rgba(212, 175, 55, 0.45);
+  --ld-border-gold: rgba(243, 198, 83, 0.26);
+  --ld-border-gold-strong: rgba(243, 198, 83, 0.45);
+  --ld-line: rgba(255, 255, 255, 0.09);
+  --ld-line-gold: rgba(243, 198, 83, 0.26);
+  --ld-shadow: 0 18px 60px rgba(0, 0, 0, 0.34);
+  --ld-glow: 0 0 0 1px rgba(243, 198, 83, 0.18), 0 10px 40px rgba(243, 198, 83, 0.08);
+  --ld-radius: 18px;
 
   /* Typography / Text Palette */
-  --ld-text-primary: #FBFBFB;
-  --ld-text-secondary: rgba(244, 241, 234, 0.72);
-  --ld-text-muted: #AAA49A;
-  --ld-text-tertiary: rgba(170, 164, 154, 0.6);
+  --ld-text-primary: #f8f4ec;
+  --ld-text-secondary: rgba(248, 244, 236, 0.72);
+  --ld-text-muted: #b7b0a4;
+  --ld-text-tertiary: rgba(183, 176, 164, 0.6);
   --ld-text: var(--ld-text-primary);
+  --ld-ivory: #f8f4ec;
+  --ld-muted: #b7b0a4;
 
-  /* Champagne & Warm Gold Palette */
-  --ld-gold: #D4AF37;
-  --ld-gold-soft: #F5D78E;
-  --ld-gold-deep: #C88A24;
-  --ld-gold-muted: rgba(212, 175, 55, 0.15);
-  --ld-gold-gradient: linear-gradient(135deg, #F5D78E 0%, #D4AF37 50%, #C88A24 100%);
-  --ld-gold-gradient-hover: linear-gradient(135deg, #FFF0B8 0%, #F5D78E 50%, #D4AF37 100%);
+  /* Warm Gold Palette */
+  --ld-gold: #f3c653;
+  --ld-gold-soft: #ffe6a3;
+  --ld-gold-deep: #d49a1c;
+  --ld-gold-muted: rgba(243, 198, 83, 0.15);
+  --ld-gold-gradient: linear-gradient(135deg, #ffe18e 0%, #f3c653 50%, #d49a1c 100%);
+  --ld-gold-gradient-hover: linear-gradient(135deg, #fff0b8 0%, #ffe18e 50%, #f3c653 100%);
 
   /* Deep Burgundy Accents (Haute Couture Indian Luxury) */
   --ld-burgundy: #1A0D11;
@@ -70,15 +78,17 @@
   --ld-burgundy-glow: rgba(45, 20, 28, 0.35);
 
   /* Status Colors */
-  --ld-live: #EF4444;
-  --ld-live-bg: rgba(239, 68, 68, 0.12);
-  --ld-live-border: rgba(239, 68, 68, 0.3);
+  --ld-live: #ff375f;
+  --ld-live-bg: rgba(255, 55, 95, 0.12);
+  --ld-live-border: rgba(255, 55, 95, 0.3);
+  --ld-red: #ff375f;
 
-  --ld-success: #10B981;
-  --ld-success-bg: rgba(16, 185, 129, 0.12);
-  --ld-success-border: rgba(16, 185, 129, 0.3);
+  --ld-success: #32d296;
+  --ld-success-bg: rgba(50, 210, 150, 0.12);
+  --ld-success-border: rgba(50, 210, 150, 0.3);
+  --ld-green: #32d296;
 
-  --ld-warning: #F59E0B;
+  --ld-warning: #f59e0b;
   --ld-warning-bg: rgba(245, 158, 11, 0.12);
   --ld-warning-border: rgba(245, 158, 11, 0.3);
 
@@ -1735,6 +1745,11 @@ body,
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
+.ld-product-card:focus-visible {
+  outline: 2px solid var(--gold-primary, #D4AF37);
+  outline-offset: 2px;
+}
+
 .ld-product-card.unavailable {
   opacity: 0.65;
   filter: grayscale(0.2);
@@ -1864,6 +1879,18 @@ body,
   background: rgba(12, 12, 14, 0.95);
   border-color: var(--gold-primary);
   opacity: 1;
+}
+
+.ld-carousel-nav::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .ld-carousel-prev {
@@ -2189,8 +2216,10 @@ body,
 }
 
 .ld-sheet-btn-icon {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   background: var(--obsidian);
   border: 1px solid var(--border-subtle);
@@ -2278,8 +2307,10 @@ body,
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   background: rgba(12, 12, 14, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -4825,6 +4856,7 @@ body,
   border: 1px solid rgba(16, 185, 129, 0.35);
   color: #34D399;
   padding: 10px 20px;
+  min-height: 44px;
   border-radius: var(--radius-pill);
   font-size: 14px;
   font-weight: 600;
@@ -4848,6 +4880,7 @@ body,
   color: #34D399;
   border: 1px solid rgba(16, 185, 129, 0.3);
   padding: 10px 20px;
+  min-height: 44px;
   border-radius: var(--radius-pill);
   font-size: 14px;
   font-weight: 500;
@@ -5029,6 +5062,7 @@ body,
   border: 1px solid rgba(16, 185, 129, 0.28);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
+  min-height: 44px;
   font-size: 12px;
   font-weight: 600;
   text-decoration: none !important;
@@ -5470,4 +5504,167 @@ body,
 
 .animate-subtle-zoom {
   animation: subtleZoom 20s ease-in-out infinite;
+}
+
+/* =========================================================================
+   LiveDrop Approved UI v1 Presentation Primitives & Utility Classes
+   ========================================================================= */
+
+.ld-serif {
+  font-family: var(--font-display, "Playfair Display"), Georgia, serif;
+}
+
+.ld-shell {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+.ld-section {
+  padding-block: 24px;
+}
+
+.ld-section-lg {
+  padding-block: 32px;
+}
+
+.ld-card {
+  background: linear-gradient(180deg, rgba(24, 27, 24, 0.96), rgba(11, 13, 11, 0.98));
+  border: 1px solid var(--ld-line, rgba(255, 255, 255, 0.09));
+  border-radius: var(--ld-radius, 18px);
+  box-shadow: var(--ld-shadow, 0 18px 60px rgba(0, 0, 0, 0.34));
+}
+
+.ld-gold-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, #ffe18e, #edae2f);
+  color: #111;
+  border-radius: 999px;
+  min-height: 44px;
+  padding-inline: 18px;
+  font-weight: 800;
+  box-shadow: 0 10px 30px rgba(243, 198, 83, 0.18);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.ld-gold-button:hover {
+  filter: brightness(1.06);
+}
+.ld-gold-button:focus-visible {
+  outline: 2px solid #f3c653;
+  outline-offset: 2px;
+}
+
+.ld-outline-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--ld-line-gold, rgba(243, 198, 83, 0.26));
+  background: rgba(10, 12, 10, 0.7);
+  color: var(--ld-ivory, #f8f4ec);
+  border-radius: 999px;
+  min-height: 42px;
+  padding-inline: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.ld-outline-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(243, 198, 83, 0.5);
+}
+.ld-outline-button:focus-visible {
+  outline: 2px solid #f3c653;
+  outline-offset: 2px;
+}
+
+.ld-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding-inline: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--ld-line, rgba(255, 255, 255, 0.09));
+  background: rgba(255, 255, 255, 0.03);
+  color: #eee9dd;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ld-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.ld-chip:focus-visible {
+  outline: 2px solid #f3c653;
+  outline-offset: 2px;
+}
+
+.ld-chip[data-active="true"] {
+  background: linear-gradient(135deg, #ffe29a, #dda62b);
+  color: #111;
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 26px rgba(243, 198, 83, 0.12);
+  font-weight: 700;
+}
+
+.ld-scrollbar-none {
+  scrollbar-width: none;
+}
+.ld-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.ld-grid-products {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 900px) {
+  .ld-grid-products {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+.ld-desktop-only {
+  display: none;
+}
+@media (min-width: 900px) {
+  .ld-desktop-only {
+    display: block;
+  }
+  .ld-mobile-only {
+    display: none;
+  }
+}
+
+.ld-bottom-safe {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 900px) {
+  .ld-bottom-safe {
+    padding-bottom: 0;
+  }
+  .ld-shell {
+    padding-inline: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

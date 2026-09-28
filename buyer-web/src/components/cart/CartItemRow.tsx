@@ -26,7 +26,7 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
     <div
       className={`p-3.5 sm:p-4 rounded-2xl bg-[#101014] border ${
         isAvailable ? 'border-white/10 hover:border-[rgba(212,175,55,0.3)]' : 'border-red-500/40 bg-red-950/10'
-      } flex gap-3.5 items-center transition-all shadow-md group`}
+      } flex gap-3.5 items-start transition-all shadow-md group`}
       data-testid={`cart-item-${item.productId}`}
     >
       {/* Square Thumbnail */}
@@ -53,7 +53,7 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
       </div>
 
       {/* Details & Controls */}
-      <div className="flex-1 min-w-0 flex flex-col justify-between h-20 sm:h-22 py-0.5">
+      <div className="flex-1 min-w-0 flex flex-col gap-2">
         <div>
           <div className="flex items-start justify-between gap-2">
             <h4 className="text-sm font-medium text-white truncate group-hover:text-[#D4AF37] transition-colors">
@@ -62,11 +62,11 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
             <button
               type="button"
               onClick={() => onRemove(item.productId)}
-              className="text-white/40 hover:text-red-400 p-1 transition-colors flex-shrink-0"
+              className="text-white/40 hover:text-red-400 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors flex-shrink-0 cursor-pointer"
               aria-label={`Remove ${item.title} from cart`}
               data-testid={`cart-remove-${item.productId}`}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 <line x1="10" y1="11" x2="10" y2="17" />
@@ -106,8 +106,8 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
           )}
         </div>
 
-        {/* Quantity Indicator / Stepper */}
-        <div className="flex items-center justify-between pt-1">
+        {/* Quantity Indicator / Single-Piece Control */}
+        <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
           <div className="inline-flex items-center rounded-lg bg-black/60 border border-white/10 px-2 py-0.5 gap-2.5 text-xs text-white/80">
             <button
               type="button"
@@ -129,7 +129,7 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
             </button>
           </div>
 
-          <span className="text-[10px] font-mono text-[#D4AF37]/80 uppercase tracking-widest">
+          <span className="text-[10px] font-mono text-[#D4AF37]/90 uppercase tracking-widest">
             Single Piece
           </span>
         </div>
