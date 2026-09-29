@@ -1,0 +1,1524 @@
+diff --git a/buyer-web/src/app/globals.css b/buyer-web/src/app/globals.css
+index 7f63d3b..76bb43c 100644
+--- a/buyer-web/src/app/globals.css
++++ b/buyer-web/src/app/globals.css
+@@ -4407,6 +4407,229 @@ body,
+   flex-wrap: wrap;
+ }
+ 
++/* ==========================================================================
++   Phase 3: Order Tracking, Distinct Status Badges & Shipment Presentation
++   ========================================================================== */
++
++.ld-success-circle-terminal {
++  border-color: rgba(239, 68, 68, 0.4) !important;
++  color: #F87171 !important;
++  background: rgba(127, 29, 29, 0.25) !important;
++}
++
++.ld-terminal-banner {
++  padding: 14px 16px;
++  border-radius: 12px;
++  display: flex;
++  align-items: flex-start;
++  gap: 12px;
++  margin-bottom: 16px;
++  border: 1px solid;
++}
++
++.ld-terminal-banner-cancelled {
++  background: rgba(127, 29, 29, 0.35);
++  border-color: rgba(239, 68, 68, 0.4);
++}
++
++.ld-terminal-banner-expired {
++  background: rgba(120, 53, 15, 0.35);
++  border-color: rgba(245, 158, 11, 0.4);
++}
++
++.ld-terminal-banner-icon {
++  width: 24px;
++  height: 24px;
++  border-radius: 50%;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  font-size: 13px;
++  font-weight: 800;
++  flex-shrink: 0;
++  background: rgba(0, 0, 0, 0.3);
++}
++
++.ld-advance-balance-box {
++  padding: 14px 16px;
++  border-radius: 12px;
++  background: rgba(16, 185, 129, 0.08);
++  border: 1px solid rgba(16, 185, 129, 0.3);
++  display: flex;
++  flex-direction: column;
++  gap: 6px;
++  margin-bottom: 16px;
++}
++
++.ld-payment-complete-box {
++  padding: 14px 16px;
++  border-radius: 12px;
++  background: rgba(34, 197, 94, 0.08);
++  border: 1px solid rgba(34, 197, 94, 0.3);
++  display: flex;
++  flex-direction: column;
++  gap: 6px;
++  margin-bottom: 16px;
++}
++
++.ld-status-trio {
++  display: flex;
++  gap: 12px;
++  align-items: stretch;
++  justify-content: space-between;
++  flex-wrap: wrap;
++  margin: 16px 0;
++  padding: 12px;
++  background: rgba(255, 255, 255, 0.02);
++  border: 1px solid rgba(255, 255, 255, 0.06);
++  border-radius: 14px;
++}
++
++.ld-status-badge-item {
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++  flex: 1 1 calc(33.333% - 8px);
++  min-width: 90px;
++}
++
++.ld-status-badge-label {
++  font-size: 10px;
++  font-family: var(--font-mono, monospace);
++  text-transform: uppercase;
++  color: #8A857D;
++  letter-spacing: 0.06em;
++}
++
++.ld-status-badge {
++  padding: 6px 10px;
++  border-radius: 8px;
++  font-size: 11px;
++  font-weight: 600;
++  text-align: center;
++  border: 1px solid;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 6px;
++}
++
++.ld-status-badge-order-pending {
++  background: rgba(229, 169, 60, 0.12);
++  color: #FDE68A;
++  border-color: rgba(229, 169, 60, 0.35);
++}
++
++.ld-status-badge-order-confirmed {
++  background: rgba(59, 130, 246, 0.12);
++  color: #93C5FD;
++  border-color: rgba(59, 130, 246, 0.35);
++}
++
++.ld-status-badge-order-paid {
++  background: rgba(34, 197, 94, 0.12);
++  color: #86EFAC;
++  border-color: rgba(34, 197, 94, 0.35);
++}
++
++.ld-status-badge-order-shipped {
++  background: rgba(139, 92, 246, 0.12);
++  color: #C4B5FD;
++  border-color: rgba(139, 92, 246, 0.35);
++}
++
++.ld-status-badge-order-cancelled {
++  background: rgba(239, 68, 68, 0.12);
++  color: #FCA5A5;
++  border-color: rgba(239, 68, 68, 0.35);
++}
++
++.ld-status-badge-order-expired {
++  background: rgba(156, 163, 175, 0.12);
++  color: #D1D5DB;
++  border-color: rgba(156, 163, 175, 0.35);
++}
++
++.ld-status-badge-payment-unpaid {
++  background: rgba(234, 179, 8, 0.12);
++  color: #FDE047;
++  border-color: rgba(234, 179, 8, 0.35);
++}
++
++.ld-status-badge-payment-advance {
++  background: rgba(16, 185, 129, 0.12);
++  color: #6EE7B7;
++  border-color: rgba(16, 185, 129, 0.35);
++}
++
++.ld-status-badge-payment-paid {
++  background: rgba(34, 197, 94, 0.12);
++  color: #86EFAC;
++  border-color: rgba(34, 197, 94, 0.35);
++}
++
++.ld-status-badge-fulfilment-not-ready {
++  background: rgba(107, 114, 128, 0.12);
++  color: #D1D5DB;
++  border-color: rgba(107, 114, 128, 0.35);
++}
++
++.ld-status-badge-fulfilment-ready {
++  background: rgba(59, 130, 246, 0.12);
++  color: #93C5FD;
++  border-color: rgba(59, 130, 246, 0.35);
++}
++
++.ld-status-badge-fulfilment-shipped {
++  background: rgba(139, 92, 246, 0.12);
++  color: #C4B5FD;
++  border-color: rgba(139, 92, 246, 0.35);
++}
++
++.ld-shipment-card {
++  background: #141413;
++  border: 1px solid rgba(212, 175, 55, 0.25);
++  border-radius: 16px;
++  padding: 16px;
++  margin: 16px 0;
++}
++
++.ld-shipment-header {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++}
++
++.ld-shipment-icon {
++  width: 40px;
++  height: 40px;
++  border-radius: 10px;
++  background: rgba(212, 175, 55, 0.1);
++  border: 1px solid rgba(212, 175, 55, 0.2);
++  color: #D4AF37;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex-shrink: 0;
++}
++
++.ld-timeline-step.halted .ld-timeline-icon-box {
++  background: rgba(239, 68, 68, 0.2);
++  border: 1px solid rgba(239, 68, 68, 0.5);
++  color: #F87171;
++}
++
++.ld-timeline-step.halted .ld-timeline-step-title {
++  color: #FCA5A5;
++}
++
++.ld-timeline-step.held .ld-timeline-icon-box {
++  background: rgba(245, 158, 11, 0.2);
++  border: 1px solid rgba(245, 158, 11, 0.5);
++  color: #FCD34D;
++}
++
++
+ /* ==========================================================================
+    Header Drop View Component Tokens (/drop/[slug])
+    ========================================================================== */
+diff --git a/buyer-web/src/app/order/[id]/page.tsx b/buyer-web/src/app/order/[id]/page.tsx
+index def4a44..3128b1d 100644
+--- a/buyer-web/src/app/order/[id]/page.tsx
++++ b/buyer-web/src/app/order/[id]/page.tsx
+@@ -10,16 +10,22 @@
+ 
+ import React, { Suspense, useEffect, useState } from 'react';
+ import Link from 'next/link';
+-import { useParams, useSearchParams } from 'next/navigation';
++import { useParams, useSearchParams, useRouter } from 'next/navigation';
+ import { getBuyerClient } from '../../../lib/supabase/client';
+ import { getOrderByToken } from '../../../lib/data/buyer-catalog';
+-import { getCachedOrderToken, clearCachedOrderToken, saveRecentOrderSummary } from '../../../lib/cart/cart-storage';
++import {
++  getCachedOrderToken,
++  cacheOrderToken,
++  clearCachedOrderToken,
++  saveRecentOrderSummary,
++} from '../../../lib/cart/cart-storage';
+ import { OrderReceipt } from '../../../types/domain';
+ import { CheckoutSuccessView } from '../../../components/checkout/CheckoutSuccessView';
+ import { MobileBottomDock } from '../../../components/navigation/MobileBottomDock';
+ import { GlobalBuyerHeader } from '../../../components/navigation/GlobalBuyerHeader';
+ 
+ function OrderTrackingContent() {
++  const router = useRouter();
+   const params = useParams();
+   const searchParams = useSearchParams();
+ 
+@@ -29,14 +35,20 @@ function OrderTrackingContent() {
+ 
+   const [order, setOrder] = useState<OrderReceipt | null>(null);
+   const [activeToken, setActiveToken] = useState<string | null>(null);
++  const [tokenOverride, setTokenOverride] = useState<string | null>(null);
++  const [refreshNonce, setRefreshNonce] = useState<number>(0);
+   const [isLoading, setIsLoading] = useState<boolean>(true);
++  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+   const [isTokenMissing, setIsTokenMissing] = useState<boolean>(false);
++  const [manualTokenInput, setManualTokenInput] = useState<string>('');
++  const [isNetworkFailure, setIsNetworkFailure] = useState<boolean>(false);
++  const [screenReaderAnnouncement, setScreenReaderAnnouncement] = useState<string>('');
+ 
+   useEffect(() => {
+     let active = true;
+ 
+-    const fetchOrder = async () => {
++    const fetchReceipt = async () => {
+       if (!orderId || typeof orderId !== 'string') {
+         if (active) {
+           setIsLoading(false);
+@@ -45,13 +57,17 @@ function OrderTrackingContent() {
+         return;
+       }
+ 
+-      // 1. Resolve token: URL parameter takes precedence, then local order-specific cache
+-      const resolvedToken = urlToken?.trim() || getCachedOrderToken(orderId);
++      // 1. Resolve token: parameter override, then URL parameter, then local cache
++      const resolvedToken =
++        tokenOverride?.trim() ||
++        urlToken?.trim() ||
++        getCachedOrderToken(orderId);
+ 
+       if (!resolvedToken) {
+         if (active) {
+           setIsTokenMissing(true);
+           setIsLoading(false);
++          setScreenReaderAnnouncement('Verification required: Please provide your order access key.');
+         }
+         return;
+       }
+@@ -62,7 +78,15 @@ function OrderTrackingContent() {
+         if (active) {
+           setOrder(receipt);
+           setActiveToken(resolvedToken);
++          setIsTokenMissing(false);
++          setErrorMessage(null);
++          setIsNetworkFailure(false);
+           setIsLoading(false);
++          setIsRefreshing(false);
++          setScreenReaderAnnouncement(`Order receipt loaded. Status: ${receipt.status}.`);
++
++          // Cache token and save recent order summary
++          cacheOrderToken(receipt.id, resolvedToken);
+           saveRecentOrderSummary({
+             id: receipt.id,
+             token: resolvedToken,
+@@ -75,35 +99,86 @@ function OrderTrackingContent() {
+         }
+       } catch (err) {
+         if (active) {
+-          // Validation failed: strictly purge cached token to prevent replay
+-          clearCachedOrderToken(orderId);
+-          setIsTokenMissing(true);
+-          setErrorMessage(
++          const errorMsg =
+             err instanceof Error
+               ? err.message
+-              : 'Invalid or expired order access token. Verification failed.'
+-          );
++              : 'Invalid or expired order access token. Verification failed.';
++
++          const isNetworkErr =
++            errorMsg.toLowerCase().includes('network') ||
++            errorMsg.toLowerCase().includes('fetch') ||
++            errorMsg.toLowerCase().includes('connection') ||
++            errorMsg.toLowerCase().includes('failed to fetch');
++
++          if (isNetworkErr) {
++            setIsNetworkFailure(true);
++            setErrorMessage('Connection issue retrieving order receipt. Please check your internet connection.');
++          } else {
++            // Validation failed: strictly purge cached token to prevent replay
++            clearCachedOrderToken(orderId);
++            setIsTokenMissing(true);
++            setErrorMessage(errorMsg);
++          }
++
+           setIsLoading(false);
++          setIsRefreshing(false);
++          setScreenReaderAnnouncement('Verification failed: access key could not be verified.');
+         }
+       }
+     };
+ 
+-    void fetchOrder();
++    void fetchReceipt();
+ 
+     return () => {
+       active = false;
+     };
+-  }, [orderId, urlToken]);
++  }, [orderId, urlToken, tokenOverride, refreshNonce]);
++
++  const handleManualTokenSubmit = (e: React.FormEvent) => {
++    e.preventDefault();
++    const tokenVal = manualTokenInput.trim();
++    if (!tokenVal) return;
++
++    // Check if user entered a full link
++    if (tokenVal.includes('order/') || tokenVal.includes('token=')) {
++      try {
++        const urlStr = tokenVal.startsWith('http')
++          ? tokenVal
++          : `https://livedrop.store${tokenVal.startsWith('/') ? '' : '/'}${tokenVal}`;
++        const parsed = new URL(urlStr);
++        const extracted = parsed.searchParams.get('token') || parsed.searchParams.get('order_token');
++        if (extracted) {
++          router.push(`/order/${encodeURIComponent(orderId || '')}?token=${encodeURIComponent(extracted)}`);
++          setIsLoading(true);
++          setTokenOverride(extracted);
++          return;
++        }
++      } catch {
++        // Fall back to direct value
++      }
++    }
++
++    router.push(`/order/${encodeURIComponent(orderId || '')}?token=${encodeURIComponent(tokenVal)}`);
++    setIsLoading(true);
++    setTokenOverride(tokenVal);
++  };
++
++  const handleRefresh = () => {
++    if (!activeToken && !urlToken) return;
++    setIsRefreshing(true);
++    setRefreshNonce((prev) => prev + 1);
++  };
+ 
+   if (isLoading) {
+     return (
+-      <div className="ld-checkout-loading" data-testid="order-tracking-loading">
++      <div className="ld-checkout-loading" data-testid="order-tracking-loading" role="status">
+         <div className="ld-spinner" />
++        <span className="sr-only">Loading order receipt...</span>
+       </div>
+     );
+   }
+ 
+-  // Token missing or invalid: Never expose order data based solely on route param
++  // Token missing or invalid or network error: Never expose order data based solely on route param
+   if (isTokenMissing || !order) {
+     return (
+       <div className="ld-checkout-page ld-has-bottom-dock" data-testid="order-token-error-page">
+@@ -116,6 +191,11 @@ function OrderTrackingContent() {
+         />
+ 
+         <main className="ld-container ld-checkout-main" role="main">
++          {/* Accessible Live Region */}
++          <div className="sr-only" aria-live="assertive" role="alert">
++            {screenReaderAnnouncement}
++          </div>
++
+           <div className="ld-checkout-empty" data-testid="order-access-restricted">
+             <div
+               style={{
+@@ -136,8 +216,54 @@ function OrderTrackingContent() {
+               {errorMessage ||
+                 'To protect customer privacy under the DPDP Act, orders require a verified access token. Please use the secure order link provided upon reservation.'}
+             </p>
++
++            {/* Network Failure Retry Action */}
++            {isNetworkFailure && (
++              <div style={{ marginTop: '16px' }}>
++                <button
++                  type="button"
++                  onClick={() => {
++                    setIsLoading(true);
++                    setRefreshNonce((prev) => prev + 1);
++                  }}
++                  className="ld-btn-gold-cta"
++                  data-testid="order-retry-btn"
++                  style={{ minHeight: '44px', padding: '0 20px' }}
++                >
++                  Retry Verification
++                </button>
++              </div>
++            )}
++
++            {/* Inline Token Recovery Form */}
++            {!isNetworkFailure && (
++              <form onSubmit={handleManualTokenSubmit} className="mt-6 max-w-sm mx-auto space-y-3">
++                <div className="space-y-1 text-left">
++                  <label htmlFor="inlineTokenInput" className="block text-xs font-medium text-[#AAA49A]">
++                    Have your receipt access key?
++                  </label>
++                  <input
++                    id="inlineTokenInput"
++                    aria-label="Enter Receipt Access Key"
++                    type="text"
++                    placeholder="Enter access key or paste order link"
++                    value={manualTokenInput}
++                    onChange={(e) => setManualTokenInput(e.target.value)}
++                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/10 text-white text-xs focus:outline-none focus:border-[#C79A45] transition-colors"
++                  />
++                </div>
++                <button
++                  type="submit"
++                  className="ld-btn-gold-cta w-full py-2.5 rounded-full text-xs font-semibold"
++                  style={{ minHeight: '44px' }}
++                >
++                  Verify Key & Track Order →
++                </button>
++              </form>
++            )}
++
+             <div style={{ marginTop: '20px' }}>
+-              <Link href="/" className="ld-btn-browse">
++              <Link href="/" className="ld-btn-browse" style={{ minHeight: '44px' }}>
+                 Browse Live Drops
+               </Link>
+             </div>
+@@ -156,9 +282,28 @@ function OrderTrackingContent() {
+         backLabel="Return Home"
+         backTestId="order-home-link"
+         title="LiveDrop"
++        rightAction={
++          <button
++            type="button"
++            onClick={handleRefresh}
++            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#C79A45] transition-colors flex items-center gap-1.5 text-xs font-mono"
++            aria-label="Refresh Order Status"
++            data-testid="order-refresh-status-btn"
++            style={{ minHeight: '44px', minWidth: '44px' }}
++            disabled={isRefreshing}
++          >
++            <span className={isRefreshing ? 'animate-spin' : ''} aria-hidden="true">↻</span>
++            <span className="hidden sm:inline">Refresh</span>
++          </button>
++        }
+       />
+ 
+       <main className="ld-container ld-checkout-main" role="main">
++        {/* Screen Reader Status Announcements */}
++        <div className="sr-only" aria-live="polite" role="status">
++          {screenReaderAnnouncement}
++        </div>
++
+         <CheckoutSuccessView
+           order={order}
+           orderToken={activeToken || undefined}
+@@ -174,8 +319,9 @@ export default function OrderTrackingPage() {
+   return (
+     <Suspense
+       fallback={
+-        <div className="ld-checkout-loading" data-testid="order-tracking-loading">
++        <div className="ld-checkout-loading" data-testid="order-tracking-loading" role="status">
+           <div className="ld-spinner" />
++          <span className="sr-only">Loading order tracking...</span>
+         </div>
+       }
+     >
+diff --git a/buyer-web/src/app/order/page.tsx b/buyer-web/src/app/order/page.tsx
+index e2e55ba..17c5192 100644
+--- a/buyer-web/src/app/order/page.tsx
++++ b/buyer-web/src/app/order/page.tsx
+@@ -30,10 +30,12 @@ function getServerOrdersSnapshot(): string {
+ function formatOrderStatus(status?: string, paymentStatus?: string, fulfilmentStatus?: string): string {
+   if (fulfilmentStatus === 'delivered') return 'Delivered';
+   if (fulfilmentStatus === 'shipped') return 'Shipped';
+-  if (fulfilmentStatus === 'preparing') return 'Preparing';
++  if (fulfilmentStatus === 'preparing' || fulfilmentStatus === 'ready_to_ship') return 'Preparing';
+   if (paymentStatus === 'verified') return 'Payment Verified';
++  if (paymentStatus === 'advance_paid') return 'Advance Paid';
+   if (paymentStatus === 'pending') return 'Payment Pending';
+   if (status === 'cancelled') return 'Cancelled';
++  if (status === 'expired') return 'Expired';
+   return 'Order Placed';
+ }
+ 
+@@ -43,6 +45,7 @@ export default function OrderLookupPage() {
+   const [orderQuery, setOrderQuery] = useState('');
+   const [orderToken, setOrderToken] = useState('');
+   const [error, setError] = useState<string | null>(null);
++  const [announcement, setAnnouncement] = useState<string>('');
+ 
+   const cachedOrdersRaw = useSyncExternalStore(
+     subscribe,
+@@ -71,7 +74,9 @@ export default function OrderLookupPage() {
+     // 1. Check if user pasted a full tracking URL or relative path
+     if (query.includes('order/') || query.includes('token=')) {
+       try {
+-        const urlStr = query.startsWith('http') ? query : `https://livedrop.store${query.startsWith('/') ? '' : '/'}${query}`;
++        const urlStr = query.startsWith('http')
++          ? query
++          : `https://livedrop.store${query.startsWith('/') ? '' : '/'}${query}`;
+         const url = new URL(urlStr);
+         const pathParts = url.pathname.split('/').filter(Boolean);
+         const idIndex = pathParts.indexOf('order');
+@@ -119,6 +124,11 @@ export default function OrderLookupPage() {
+       />
+ 
+       <main className="ld-container ld-order-lookup-main max-w-xl mx-auto px-4 py-8 space-y-8" role="main">
++        {/* Screen Reader Live Region */}
++        <div className="sr-only" aria-live="polite" role="status">
++          {announcement}
++        </div>
++
+         {/* Header Mental Model: Track Your Order */}
+         <div className="ld-order-lookup-header space-y-2 text-center">
+           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono font-bold tracking-wider text-[#C79A45] uppercase">
+@@ -139,12 +149,16 @@ export default function OrderLookupPage() {
+             type="button"
+             role="tab"
+             aria-selected={activeOrderTab === 'recent'}
+-            onClick={() => setActiveOrderTab('recent')}
++            onClick={() => {
++              setActiveOrderTab('recent');
++              setAnnouncement('Recent Orders tab active');
++            }}
+             className={`pb-3 text-xs sm:text-sm font-sans font-medium transition-all relative cursor-pointer ${
+               activeOrderTab === 'recent'
+                 ? 'text-[#D4AF37] font-bold'
+                 : 'text-[#AAA49A] hover:text-white'
+             }`}
++            style={{ minHeight: '44px' }}
+           >
+             <span>Recent Orders ({cachedOrders.length})</span>
+             {activeOrderTab === 'recent' && (
+@@ -156,12 +170,16 @@ export default function OrderLookupPage() {
+             type="button"
+             role="tab"
+             aria-selected={activeOrderTab === 'saved'}
+-            onClick={() => setActiveOrderTab('saved')}
++            onClick={() => {
++              setActiveOrderTab('saved');
++              setAnnouncement('Saved Pieces tab active');
++            }}
+             className={`pb-3 text-xs sm:text-sm font-sans font-medium transition-all relative cursor-pointer ${
+               activeOrderTab === 'saved'
+                 ? 'text-[#D4AF37] font-bold'
+                 : 'text-[#AAA49A] hover:text-white'
+             }`}
++            style={{ minHeight: '44px' }}
+           >
+             <span>Saved Pieces</span>
+             {activeOrderTab === 'saved' && (
+@@ -171,62 +189,131 @@ export default function OrderLookupPage() {
+         </div>
+ 
+         {/* 1. Recent Orders on This Device */}
+-        {activeOrderTab === 'recent' && cachedOrders.length > 0 && (
+-          <div className="ld-recent-orders-card p-4 sm:p-5 rounded-2xl bg-[#121211] border border-white/10 space-y-3.5 shadow-lg">
+-            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+-              <h2 className="ld-recent-orders-title text-sm sm:text-base font-serif font-semibold text-[#F4F1EA]">
+-                Recent Orders on This Device
+-              </h2>
+-              <span className="text-[11px] text-[#AAA49A] font-mono">
+-                {cachedOrders.length} saved
+-              </span>
+-            </div>
++        {activeOrderTab === 'recent' && (
++          <>
++            {cachedOrders.length > 0 ? (
++              <div className="ld-recent-orders-card p-4 sm:p-5 rounded-2xl bg-[#121211] border border-white/10 space-y-3.5 shadow-lg">
++                <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
++                  <h2 className="ld-recent-orders-title text-sm sm:text-base font-serif font-semibold text-[#F4F1EA]">
++                    Recent Orders on This Device
++                  </h2>
++                  <span className="text-[11px] text-[#AAA49A] font-mono">
++                    {cachedOrders.length} saved
++                  </span>
++                </div>
+ 
+-            <div className="ld-recent-orders-list space-y-2.5">
+-              {cachedOrders.map((ord) => {
+-                const displayCode = ord.orderCode || (ord.id.startsWith('ord-') ? ord.id : `Order #${ord.id.slice(0, 8)}...`);
+-                const formattedCode = displayCode.startsWith('Order #') ? displayCode : (displayCode.startsWith('#') ? `Order ${displayCode}` : `Order #${displayCode}`);
++                <div className="ld-recent-orders-list space-y-2.5" role="list">
++                  {cachedOrders.map((ord) => {
++                    const displayCode =
++                      ord.orderCode ||
++                      (ord.id.startsWith('ord-') ? ord.id : `Order #${ord.id.slice(0, 8)}...`);
++                    const formattedCode = displayCode.startsWith('Order #')
++                      ? displayCode
++                      : displayCode.startsWith('#')
++                      ? `Order ${displayCode}`
++                      : `Order #${displayCode}`;
+ 
+-                return (
+-                  <Link
+-                    key={ord.id}
+-                    href={`/order/${encodeURIComponent(ord.id)}?token=${encodeURIComponent(ord.token)}`}
+-                    className="ld-recent-order-link p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 group"
+-                    data-testid={`recent-order-item-${ord.id}`}
+-                  >
+-                    <div className="flex items-center gap-3 min-w-0">
+-                      <div className="w-12 h-14 rounded-lg bg-[#181715] border border-white/10 flex-shrink-0 flex items-center justify-center text-[#D4AF37] font-serif font-bold text-sm">
+-                        ✦
+-                      </div>
+-                      <div className="min-w-0 space-y-0.5">
+-                        <div className="flex items-center gap-2">
+-                          <span className="ld-recent-order-code font-mono text-xs sm:text-sm font-bold text-white group-hover:text-[#E2C27A] transition-colors truncate">
+-                            {formattedCode}
+-                          </span>
+-                          {ord.paymentStatus && (
+-                            <span className="text-[10px] px-2 py-0.5 rounded bg-[#C79A45]/15 text-[#E2C27A] border border-[#C79A45]/30 font-medium">
+-                              {formatOrderStatus(undefined, ord.paymentStatus, ord.fulfilmentStatus)}
+-                            </span>
+-                          )}
++                    return (
++                      <Link
++                        key={ord.id}
++                        href={`/order/${encodeURIComponent(ord.id)}?token=${encodeURIComponent(ord.token)}`}
++                        className="ld-recent-order-link p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 group"
++                        data-testid={`recent-order-item-${ord.id}`}
++                        role="listitem"
++                        style={{ minHeight: '48px' }}
++                      >
++                        <div className="flex items-center gap-3 min-w-0">
++                          <div className="w-12 h-14 rounded-lg bg-[#181715] border border-white/10 flex-shrink-0 flex items-center justify-center text-[#D4AF37] font-serif font-bold text-sm" aria-hidden="true">
++                            ✦
++                          </div>
++                          <div className="min-w-0 space-y-0.5">
++                            <div className="flex items-center gap-2 flex-wrap">
++                              <span className="ld-recent-order-code font-mono text-xs sm:text-sm font-bold text-white group-hover:text-[#E2C27A] transition-colors truncate">
++                                {formattedCode}
++                              </span>
++                              {ord.paymentStatus && (
++                                <span className="text-[10px] px-2 py-0.5 rounded bg-[#C79A45]/15 text-[#E2C27A] border border-[#C79A45]/30 font-medium">
++                                  {formatOrderStatus(undefined, ord.paymentStatus, ord.fulfilmentStatus)}
++                                </span>
++                              )}
++                              {ord.fulfilmentStatus === 'shipped' && (
++                                <span className="text-[10px] px-2 py-0.5 rounded bg-[#8b5cf6]/15 text-[#c4b5fd] border border-[#8b5cf6]/30 font-medium">
++                                  Shipped
++                                </span>
++                              )}
++                            </div>
++                            <div className="flex items-center gap-2 text-[11px] text-[#AAA49A]">
++                              <span>{ord.storeName || 'Independent Boutique'}</span>
++                              {typeof ord.totalPaisa === 'number' && ord.totalPaisa > 0 && (
++                                <>
++                                  <span>•</span>
++                                  <span className="font-mono text-white/80">{formatPaisaToINR(ord.totalPaisa)}</span>
++                                </>
++                              )}
++                            </div>
++                          </div>
+                         </div>
+-                        <div className="flex items-center gap-2 text-[11px] text-[#AAA49A]">
+-                          <span>{ord.storeName || 'Independent Boutique'}</span>
+-                          {typeof ord.totalPaisa === 'number' && ord.totalPaisa > 0 && (
+-                            <>
+-                              <span>•</span>
+-                              <span className="font-mono text-white/80">{formatPaisaToINR(ord.totalPaisa)}</span>
+-                            </>
+-                          )}
+-                        </div>
+-                      </div>
+-                    </div>
+ 
+-                    <span className="ld-recent-order-cta text-xs text-[#C79A45] font-semibold group-hover:translate-x-0.5 transition-transform flex-shrink-0">
+-                      View Receipt →
+-                    </span>
++                        <span className="ld-recent-order-cta text-xs text-[#C79A45] font-semibold group-hover:translate-x-0.5 transition-transform flex-shrink-0">
++                          View Receipt →
++                        </span>
++                      </Link>
++                    );
++                  })}
++                </div>
++              </div>
++            ) : (
++              <div
++                className="ld-recent-orders-empty p-6 rounded-2xl bg-[#121211] border border-white/10 text-center space-y-3"
++                data-testid="recent-orders-empty"
++              >
++                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#D4AF37] mx-auto" aria-hidden="true">
++                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
++                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
++                    <line x1="3" y1="6" x2="21" y2="6" />
++                    <path d="M16 10a4 4 0 0 1-8 0" />
++                  </svg>
++                </div>
++                <h2 className="text-base font-serif font-semibold text-white">No Recent Orders</h2>
++                <p className="text-xs text-[#AAA49A] max-w-sm mx-auto leading-relaxed">
++                  Orders placed on this device are automatically saved here. If you have an order link from an SMS or boutique confirmation, enter it below.
++                </p>
++                <div>
++                  <Link
++                    href="/"
++                    className="inline-flex items-center gap-1 text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors mt-2"
++                    style={{ minHeight: '44px' }}
++                  >
++                    Browse Live Drops →
+                   </Link>
+-                );
+-              })}
++                </div>
++              </div>
++            )}
++          </>
++        )}
++
++        {/* Saved Pieces Tab Panel */}
++        {activeOrderTab === 'saved' && (
++          <div
++            className="ld-saved-pieces-card p-6 rounded-2xl bg-[#121211] border border-white/10 text-center space-y-3"
++            data-testid="saved-pieces-panel"
++            role="tabpanel"
++          >
++            <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#D4AF37] mx-auto text-lg" aria-hidden="true">
++              ✦
++            </div>
++            <h2 className="text-base font-serif font-semibold text-white">Saved Pieces</h2>
++            <p className="text-xs text-[#AAA49A] max-w-sm mx-auto leading-relaxed">
++              Your curated wishlist of handcrafted garments. Pieces bookmarked during live boutique drops are securely stored on your device.
++            </p>
++            <div>
++              <Link
++                href="/"
++                className="inline-flex items-center gap-1 text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors mt-2"
++                style={{ minHeight: '44px' }}
++              >
++                Explore Active Boutiques →
++              </Link>
+             </div>
+           </div>
+         )}
+@@ -243,7 +330,12 @@ export default function OrderLookupPage() {
+           </div>
+ 
+           {error && (
+-            <div className="ld-order-error-alert p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-300" role="alert">
++            <div
++              className="ld-order-error-alert p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-300"
++              role="alert"
++              aria-live="assertive"
++              data-testid="order-lookup-error"
++            >
+               {error}
+             </div>
+           )}
+@@ -255,12 +347,20 @@ export default function OrderLookupPage() {
+             <input
+               id="orderIdInput"
+               aria-label="Order Number or Tracking Link"
++              aria-describedby="orderIdHelper"
+               type="text"
+               placeholder="e.g. LD7840 or paste order link"
+               value={orderQuery}
+-              onChange={(e) => setOrderQuery(e.target.value)}
++              onChange={(e) => {
++                setOrderQuery(e.target.value);
++                if (error) setError(null);
++              }}
+               className="ld-nav-search-input ld-order-input w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-[#C79A45] transition-colors"
++              style={{ minHeight: '44px' }}
+             />
++            <p id="orderIdHelper" className="text-[11px] text-[#7E776C]">
++              Find this in your order reservation confirmation SMS or URL.
++            </p>
+           </div>
+ 
+           <div className="ld-order-input-group space-y-1.5">
+@@ -270,22 +370,44 @@ export default function OrderLookupPage() {
+             <input
+               id="orderTokenInput"
+               aria-label="Receipt Access Key"
++              aria-describedby="orderTokenHelper"
+               type="text"
+               placeholder="Access key from order confirmation SMS or link"
+               value={orderToken}
+-              onChange={(e) => setOrderToken(e.target.value)}
++              onChange={(e) => {
++                setOrderToken(e.target.value);
++                if (error) setError(null);
++              }}
+               className="ld-nav-search-input ld-order-input w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-[#C79A45] transition-colors"
++              style={{ minHeight: '44px' }}
+             />
++            <p id="orderTokenHelper" className="text-[11px] text-[#7E776C]">
++              Secret access key that verifies authorization under the DPDP Act.
++            </p>
+           </div>
+ 
+           <button
+             type="submit"
+             className="ld-btn-gold-cta ld-order-submit-btn w-full py-3 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] font-serif font-bold text-xs sm:text-sm tracking-wide transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+             aria-label="Retrieve Order Receipt"
++            style={{ minHeight: '48px' }}
+           >
+-            Find Order →
++            Retrieve Order Receipt →
+           </button>
+         </form>
++
++        {/* DPDP Act 2023 Security & Privacy Badge */}
++        <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5 text-[#AAA49A]">
++          <div className="text-[#C79A45] flex-shrink-0 mt-0.5" aria-hidden="true">
++            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
++              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
++              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
++            </svg>
++          </div>
++          <p className="text-[11px] leading-relaxed">
++            <span className="font-semibold text-white/90">DPDP Act 2023 Compliant:</span> Order receipts are isolated by high-entropy access credentials. Orders are never publicly searchable by order number alone.
++          </p>
++        </div>
+       </main>
+ 
+       <MobileBottomDock activeTabOverride="orders" />
+diff --git a/buyer-web/src/components/checkout/CheckoutSuccessView.tsx b/buyer-web/src/components/checkout/CheckoutSuccessView.tsx
+index d99a2a3..838c828 100644
+--- a/buyer-web/src/components/checkout/CheckoutSuccessView.tsx
++++ b/buyer-web/src/components/checkout/CheckoutSuccessView.tsx
+@@ -1,10 +1,16 @@
+ 'use client';
+ 
+-import React, { useEffect, useRef } from 'react';
++import React, { useEffect, useRef, useState } from 'react';
+ import Link from 'next/link';
+ import { formatPaisaToINR } from '../../lib/utils/currency';
+ import { HoldCountdown } from './HoldCountdown';
+-import { OrderReceipt, CreateOrderSuccessResponse } from '../../types/domain';
++import {
++  OrderReceipt,
++  CreateOrderSuccessResponse,
++  OrderStatus,
++  OrderPaymentStatus,
++  OrderFulfilmentStatus,
++} from '../../types/domain';
+ import { CartItem } from '../../types/cart';
+ import { DirectUpiPaymentView } from './DirectUpiPaymentView';
+ 
+@@ -83,6 +89,48 @@ function ConfettiEffect() {
+   return <canvas ref={canvasRef} className="ld-confetti-canvas" aria-hidden="true" />;
+ }
+ 
++function getOrderStateBadge(status: OrderStatus) {
++  switch (status) {
++    case 'confirmed':
++      return { label: 'Confirmed', styleClass: 'ld-status-badge-order-confirmed' };
++    case 'paid':
++      return { label: 'Paid', styleClass: 'ld-status-badge-order-paid' };
++    case 'shipped':
++      return { label: 'Shipped', styleClass: 'ld-status-badge-order-shipped' };
++    case 'cancelled':
++      return { label: 'Cancelled', styleClass: 'ld-status-badge-order-cancelled' };
++    case 'expired':
++      return { label: 'Expired', styleClass: 'ld-status-badge-order-expired' };
++    case 'pending':
++    default:
++      return { label: 'Pending', styleClass: 'ld-status-badge-order-pending' };
++  }
++}
++
++function getPaymentStateBadge(status: OrderPaymentStatus) {
++  switch (status) {
++    case 'advance_paid':
++      return { label: 'Advance Paid', styleClass: 'ld-status-badge-payment-advance' };
++    case 'paid':
++      return { label: 'Fully Paid', styleClass: 'ld-status-badge-payment-paid' };
++    case 'unpaid':
++    default:
++      return { label: 'Unpaid', styleClass: 'ld-status-badge-payment-unpaid' };
++  }
++}
++
++function getFulfilmentStateBadge(status: OrderFulfilmentStatus) {
++  switch (status) {
++    case 'ready_to_ship':
++      return { label: 'Ready to Ship', styleClass: 'ld-status-badge-fulfilment-ready' };
++    case 'shipped':
++      return { label: 'Shipped', styleClass: 'ld-status-badge-fulfilment-shipped' };
++    case 'not_ready':
++    default:
++      return { label: 'Not Ready', styleClass: 'ld-status-badge-fulfilment-not-ready' };
++  }
++}
++
+ export function CheckoutSuccessView({
+   order,
+   orderToken,
+@@ -90,6 +138,8 @@ export function CheckoutSuccessView({
+   dropSlug,
+ }: CheckoutSuccessViewProps) {
+   const [currentOrder, setCurrentOrder] = React.useState<CreateOrderSuccessResponse | OrderReceipt>(order);
++  const [isCopied, setIsCopied] = useState(false);
++
+   const isReceipt = 'items' in currentOrder;
+   const orderId = 'order_id' in currentOrder ? currentOrder.order_id : currentOrder.id;
+   const orderCode = currentOrder.order_code;
+@@ -100,6 +150,29 @@ export function CheckoutSuccessView({
+ 
+   const resolvedToken = orderToken || ('order_token' in currentOrder ? currentOrder.order_token : '');
+ 
++  const orderStatus: OrderStatus = 'status' in currentOrder ? currentOrder.status : 'pending';
++  const paymentStatus: OrderPaymentStatus = currentOrder.payment_status || 'unpaid';
++  const fulfilmentStatus: OrderFulfilmentStatus =
++    'fulfilment_status' in currentOrder && currentOrder.fulfilment_status
++      ? currentOrder.fulfilment_status
++      : 'not_ready';
++
++  const isTerminal = orderStatus === 'cancelled' || orderStatus === 'expired';
++
++  const orderBadge = getOrderStateBadge(orderStatus);
++  const paymentBadge = getPaymentStateBadge(paymentStatus);
++  const fulfilmentBadge = getFulfilmentStateBadge(fulfilmentStatus);
++
++  const storeName = 'store_name' in currentOrder ? currentOrder.store_name : null;
++  const courierPartner = 'courier_partner' in currentOrder ? currentOrder.courier_partner : null;
++  const trackingNumber = 'tracking_number' in currentOrder ? currentOrder.tracking_number : null;
++  const shippedAt = 'shipped_at' in currentOrder ? currentOrder.shipped_at : null;
++
++  const advanceRequiredPaisa = currentOrder.advance_required_paisa || 0;
++  const advancePaidPaisa = currentOrder.advance_paid_paisa || 0;
++  const balanceDuePaisa = currentOrder.balance_due_paisa || 0;
++  const confirmationMode = currentOrder.confirmation_mode;
++
+   const displayItems = isReceipt
+     ? (order as OrderReceipt).items.map((item) => ({
+         productId: item.product_id,
+@@ -118,49 +191,145 @@ export function CheckoutSuccessView({
+ 
+   const backLink = dropSlug ? `/drop/${dropSlug}` : '/';
+ 
+-  // Format order placed timestamp
+-  const orderTimestamp = new Date().toLocaleDateString('en-IN', {
+-    day: 'numeric',
+-    month: 'short',
+-    year: 'numeric',
+-    hour: '2-digit',
+-    minute: '2-digit',
+-  });
+-
+-  const isPaid = currentOrder.payment_status === 'paid' || currentOrder.payment_status === 'advance_paid';
++  const isPaid = paymentStatus === 'paid' || paymentStatus === 'advance_paid';
+   const isClaimed =
+     isPaid ||
+     ('active_payment_attempt' in currentOrder &&
+       Boolean(currentOrder.active_payment_attempt?.buyer_submitted_utr));
+ 
++  const handleCopyTracking = (awb: string) => {
++    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
++      navigator.clipboard.writeText(awb).catch(() => {});
++    }
++    setIsCopied(true);
++    setTimeout(() => setIsCopied(false), 2500);
++  };
++
+   return (
+     <div className="ld-checkout-success" data-testid="checkout-success-view">
+-      <ConfettiEffect />
++      {!isTerminal && <ConfettiEffect />}
+ 
+       {/* Header Badge */}
+       <div className="ld-success-icon-banner">
+-        <div className="ld-success-circle" aria-hidden="true">
+-          <svg
+-            width="36"
+-            height="36"
+-            viewBox="0 0 24 24"
+-            fill="none"
+-            stroke="currentColor"
+-            strokeWidth="3"
+-            strokeLinecap="round"
+-            strokeLinejoin="round"
+-          >
+-            <polyline points="20 6 9 17 4 12" />
+-          </svg>
++        <div
++          className={`ld-success-circle ${isTerminal ? 'ld-success-circle-terminal' : ''}`}
++          aria-hidden="true"
++        >
++          {orderStatus === 'cancelled' ? (
++            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
++              <line x1="18" y1="6" x2="6" y2="18" />
++              <line x1="6" y1="6" x2="18" y2="18" />
++            </svg>
++          ) : orderStatus === 'expired' ? (
++            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
++              <circle cx="12" cy="12" r="10" />
++              <polyline points="12 6 12 12 16 14" />
++            </svg>
++          ) : (
++            <svg
++              width="36"
++              height="36"
++              viewBox="0 0 24 24"
++              fill="none"
++              stroke="currentColor"
++              strokeWidth="3"
++              strokeLinecap="round"
++              strokeLinejoin="round"
++            >
++              <polyline points="20 6 9 17 4 12" />
++            </svg>
++          )}
+         </div>
+-        <h1 className="ld-success-title">Thank You!</h1>
++        <h1 className="ld-success-title">
++          {orderStatus === 'cancelled'
++            ? 'Order Cancelled'
++            : orderStatus === 'expired'
++            ? 'Reservation Expired'
++            : 'Thank You!'}
++        </h1>
+         <p className="ld-success-subtitle">
+-          Your order has been placed. Your pieces are exclusively reserved for you.
++          {orderStatus === 'cancelled'
++            ? 'This order has been cancelled by the boutique. No further payment can be processed.'
++            : orderStatus === 'expired'
++            ? 'The reservation hold duration has ended. Reserved pieces have returned to boutique inventory.'
++            : 'Your order has been placed. Your pieces are exclusively reserved for you.'}
+         </p>
+       </div>
+ 
+       {/* Order Reference Card */}
+       <div className="ld-success-card">
++        {/* Terminal Alerts */}
++        {orderStatus === 'cancelled' && (
++          <div
++            className="ld-terminal-banner ld-terminal-banner-cancelled"
++            data-testid="order-cancelled-banner"
++            role="alert"
++          >
++            <div className="ld-terminal-banner-icon" aria-hidden="true">✕</div>
++            <div className="min-w-0">
++              <h4 className="font-semibold text-red-200 text-sm">Order Cancellation Notice</h4>
++              <p className="text-xs text-red-300/80 leading-relaxed">
++                This order is no longer active. It cannot be paid or fulfilled.
++              </p>
++            </div>
++          </div>
++        )}
++
++        {orderStatus === 'expired' && (
++          <div
++            className="ld-terminal-banner ld-terminal-banner-expired"
++            data-testid="order-expired-banner"
++            role="alert"
++          >
++            <div className="ld-terminal-banner-icon" aria-hidden="true">⏱</div>
++            <div className="min-w-0">
++              <h4 className="font-semibold text-amber-200 text-sm">Hold Duration Ended</h4>
++              <p className="text-xs text-amber-300/80 leading-relaxed">
++                The hold window expired before payment verification. Reserved pieces have been restored to live inventory.
++              </p>
++            </div>
++          </div>
++        )}
++
++        {/* Advance Payment Notice */}
++        {paymentStatus === 'advance_paid' && !isTerminal && (
++          <div
++            className="ld-advance-balance-box"
++            data-testid="advance-paid-balance-notice"
++            role="status"
++          >
++            <div className="flex items-center gap-2">
++              <span className="w-2 h-2 rounded-full bg-[#22c55e]" aria-hidden="true" />
++              <span className="font-serif font-bold text-sm text-[#F4F1EA]">
++                Advance Confirmed: {formatPaisaToINR(advancePaidPaisa)}
++              </span>
++            </div>
++            <p className="text-xs text-[#AAA49A] leading-relaxed">
++              Remaining balance of <span className="font-mono text-white font-semibold">{formatPaisaToINR(balanceDuePaisa)}</span> is due upon final fulfillment. Shipment remains held until balance settlement.
++            </p>
++          </div>
++        )}
++
++        {/* Fully Paid Notice */}
++        {paymentStatus === 'paid' && !isTerminal && (
++          <div
++            className="ld-payment-complete-box"
++            data-testid="order-fully-paid-notice"
++            role="status"
++          >
++            <div className="flex items-center gap-2">
++              <span className="w-2 h-2 rounded-full bg-[#22c55e]" aria-hidden="true" />
++              <span className="font-serif font-bold text-sm text-[#F4F1EA]">
++                Payment Complete
++              </span>
++            </div>
++            <p className="text-xs text-[#AAA49A] leading-relaxed">
++              Order is fully paid and eligible for atelier garment inspection, packaging, and dispatch.
++            </p>
++          </div>
++        )}
++
++        {/* Code & Timer Row */}
+         <div className="ld-success-meta-row">
+           <div className="ld-success-code-box">
+             <span className="ld-success-label">Order Code</span>
+@@ -169,59 +338,252 @@ export function CheckoutSuccessView({
+             </span>
+           </div>
+ 
+-          {/* Active Hold Countdown Timer */}
+-          <HoldCountdown expiresAt={holdExpiresAt} />
++          {/* Active Hold Countdown Timer (only when pending/unpaid) */}
++          {!isTerminal && paymentStatus === 'unpaid' && (
++            <HoldCountdown expiresAt={holdExpiresAt} />
++          )}
+         </div>
+ 
+-        {/* 6-Stage Order Tracking Status Timeline (Template Screen 6) */}
++        {/* Three Distinct Status Badges (Never Merged) */}
++        <div className="ld-status-trio" role="region" aria-label="Order Status Badges">
++          <div className="ld-status-badge-item">
++            <span className="ld-status-badge-label">Order State</span>
++            <span
++              className={`ld-status-badge ${orderBadge.styleClass}`}
++              data-testid="status-badge-order"
++            >
++              {orderBadge.label}
++            </span>
++          </div>
++
++          <div className="ld-status-badge-item">
++            <span className="ld-status-badge-label">Payment State</span>
++            <span
++              className={`ld-status-badge ${paymentBadge.styleClass}`}
++              data-testid="status-badge-payment"
++            >
++              {paymentBadge.label}
++            </span>
++          </div>
++
++          <div className="ld-status-badge-item">
++            <span className="ld-status-badge-label">Fulfillment State</span>
++            <span
++              className={`ld-status-badge ${fulfilmentBadge.styleClass}`}
++              data-testid="status-badge-fulfilment"
++            >
++              {fulfilmentBadge.label}
++            </span>
++          </div>
++        </div>
++
++        {/* Dedicated Shipment & Tracking Card (When Shipped or Shipped Timestamp Exists) */}
++        {(fulfilmentStatus === 'shipped' || Boolean(shippedAt)) && (
++          <div className="ld-shipment-card" data-testid="shipment-tracking-card">
++            <div className="ld-shipment-header">
++              <div className="ld-shipment-icon" aria-hidden="true">
++                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
++                  <rect x="1" y="3" width="15" height="13" />
++                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
++                  <circle cx="5.5" cy="18.5" r="2.5" />
++                  <circle cx="18.5" cy="18.5" r="2.5" />
++                </svg>
++              </div>
++              <div className="min-w-0">
++                <h3 className="ld-shipment-title text-sm font-serif font-bold text-white">
++                  Carrier Dispatch & Tracking
++                </h3>
++                <p className="ld-shipment-courier text-xs text-[#AAA49A]">
++                  Carrier:{' '}
++                  <span className="font-semibold text-[#E2C27A]" data-testid="courier-partner-name">
++                    {courierPartner || 'Designated Courier'}
++                  </span>
++                </p>
++              </div>
++            </div>
++
++            <div className="ld-shipment-body mt-3 pt-3 border-t border-white/5 space-y-2">
++              {trackingNumber ? (
++                <div className="ld-tracking-row flex items-center justify-between gap-3 bg-black/40 p-2.5 rounded-xl border border-white/5">
++                  <div className="min-w-0">
++                    <span className="block text-[10px] uppercase font-mono text-[#AAA49A]">
++                      Tracking Number / AWB
++                    </span>
++                    <span className="ld-tracking-awb font-mono text-sm font-bold text-white tracking-wider" data-testid="tracking-awb-number">
++                      {trackingNumber}
++                    </span>
++                  </div>
++                  <button
++                    type="button"
++                    onClick={() => handleCopyTracking(trackingNumber)}
++                    className="ld-copy-btn px-3 py-1.5 rounded-lg bg-white/10 hover:bg-[#C79A45]/20 text-[#E2C27A] border border-white/10 text-xs font-mono font-medium transition-colors"
++                    aria-label={isCopied ? 'Tracking number copied' : 'Copy Tracking Number'}
++                    style={{ minHeight: '44px', minWidth: '44px' }}
++                  >
++                    {isCopied ? 'Copied ✓' : 'Copy AWB'}
++                  </button>
++                </div>
++              ) : (
++                <div
++                  className="ld-tracking-pending-notice text-xs text-[#AAA49A] italic bg-white/[0.02] p-2.5 rounded-xl border border-white/5"
++                  data-testid="tracking-pending-notice"
++                >
++                  AWB tracking number is being registered by the courier partner.
++                </div>
++              )}
++
++              {shippedAt && (
++                <div className="ld-shipment-time text-[11px] text-[#AAA49A] font-mono" data-testid="shipped-at-timestamp">
++                  Dispatched: {new Date(shippedAt).toLocaleDateString('en-IN', {
++                    day: 'numeric',
++                    month: 'short',
++                    year: 'numeric',
++                    hour: '2-digit',
++                    minute: '2-digit',
++                  })}
++                </div>
++              )}
++            </div>
++          </div>
++        )}
++
++        {/* 6-Stage Order Tracking Status Timeline */}
+         <div className="ld-order-timeline" aria-label="Order Status Progression">
+           {/* Step 1: Payment Submitted */}
+-          <div className={`ld-timeline-step ${isClaimed ? 'completed' : 'active'}`}>
++          <div
++            className={`ld-timeline-step ${
++              isTerminal
++                ? 'halted'
++                : isClaimed
++                ? 'completed'
++                : 'active'
++            }`}
++          >
+             <div className="ld-timeline-icon-box">
+-              {isClaimed ? '✓' : '1'}
++              {isTerminal ? '✕' : isClaimed ? '✓' : '1'}
+             </div>
+             <div className="ld-timeline-content">
+               <span className="ld-timeline-step-title">Payment Submitted</span>
+               <span className="ld-timeline-step-desc">
+-                {isClaimed ? `Verified on ${orderTimestamp}` : 'Pending UPI submission'}
++                {isTerminal
++                  ? (orderStatus === 'expired' ? 'Hold expired - reservation halted' : 'Order cancelled')
++                  : isPaid
++                  ? 'Payment confirmed'
++                  : isClaimed
++                  ? 'UTR claim submitted'
++                  : 'Pending UPI submission'}
+               </span>
+             </div>
+           </div>
+ 
+-          {/* Step 2: Awaiting Verification */}
+-          <div className={`ld-timeline-step ${isPaid ? 'completed' : isClaimed ? 'active' : 'pending'}`}>
++          {/* Step 2: Awaiting Seller Verification */}
++          <div
++            className={`ld-timeline-step ${
++              isTerminal
++                ? 'halted'
++                : isPaid
++                ? 'completed'
++                : isClaimed
++                ? 'active'
++                : 'pending'
++            }`}
++          >
+             <div className="ld-timeline-icon-box">
+-              {isPaid ? '✓' : '●'}
++              {isTerminal ? '✕' : isPaid ? '✓' : isClaimed ? '●' : '○'}
+             </div>
+             <div className="ld-timeline-content">
+               <span className="ld-timeline-step-title">Awaiting Seller Verification</span>
+               <span className="ld-timeline-step-desc">
+-                {isPaid ? 'Payment confirmed by boutique' : "We'll notify you once verified by the boutique"}
++                {isTerminal
++                  ? 'Verification halted'
++                  : paymentStatus === 'paid'
++                  ? 'Payment confirmed by boutique'
++                  : paymentStatus === 'advance_paid'
++                  ? 'Advance payment confirmed (balance remains due)'
++                  : isClaimed
++                  ? "We'll notify you once verified by the boutique"
++                  : 'Pending payment verification'}
+               </span>
+             </div>
+           </div>
+ 
+-          {/* Step 3: Preparing Order */}
+-          <div className="ld-timeline-step pending">
+-            <div className="ld-timeline-icon-box">○</div>
++          {/* Step 3: Preparing Order / Ready to Ship */}
++          <div
++            className={`ld-timeline-step ${
++              isTerminal
++                ? 'halted'
++                : fulfilmentStatus === 'ready_to_ship' || fulfilmentStatus === 'shipped'
++                ? 'completed'
++                : paymentStatus === 'advance_paid'
++                ? 'held'
++                : paymentStatus === 'paid'
++                ? 'active'
++                : 'pending'
++            }`}
++          >
++            <div className="ld-timeline-icon-box">
++              {isTerminal
++                ? '✕'
++                : fulfilmentStatus === 'ready_to_ship' || fulfilmentStatus === 'shipped'
++                ? '✓'
++                : paymentStatus === 'paid'
++                ? '●'
++                : '○'}
++            </div>
+             <div className="ld-timeline-content">
+               <span className="ld-timeline-step-title">Preparing Order</span>
+-              <span className="ld-timeline-step-desc">Packaging and preparing garment for shipment</span>
++              <span className="ld-timeline-step-desc">
++                {isTerminal
++                  ? 'Preparation halted'
++                  : fulfilmentStatus === 'ready_to_ship' || fulfilmentStatus === 'shipped'
++                  ? 'Pieces inspected and cleared for dispatch'
++                  : paymentStatus === 'advance_paid'
++                  ? 'Held pending balance settlement'
++                  : paymentStatus === 'paid'
++                  ? 'Packaging pieces in atelier'
++                  : 'Awaiting payment verification'}
++              </span>
+             </div>
+           </div>
+ 
+           {/* Step 4: Shipped */}
+-          <div className="ld-timeline-step pending">
+-            <div className="ld-timeline-icon-box">○</div>
++          <div
++            className={`ld-timeline-step ${
++              isTerminal
++                ? 'halted'
++                : fulfilmentStatus === 'shipped'
++                ? 'completed'
++                : fulfilmentStatus === 'ready_to_ship'
++                ? 'active'
++                : 'pending'
++            }`}
++          >
++            <div className="ld-timeline-icon-box">
++              {isTerminal
++                ? '✕'
++                : fulfilmentStatus === 'shipped'
++                ? '✓'
++                : fulfilmentStatus === 'ready_to_ship'
++                ? '●'
++                : '○'}
++            </div>
+             <div className="ld-timeline-content">
+               <span className="ld-timeline-step-title">Shipped</span>
+-              <span className="ld-timeline-step-desc">Handed over to courier partner</span>
++              <span className="ld-timeline-step-desc">
++                {isTerminal
++                  ? 'Dispatch halted'
++                  : fulfilmentStatus === 'shipped'
++                  ? (courierPartner ? `Handed over to ${courierPartner}` : 'Handed over to courier partner')
++                  : fulfilmentStatus === 'ready_to_ship'
++                  ? 'Awaiting courier pickup'
++                  : 'Awaiting atelier completion'}
++              </span>
+             </div>
+           </div>
+ 
+           {/* Step 5: Out for Delivery */}
+-          <div className="ld-timeline-step pending">
+-            <div className="ld-timeline-icon-box">○</div>
++          <div className={`ld-timeline-step ${isTerminal ? 'halted' : 'pending'}`}>
++            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : '○'}</div>
+             <div className="ld-timeline-content">
+               <span className="ld-timeline-step-title">Out for Delivery</span>
+               <span className="ld-timeline-step-desc">Arriving at your delivery address</span>
+@@ -229,8 +591,8 @@ export function CheckoutSuccessView({
+           </div>
+ 
+           {/* Step 6: Delivered */}
+-          <div className="ld-timeline-step pending">
+-            <div className="ld-timeline-icon-box">○</div>
++          <div className={`ld-timeline-step ${isTerminal ? 'halted' : 'pending'}`}>
++            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : '○'}</div>
+             <div className="ld-timeline-content">
+               <span className="ld-timeline-step-title">Delivered</span>
+               <span className="ld-timeline-step-desc">Enjoy your handcrafted boutique piece</span>
+@@ -281,6 +643,14 @@ export function CheckoutSuccessView({
+ 
+         {/* Authoritative Database Financial Breakdown */}
+         <div className="ld-success-breakdown">
++          {storeName && (
++            <div className="ld-summary-row border-b border-white/5 pb-2 mb-2">
++              <span className="ld-summary-label">Boutique Atelier</span>
++              <span className="ld-summary-value font-serif text-[#E2C27A] font-semibold" data-testid="success-store-name">
++                {storeName}
++              </span>
++            </div>
++          )}
+           <div className="ld-summary-row">
+             <span className="ld-summary-label">Authoritative Subtotal</span>
+             <span className="ld-summary-value" data-testid="success-subtotal">
+@@ -299,16 +669,41 @@ export function CheckoutSuccessView({
+               {formatPaisaToINR(totalPaisa)}
+             </span>
+           </div>
++
++          {confirmationMode === 'advance' && (
++            <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-xs">
++              <div className="ld-summary-row">
++                <span className="ld-summary-label text-[#AAA49A]">Advance Required</span>
++                <span className="ld-summary-value font-mono text-white/90" data-testid="success-advance-required">
++                  {formatPaisaToINR(advanceRequiredPaisa)}
++                </span>
++              </div>
++              <div className="ld-summary-row">
++                <span className="ld-summary-label text-[#AAA49A]">Advance Settled</span>
++                <span className="ld-summary-value font-mono text-[#22c55e]" data-testid="success-advance-paid">
++                  {formatPaisaToINR(advancePaidPaisa)}
++                </span>
++              </div>
++              <div className="ld-summary-row">
++                <span className="ld-summary-label text-[#E2C27A] font-semibold">Remaining Balance Due</span>
++                <span className="ld-summary-value font-mono text-[#E2C27A] font-bold" data-testid="success-balance-due">
++                  {formatPaisaToINR(balanceDuePaisa)}
++                </span>
++              </div>
++            </div>
++          )}
+         </div>
+ 
+         {/* Direct UPI Payment & Manual Verification Section (TASK-2.4B) */}
+-        <div data-testid="task-handoff-box">
+-          <DirectUpiPaymentView
+-            order={currentOrder}
+-            orderToken={resolvedToken}
+-            onOrderRefresh={(updated) => setCurrentOrder(updated)}
+-          />
+-        </div>
++        {!isTerminal && (
++          <div data-testid="task-handoff-box">
++            <DirectUpiPaymentView
++              order={currentOrder}
++              orderToken={resolvedToken}
++              onOrderRefresh={(updated) => setCurrentOrder(updated)}
++            />
++          </div>
++        )}
+ 
+         {/* Navigation Return & Tracking Buttons */}
+         <div className="ld-success-actions">
+@@ -316,9 +711,10 @@ export function CheckoutSuccessView({
+             <Link
+               href={`/order/${orderId}?token=${resolvedToken}`}
+               className="ld-btn-gold-cta ld-btn-track-order"
++              data-testid="success-track-order-link"
+               style={{ minHeight: '48px', padding: '0 24px' }}
+             >
+-              Track Order Live
++              Track Order Live →
+             </Link>
+           )}
+ 
+@@ -335,4 +731,3 @@ export function CheckoutSuccessView({
+     </div>
+   );
+ }
+-

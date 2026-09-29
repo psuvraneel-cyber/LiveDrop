@@ -30,10 +30,12 @@ function getServerOrdersSnapshot(): string {
 function formatOrderStatus(status?: string, paymentStatus?: string, fulfilmentStatus?: string): string {
   if (fulfilmentStatus === 'delivered') return 'Delivered';
   if (fulfilmentStatus === 'shipped') return 'Shipped';
-  if (fulfilmentStatus === 'preparing') return 'Preparing';
+  if (fulfilmentStatus === 'preparing' || fulfilmentStatus === 'ready_to_ship') return 'Preparing';
   if (paymentStatus === 'verified') return 'Payment Verified';
+  if (paymentStatus === 'advance_paid') return 'Advance Paid';
   if (paymentStatus === 'pending') return 'Payment Pending';
   if (status === 'cancelled') return 'Cancelled';
+  if (status === 'expired') return 'Expired';
   return 'Order Placed';
 }
 
@@ -43,6 +45,7 @@ export default function OrderLookupPage() {
   const [orderQuery, setOrderQuery] = useState('');
   const [orderToken, setOrderToken] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState<string>('');
 
   const cachedOrdersRaw = useSyncExternalStore(
     subscribe,
@@ -71,7 +74,9 @@ export default function OrderLookupPage() {
     // 1. Check if user pasted a full tracking URL or relative path
     if (query.includes('order/') || query.includes('token=')) {
       try {
-        const urlStr = query.startsWith('http') ? query : `https://livedrop.store${query.startsWith('/') ? '' : '/'}${query}`;
+        const urlStr = query.startsWith('http')
+          ? query
+          : `https://livedrop.store${query.startsWith('/') ? '' : '/'}${query}`;
         const url = new URL(urlStr);
         const pathParts = url.pathname.split('/').filter(Boolean);
         const idIndex = pathParts.indexOf('order');
@@ -119,6 +124,11 @@ export default function OrderLookupPage() {
       />
 
       <main className="ld-container ld-order-lookup-main max-w-xl mx-auto px-4 py-8 space-y-8" role="main">
+        {/* Screen Reader Live Region */}
+        <div className="sr-only" aria-live="polite" role="status">
+          {announcement}
+        </div>
+
         {/* Header Mental Model: Track Your Order */}
         <div className="ld-order-lookup-header space-y-2 text-center">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono font-bold tracking-wider text-[#C79A45] uppercase">
@@ -139,12 +149,16 @@ export default function OrderLookupPage() {
             type="button"
             role="tab"
             aria-selected={activeOrderTab === 'recent'}
-            onClick={() => setActiveOrderTab('recent')}
+            onClick={() => {
+              setActiveOrderTab('recent');
+              setAnnouncement('Recent Orders tab active');
+            }}
             className={`pb-3 text-xs sm:text-sm font-sans font-medium transition-all relative cursor-pointer ${
               activeOrderTab === 'recent'
                 ? 'text-[#D4AF37] font-bold'
                 : 'text-[#AAA49A] hover:text-white'
             }`}
+            style={{ minHeight: '44px' }}
           >
             <span>Recent Orders ({cachedOrders.length})</span>
             {activeOrderTab === 'recent' && (
@@ -156,12 +170,16 @@ export default function OrderLookupPage() {
             type="button"
             role="tab"
             aria-selected={activeOrderTab === 'saved'}
-            onClick={() => setActiveOrderTab('saved')}
+            onClick={() => {
+              setActiveOrderTab('saved');
+              setAnnouncement('Saved Pieces tab active');
+            }}
             className={`pb-3 text-xs sm:text-sm font-sans font-medium transition-all relative cursor-pointer ${
               activeOrderTab === 'saved'
                 ? 'text-[#D4AF37] font-bold'
                 : 'text-[#AAA49A] hover:text-white'
             }`}
+            style={{ minHeight: '44px' }}
           >
             <span>Saved Pieces</span>
             {activeOrderTab === 'saved' && (
@@ -171,62 +189,131 @@ export default function OrderLookupPage() {
         </div>
 
         {/* 1. Recent Orders on This Device */}
-        {activeOrderTab === 'recent' && cachedOrders.length > 0 && (
-          <div className="ld-recent-orders-card p-4 sm:p-5 rounded-2xl bg-[#121211] border border-white/10 space-y-3.5 shadow-lg">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-              <h2 className="ld-recent-orders-title text-sm sm:text-base font-serif font-semibold text-[#F4F1EA]">
-                Recent Orders on This Device
-              </h2>
-              <span className="text-[11px] text-[#AAA49A] font-mono">
-                {cachedOrders.length} saved
-              </span>
-            </div>
+        {activeOrderTab === 'recent' && (
+          <>
+            {cachedOrders.length > 0 ? (
+              <div className="ld-recent-orders-card p-4 sm:p-5 rounded-2xl bg-[#121211] border border-white/10 space-y-3.5 shadow-lg">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                  <h2 className="ld-recent-orders-title text-sm sm:text-base font-serif font-semibold text-[#F4F1EA]">
+                    Recent Orders on This Device
+                  </h2>
+                  <span className="text-[11px] text-[#AAA49A] font-mono">
+                    {cachedOrders.length} saved
+                  </span>
+                </div>
 
-            <div className="ld-recent-orders-list space-y-2.5">
-              {cachedOrders.map((ord) => {
-                const displayCode = ord.orderCode || (ord.id.startsWith('ord-') ? ord.id : `Order #${ord.id.slice(0, 8)}...`);
-                const formattedCode = displayCode.startsWith('Order #') ? displayCode : (displayCode.startsWith('#') ? `Order ${displayCode}` : `Order #${displayCode}`);
+                <div className="ld-recent-orders-list space-y-2.5" role="list">
+                  {cachedOrders.map((ord) => {
+                    const displayCode =
+                      ord.orderCode ||
+                      (ord.id.startsWith('ord-') ? ord.id : `Order #${ord.id.slice(0, 8)}...`);
+                    const formattedCode = displayCode.startsWith('Order #')
+                      ? displayCode
+                      : displayCode.startsWith('#')
+                      ? `Order ${displayCode}`
+                      : `Order #${displayCode}`;
 
-                return (
+                    return (
+                      <Link
+                        key={ord.id}
+                        href={`/order/${encodeURIComponent(ord.id)}?token=${encodeURIComponent(ord.token)}`}
+                        className="ld-recent-order-link p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 group"
+                        data-testid={`recent-order-item-${ord.id}`}
+                        role="listitem"
+                        style={{ minHeight: '48px' }}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-14 rounded-lg bg-[#181715] border border-white/10 flex-shrink-0 flex items-center justify-center text-[#D4AF37] font-serif font-bold text-sm" aria-hidden="true">
+                            ✦
+                          </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="ld-recent-order-code font-mono text-xs sm:text-sm font-bold text-white group-hover:text-[#E2C27A] transition-colors truncate">
+                                {formattedCode}
+                              </span>
+                              {ord.paymentStatus && (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-[#C79A45]/15 text-[#E2C27A] border border-[#C79A45]/30 font-medium">
+                                  {formatOrderStatus(undefined, ord.paymentStatus, ord.fulfilmentStatus)}
+                                </span>
+                              )}
+                              {ord.fulfilmentStatus === 'shipped' && (
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-[#8b5cf6]/15 text-[#c4b5fd] border border-[#8b5cf6]/30 font-medium">
+                                  Shipped
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-[#AAA49A]">
+                              <span>{ord.storeName || 'Independent Boutique'}</span>
+                              {typeof ord.totalPaisa === 'number' && ord.totalPaisa > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-mono text-white/80">{formatPaisaToINR(ord.totalPaisa)}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="ld-recent-order-cta text-xs text-[#C79A45] font-semibold group-hover:translate-x-0.5 transition-transform flex-shrink-0">
+                          View Receipt →
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div
+                className="ld-recent-orders-empty p-6 rounded-2xl bg-[#121211] border border-white/10 text-center space-y-3"
+                data-testid="recent-orders-empty"
+              >
+                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#D4AF37] mx-auto" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <path d="M16 10a4 4 0 0 1-8 0" />
+                  </svg>
+                </div>
+                <h2 className="text-base font-serif font-semibold text-white">No Recent Orders</h2>
+                <p className="text-xs text-[#AAA49A] max-w-sm mx-auto leading-relaxed">
+                  Orders placed on this device are automatically saved here. If you have an order link from an SMS or boutique confirmation, enter it below.
+                </p>
+                <div>
                   <Link
-                    key={ord.id}
-                    href={`/order/${encodeURIComponent(ord.id)}?token=${encodeURIComponent(ord.token)}`}
-                    className="ld-recent-order-link p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex items-center justify-between gap-3 group"
-                    data-testid={`recent-order-item-${ord.id}`}
+                    href="/"
+                    className="inline-flex items-center gap-1 text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors mt-2"
+                    style={{ minHeight: '44px' }}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-14 rounded-lg bg-[#181715] border border-white/10 flex-shrink-0 flex items-center justify-center text-[#D4AF37] font-serif font-bold text-sm">
-                        ✦
-                      </div>
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="ld-recent-order-code font-mono text-xs sm:text-sm font-bold text-white group-hover:text-[#E2C27A] transition-colors truncate">
-                            {formattedCode}
-                          </span>
-                          {ord.paymentStatus && (
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-[#C79A45]/15 text-[#E2C27A] border border-[#C79A45]/30 font-medium">
-                              {formatOrderStatus(undefined, ord.paymentStatus, ord.fulfilmentStatus)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] text-[#AAA49A]">
-                          <span>{ord.storeName || 'Independent Boutique'}</span>
-                          {typeof ord.totalPaisa === 'number' && ord.totalPaisa > 0 && (
-                            <>
-                              <span>•</span>
-                              <span className="font-mono text-white/80">{formatPaisaToINR(ord.totalPaisa)}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className="ld-recent-order-cta text-xs text-[#C79A45] font-semibold group-hover:translate-x-0.5 transition-transform flex-shrink-0">
-                      View Receipt →
-                    </span>
+                    Browse Live Drops →
                   </Link>
-                );
-              })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Saved Pieces Tab Panel */}
+        {activeOrderTab === 'saved' && (
+          <div
+            className="ld-saved-pieces-card p-6 rounded-2xl bg-[#121211] border border-white/10 text-center space-y-3"
+            data-testid="saved-pieces-panel"
+            role="tabpanel"
+          >
+            <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#D4AF37] mx-auto text-lg" aria-hidden="true">
+              ✦
+            </div>
+            <h2 className="text-base font-serif font-semibold text-white">Saved Pieces</h2>
+            <p className="text-xs text-[#AAA49A] max-w-sm mx-auto leading-relaxed">
+              Your curated wishlist of handcrafted garments. Pieces bookmarked during live boutique drops are securely stored on your device.
+            </p>
+            <div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1 text-xs text-[#C79A45] hover:text-[#E2C27A] font-semibold transition-colors mt-2"
+                style={{ minHeight: '44px' }}
+              >
+                Explore Active Boutiques →
+              </Link>
             </div>
           </div>
         )}
@@ -243,7 +330,12 @@ export default function OrderLookupPage() {
           </div>
 
           {error && (
-            <div className="ld-order-error-alert p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-300" role="alert">
+            <div
+              className="ld-order-error-alert p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-xs text-red-300"
+              role="alert"
+              aria-live="assertive"
+              data-testid="order-lookup-error"
+            >
               {error}
             </div>
           )}
@@ -255,12 +347,20 @@ export default function OrderLookupPage() {
             <input
               id="orderIdInput"
               aria-label="Order Number or Tracking Link"
+              aria-describedby="orderIdHelper"
               type="text"
               placeholder="e.g. LD7840 or paste order link"
               value={orderQuery}
-              onChange={(e) => setOrderQuery(e.target.value)}
+              onChange={(e) => {
+                setOrderQuery(e.target.value);
+                if (error) setError(null);
+              }}
               className="ld-nav-search-input ld-order-input w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-[#C79A45] transition-colors"
+              style={{ minHeight: '44px' }}
             />
+            <p id="orderIdHelper" className="text-[11px] text-[#7E776C]">
+              Find this in your order reservation confirmation SMS or URL.
+            </p>
           </div>
 
           <div className="ld-order-input-group space-y-1.5">
@@ -270,22 +370,44 @@ export default function OrderLookupPage() {
             <input
               id="orderTokenInput"
               aria-label="Receipt Access Key"
+              aria-describedby="orderTokenHelper"
               type="text"
               placeholder="Access key from order confirmation SMS or link"
               value={orderToken}
-              onChange={(e) => setOrderToken(e.target.value)}
+              onChange={(e) => {
+                setOrderToken(e.target.value);
+                if (error) setError(null);
+              }}
               className="ld-nav-search-input ld-order-input w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-[#C79A45] transition-colors"
+              style={{ minHeight: '44px' }}
             />
+            <p id="orderTokenHelper" className="text-[11px] text-[#7E776C]">
+              Secret access key that verifies authorization under the DPDP Act.
+            </p>
           </div>
 
           <button
             type="submit"
             className="ld-btn-gold-cta ld-order-submit-btn w-full py-3 rounded-full bg-gradient-to-r from-[#E2C27A] via-[#C79A45] to-[#B58632] text-[#090909] font-serif font-bold text-xs sm:text-sm tracking-wide transition-all shadow-md hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             aria-label="Retrieve Order Receipt"
+            style={{ minHeight: '48px' }}
           >
-            Find Order →
+            Retrieve Order Receipt →
           </button>
         </form>
+
+        {/* DPDP Act 2023 Security & Privacy Badge */}
+        <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5 text-[#AAA49A]">
+          <div className="text-[#C79A45] flex-shrink-0 mt-0.5" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <p className="text-[11px] leading-relaxed">
+            <span className="font-semibold text-white/90">DPDP Act 2023 Compliant:</span> Order receipts are isolated by high-entropy access credentials. Orders are never publicly searchable by order number alone.
+          </p>
+        </div>
       </main>
 
       <MobileBottomDock activeTabOverride="orders" />

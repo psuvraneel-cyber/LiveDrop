@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 import { HoldCountdown } from './HoldCountdown';
-import { OrderReceipt, CreateOrderSuccessResponse } from '../../types/domain';
+import {
+  OrderReceipt,
+  CreateOrderSuccessResponse,
+  OrderStatus,
+  OrderPaymentStatus,
+  OrderFulfilmentStatus,
+} from '../../types/domain';
 import { CartItem } from '../../types/cart';
 import { DirectUpiPaymentView } from './DirectUpiPaymentView';
 
@@ -83,6 +89,48 @@ function ConfettiEffect() {
   return <canvas ref={canvasRef} className="ld-confetti-canvas" aria-hidden="true" />;
 }
 
+function getOrderStateBadge(status: OrderStatus) {
+  switch (status) {
+    case 'confirmed':
+      return { label: 'Confirmed', styleClass: 'ld-status-badge-order-confirmed' };
+    case 'paid':
+      return { label: 'Paid', styleClass: 'ld-status-badge-order-paid' };
+    case 'shipped':
+      return { label: 'Shipped', styleClass: 'ld-status-badge-order-shipped' };
+    case 'cancelled':
+      return { label: 'Cancelled', styleClass: 'ld-status-badge-order-cancelled' };
+    case 'expired':
+      return { label: 'Expired', styleClass: 'ld-status-badge-order-expired' };
+    case 'pending':
+    default:
+      return { label: 'Pending', styleClass: 'ld-status-badge-order-pending' };
+  }
+}
+
+function getPaymentStateBadge(status: OrderPaymentStatus) {
+  switch (status) {
+    case 'advance_paid':
+      return { label: 'Advance Paid', styleClass: 'ld-status-badge-payment-advance' };
+    case 'paid':
+      return { label: 'Fully Paid', styleClass: 'ld-status-badge-payment-paid' };
+    case 'unpaid':
+    default:
+      return { label: 'Unpaid', styleClass: 'ld-status-badge-payment-unpaid' };
+  }
+}
+
+function getFulfilmentStateBadge(status: OrderFulfilmentStatus) {
+  switch (status) {
+    case 'ready_to_ship':
+      return { label: 'Ready to Ship', styleClass: 'ld-status-badge-fulfilment-ready' };
+    case 'shipped':
+      return { label: 'Shipped', styleClass: 'ld-status-badge-fulfilment-shipped' };
+    case 'not_ready':
+    default:
+      return { label: 'Not Ready', styleClass: 'ld-status-badge-fulfilment-not-ready' };
+  }
+}
+
 export function CheckoutSuccessView({
   order,
   orderToken,
@@ -90,6 +138,8 @@ export function CheckoutSuccessView({
   dropSlug,
 }: CheckoutSuccessViewProps) {
   const [currentOrder, setCurrentOrder] = React.useState<CreateOrderSuccessResponse | OrderReceipt>(order);
+  const [isCopied, setIsCopied] = useState(false);
+
   const isReceipt = 'items' in currentOrder;
   const orderId = 'order_id' in currentOrder ? currentOrder.order_id : currentOrder.id;
   const orderCode = currentOrder.order_code;
@@ -99,6 +149,29 @@ export function CheckoutSuccessView({
   const holdExpiresAt = currentOrder.hold_expires_at;
 
   const resolvedToken = orderToken || ('order_token' in currentOrder ? currentOrder.order_token : '');
+
+  const orderStatus: OrderStatus = 'status' in currentOrder ? currentOrder.status : 'pending';
+  const paymentStatus: OrderPaymentStatus = currentOrder.payment_status || 'unpaid';
+  const fulfilmentStatus: OrderFulfilmentStatus =
+    'fulfilment_status' in currentOrder && currentOrder.fulfilment_status
+      ? currentOrder.fulfilment_status
+      : 'not_ready';
+
+  const isTerminal = orderStatus === 'cancelled' || orderStatus === 'expired';
+
+  const orderBadge = getOrderStateBadge(orderStatus);
+  const paymentBadge = getPaymentStateBadge(paymentStatus);
+  const fulfilmentBadge = getFulfilmentStateBadge(fulfilmentStatus);
+
+  const storeName = 'store_name' in currentOrder ? currentOrder.store_name : null;
+  const courierPartner = 'courier_partner' in currentOrder ? currentOrder.courier_partner : null;
+  const trackingNumber = 'tracking_number' in currentOrder ? currentOrder.tracking_number : null;
+  const shippedAt = 'shipped_at' in currentOrder ? currentOrder.shipped_at : null;
+
+  const advanceRequiredPaisa = currentOrder.advance_required_paisa || 0;
+  const advancePaidPaisa = currentOrder.advance_paid_paisa || 0;
+  const balanceDuePaisa = currentOrder.balance_due_paisa || 0;
+  const confirmationMode = currentOrder.confirmation_mode;
 
   const displayItems = isReceipt
     ? (order as OrderReceipt).items.map((item) => ({
@@ -118,49 +191,145 @@ export function CheckoutSuccessView({
 
   const backLink = dropSlug ? `/drop/${dropSlug}` : '/';
 
-  // Format order placed timestamp
-  const orderTimestamp = new Date().toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  const isPaid = currentOrder.payment_status === 'paid' || currentOrder.payment_status === 'advance_paid';
+  const isPaid = paymentStatus === 'paid' || paymentStatus === 'advance_paid';
   const isClaimed =
     isPaid ||
     ('active_payment_attempt' in currentOrder &&
       Boolean(currentOrder.active_payment_attempt?.buyer_submitted_utr));
 
+  const handleCopyTracking = (awb: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(awb).catch(() => {});
+    }
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
+  };
+
   return (
     <div className="ld-checkout-success" data-testid="checkout-success-view">
-      <ConfettiEffect />
+      {!isTerminal && <ConfettiEffect />}
 
       {/* Header Badge */}
       <div className="ld-success-icon-banner">
-        <div className="ld-success-circle" aria-hidden="true">
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+        <div
+          className={`ld-success-circle ${isTerminal ? 'ld-success-circle-terminal' : ''}`}
+          aria-hidden="true"
+        >
+          {orderStatus === 'cancelled' ? (
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : orderStatus === 'expired' ? (
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          ) : (
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
         </div>
-        <h1 className="ld-success-title">Thank You!</h1>
+        <h1 className="ld-success-title">
+          {orderStatus === 'cancelled'
+            ? 'Order Cancelled'
+            : orderStatus === 'expired'
+            ? 'Reservation Expired'
+            : 'Thank You!'}
+        </h1>
         <p className="ld-success-subtitle">
-          Your order has been placed. Your pieces are exclusively reserved for you.
+          {orderStatus === 'cancelled'
+            ? 'This order has been cancelled by the boutique. No further payment can be processed.'
+            : orderStatus === 'expired'
+            ? 'The reservation hold duration has ended. Reserved pieces have returned to boutique inventory.'
+            : 'Your order has been placed. Your pieces are exclusively reserved for you.'}
         </p>
       </div>
 
       {/* Order Reference Card */}
       <div className="ld-success-card">
+        {/* Terminal Alerts */}
+        {orderStatus === 'cancelled' && (
+          <div
+            className="ld-terminal-banner ld-terminal-banner-cancelled"
+            data-testid="order-cancelled-banner"
+            role="alert"
+          >
+            <div className="ld-terminal-banner-icon" aria-hidden="true">✕</div>
+            <div className="min-w-0">
+              <h4 className="font-semibold text-red-200 text-sm">Order Cancellation Notice</h4>
+              <p className="text-xs text-red-300/80 leading-relaxed">
+                This order is no longer active. It cannot be paid or fulfilled.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {orderStatus === 'expired' && (
+          <div
+            className="ld-terminal-banner ld-terminal-banner-expired"
+            data-testid="order-expired-banner"
+            role="alert"
+          >
+            <div className="ld-terminal-banner-icon" aria-hidden="true">⏱</div>
+            <div className="min-w-0">
+              <h4 className="font-semibold text-amber-200 text-sm">Hold Duration Ended</h4>
+              <p className="text-xs text-amber-300/80 leading-relaxed">
+                The hold window expired before payment verification. Reserved pieces have been restored to live inventory.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Advance Payment Notice */}
+        {paymentStatus === 'advance_paid' && !isTerminal && (
+          <div
+            className="ld-advance-balance-box"
+            data-testid="advance-paid-balance-notice"
+            role="status"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#22c55e]" aria-hidden="true" />
+              <span className="font-serif font-bold text-sm text-[#F4F1EA]">
+                Advance Confirmed: {formatPaisaToINR(advancePaidPaisa)}
+              </span>
+            </div>
+            <p className="text-xs text-[#AAA49A] leading-relaxed">
+              Remaining balance of <span className="font-mono text-white font-semibold">{formatPaisaToINR(balanceDuePaisa)}</span> is due upon final fulfillment. Shipment remains held until balance settlement.
+            </p>
+          </div>
+        )}
+
+        {/* Fully Paid Notice */}
+        {paymentStatus === 'paid' && !isTerminal && (
+          <div
+            className="ld-payment-complete-box"
+            data-testid="order-fully-paid-notice"
+            role="status"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#22c55e]" aria-hidden="true" />
+              <span className="font-serif font-bold text-sm text-[#F4F1EA]">
+                Payment Complete
+              </span>
+            </div>
+            <p className="text-xs text-[#AAA49A] leading-relaxed">
+              Order is fully paid and eligible for atelier garment inspection, packaging, and dispatch.
+            </p>
+          </div>
+        )}
+
+        {/* Code & Timer Row */}
         <div className="ld-success-meta-row">
           <div className="ld-success-code-box">
             <span className="ld-success-label">Order Code</span>
@@ -169,59 +338,252 @@ export function CheckoutSuccessView({
             </span>
           </div>
 
-          {/* Active Hold Countdown Timer */}
-          <HoldCountdown expiresAt={holdExpiresAt} />
+          {/* Active Hold Countdown Timer (only when pending/unpaid) */}
+          {!isTerminal && paymentStatus === 'unpaid' && (
+            <HoldCountdown expiresAt={holdExpiresAt} />
+          )}
         </div>
 
-        {/* 6-Stage Order Tracking Status Timeline (Template Screen 6) */}
+        {/* Three Distinct Status Badges (Never Merged) */}
+        <div className="ld-status-trio" role="region" aria-label="Order Status Badges">
+          <div className="ld-status-badge-item">
+            <span className="ld-status-badge-label">Order State</span>
+            <span
+              className={`ld-status-badge ${orderBadge.styleClass}`}
+              data-testid="status-badge-order"
+            >
+              {orderBadge.label}
+            </span>
+          </div>
+
+          <div className="ld-status-badge-item">
+            <span className="ld-status-badge-label">Payment State</span>
+            <span
+              className={`ld-status-badge ${paymentBadge.styleClass}`}
+              data-testid="status-badge-payment"
+            >
+              {paymentBadge.label}
+            </span>
+          </div>
+
+          <div className="ld-status-badge-item">
+            <span className="ld-status-badge-label">Fulfillment State</span>
+            <span
+              className={`ld-status-badge ${fulfilmentBadge.styleClass}`}
+              data-testid="status-badge-fulfilment"
+            >
+              {fulfilmentBadge.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Dedicated Shipment & Tracking Card (When Shipped or Shipped Timestamp Exists) */}
+        {(fulfilmentStatus === 'shipped' || Boolean(shippedAt)) && (
+          <div className="ld-shipment-card" data-testid="shipment-tracking-card">
+            <div className="ld-shipment-header">
+              <div className="ld-shipment-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="1" y="3" width="15" height="13" />
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                  <circle cx="5.5" cy="18.5" r="2.5" />
+                  <circle cx="18.5" cy="18.5" r="2.5" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h3 className="ld-shipment-title text-sm font-serif font-bold text-white">
+                  Carrier Dispatch & Tracking
+                </h3>
+                <p className="ld-shipment-courier text-xs text-[#AAA49A]">
+                  Carrier:{' '}
+                  <span className="font-semibold text-[#E2C27A]" data-testid="courier-partner-name">
+                    {courierPartner || 'Designated Courier'}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="ld-shipment-body mt-3 pt-3 border-t border-white/5 space-y-2">
+              {trackingNumber ? (
+                <div className="ld-tracking-row flex items-center justify-between gap-3 bg-black/40 p-2.5 rounded-xl border border-white/5">
+                  <div className="min-w-0">
+                    <span className="block text-[10px] uppercase font-mono text-[#AAA49A]">
+                      Tracking Number / AWB
+                    </span>
+                    <span className="ld-tracking-awb font-mono text-sm font-bold text-white tracking-wider" data-testid="tracking-awb-number">
+                      {trackingNumber}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyTracking(trackingNumber)}
+                    className="ld-copy-btn px-3 py-1.5 rounded-lg bg-white/10 hover:bg-[#C79A45]/20 text-[#E2C27A] border border-white/10 text-xs font-mono font-medium transition-colors"
+                    aria-label={isCopied ? 'Tracking number copied' : 'Copy Tracking Number'}
+                    style={{ minHeight: '44px', minWidth: '44px' }}
+                  >
+                    {isCopied ? 'Copied ✓' : 'Copy AWB'}
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="ld-tracking-pending-notice text-xs text-[#AAA49A] italic bg-white/[0.02] p-2.5 rounded-xl border border-white/5"
+                  data-testid="tracking-pending-notice"
+                >
+                  AWB tracking number is being registered by the courier partner.
+                </div>
+              )}
+
+              {shippedAt && (
+                <div className="ld-shipment-time text-[11px] text-[#AAA49A] font-mono" data-testid="shipped-at-timestamp">
+                  Dispatched: {new Date(shippedAt).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 6-Stage Order Tracking Status Timeline */}
         <div className="ld-order-timeline" aria-label="Order Status Progression">
           {/* Step 1: Payment Submitted */}
-          <div className={`ld-timeline-step ${isClaimed ? 'completed' : 'active'}`}>
+          <div
+            className={`ld-timeline-step ${
+              isTerminal
+                ? 'halted'
+                : isClaimed
+                ? 'completed'
+                : 'active'
+            }`}
+          >
             <div className="ld-timeline-icon-box">
-              {isClaimed ? '✓' : '1'}
+              {isTerminal ? '✕' : isClaimed ? '✓' : '1'}
             </div>
             <div className="ld-timeline-content">
               <span className="ld-timeline-step-title">Payment Submitted</span>
               <span className="ld-timeline-step-desc">
-                {isClaimed ? `Verified on ${orderTimestamp}` : 'Pending UPI submission'}
+                {isTerminal
+                  ? (orderStatus === 'expired' ? 'Hold expired - reservation halted' : 'Order cancelled')
+                  : isPaid
+                  ? 'Payment confirmed'
+                  : isClaimed
+                  ? 'UTR claim submitted'
+                  : 'Pending UPI submission'}
               </span>
             </div>
           </div>
 
-          {/* Step 2: Awaiting Verification */}
-          <div className={`ld-timeline-step ${isPaid ? 'completed' : isClaimed ? 'active' : 'pending'}`}>
+          {/* Step 2: Awaiting Seller Verification */}
+          <div
+            className={`ld-timeline-step ${
+              isTerminal
+                ? 'halted'
+                : isPaid
+                ? 'completed'
+                : isClaimed
+                ? 'active'
+                : 'pending'
+            }`}
+          >
             <div className="ld-timeline-icon-box">
-              {isPaid ? '✓' : '●'}
+              {isTerminal ? '✕' : isPaid ? '✓' : isClaimed ? '●' : '○'}
             </div>
             <div className="ld-timeline-content">
               <span className="ld-timeline-step-title">Awaiting Seller Verification</span>
               <span className="ld-timeline-step-desc">
-                {isPaid ? 'Payment confirmed by boutique' : "We'll notify you once verified by the boutique"}
+                {isTerminal
+                  ? 'Verification halted'
+                  : paymentStatus === 'paid'
+                  ? 'Payment confirmed by boutique'
+                  : paymentStatus === 'advance_paid'
+                  ? 'Advance payment confirmed (balance remains due)'
+                  : isClaimed
+                  ? "We'll notify you once verified by the boutique"
+                  : 'Pending payment verification'}
               </span>
             </div>
           </div>
 
-          {/* Step 3: Preparing Order */}
-          <div className="ld-timeline-step pending">
-            <div className="ld-timeline-icon-box">○</div>
+          {/* Step 3: Preparing Order / Ready to Ship */}
+          <div
+            className={`ld-timeline-step ${
+              isTerminal
+                ? 'halted'
+                : fulfilmentStatus === 'ready_to_ship' || fulfilmentStatus === 'shipped'
+                ? 'completed'
+                : paymentStatus === 'advance_paid'
+                ? 'held'
+                : paymentStatus === 'paid'
+                ? 'active'
+                : 'pending'
+            }`}
+          >
+            <div className="ld-timeline-icon-box">
+              {isTerminal
+                ? '✕'
+                : fulfilmentStatus === 'ready_to_ship' || fulfilmentStatus === 'shipped'
+                ? '✓'
+                : paymentStatus === 'paid'
+                ? '●'
+                : '○'}
+            </div>
             <div className="ld-timeline-content">
               <span className="ld-timeline-step-title">Preparing Order</span>
-              <span className="ld-timeline-step-desc">Packaging and preparing garment for shipment</span>
+              <span className="ld-timeline-step-desc">
+                {isTerminal
+                  ? 'Preparation halted'
+                  : fulfilmentStatus === 'ready_to_ship' || fulfilmentStatus === 'shipped'
+                  ? 'Pieces inspected and cleared for dispatch'
+                  : paymentStatus === 'advance_paid'
+                  ? 'Held pending balance settlement'
+                  : paymentStatus === 'paid'
+                  ? 'Packaging pieces in atelier'
+                  : 'Awaiting payment verification'}
+              </span>
             </div>
           </div>
 
           {/* Step 4: Shipped */}
-          <div className="ld-timeline-step pending">
-            <div className="ld-timeline-icon-box">○</div>
+          <div
+            className={`ld-timeline-step ${
+              isTerminal
+                ? 'halted'
+                : fulfilmentStatus === 'shipped'
+                ? 'completed'
+                : fulfilmentStatus === 'ready_to_ship'
+                ? 'active'
+                : 'pending'
+            }`}
+          >
+            <div className="ld-timeline-icon-box">
+              {isTerminal
+                ? '✕'
+                : fulfilmentStatus === 'shipped'
+                ? '✓'
+                : fulfilmentStatus === 'ready_to_ship'
+                ? '●'
+                : '○'}
+            </div>
             <div className="ld-timeline-content">
               <span className="ld-timeline-step-title">Shipped</span>
-              <span className="ld-timeline-step-desc">Handed over to courier partner</span>
+              <span className="ld-timeline-step-desc">
+                {isTerminal
+                  ? 'Dispatch halted'
+                  : fulfilmentStatus === 'shipped'
+                  ? (courierPartner ? `Handed over to ${courierPartner}` : 'Handed over to courier partner')
+                  : fulfilmentStatus === 'ready_to_ship'
+                  ? 'Awaiting courier pickup'
+                  : 'Awaiting atelier completion'}
+              </span>
             </div>
           </div>
 
           {/* Step 5: Out for Delivery */}
-          <div className="ld-timeline-step pending">
-            <div className="ld-timeline-icon-box">○</div>
+          <div className={`ld-timeline-step ${isTerminal ? 'halted' : 'pending'}`}>
+            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : '○'}</div>
             <div className="ld-timeline-content">
               <span className="ld-timeline-step-title">Out for Delivery</span>
               <span className="ld-timeline-step-desc">Arriving at your delivery address</span>
@@ -229,8 +591,8 @@ export function CheckoutSuccessView({
           </div>
 
           {/* Step 6: Delivered */}
-          <div className="ld-timeline-step pending">
-            <div className="ld-timeline-icon-box">○</div>
+          <div className={`ld-timeline-step ${isTerminal ? 'halted' : 'pending'}`}>
+            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : '○'}</div>
             <div className="ld-timeline-content">
               <span className="ld-timeline-step-title">Delivered</span>
               <span className="ld-timeline-step-desc">Enjoy your handcrafted boutique piece</span>
@@ -281,6 +643,14 @@ export function CheckoutSuccessView({
 
         {/* Authoritative Database Financial Breakdown */}
         <div className="ld-success-breakdown">
+          {storeName && (
+            <div className="ld-summary-row border-b border-white/5 pb-2 mb-2">
+              <span className="ld-summary-label">Boutique Atelier</span>
+              <span className="ld-summary-value font-serif text-[#E2C27A] font-semibold" data-testid="success-store-name">
+                {storeName}
+              </span>
+            </div>
+          )}
           <div className="ld-summary-row">
             <span className="ld-summary-label">Authoritative Subtotal</span>
             <span className="ld-summary-value" data-testid="success-subtotal">
@@ -299,16 +669,41 @@ export function CheckoutSuccessView({
               {formatPaisaToINR(totalPaisa)}
             </span>
           </div>
+
+          {confirmationMode === 'advance' && (
+            <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5 text-xs">
+              <div className="ld-summary-row">
+                <span className="ld-summary-label text-[#AAA49A]">Advance Required</span>
+                <span className="ld-summary-value font-mono text-white/90" data-testid="success-advance-required">
+                  {formatPaisaToINR(advanceRequiredPaisa)}
+                </span>
+              </div>
+              <div className="ld-summary-row">
+                <span className="ld-summary-label text-[#AAA49A]">Advance Settled</span>
+                <span className="ld-summary-value font-mono text-[#22c55e]" data-testid="success-advance-paid">
+                  {formatPaisaToINR(advancePaidPaisa)}
+                </span>
+              </div>
+              <div className="ld-summary-row">
+                <span className="ld-summary-label text-[#E2C27A] font-semibold">Remaining Balance Due</span>
+                <span className="ld-summary-value font-mono text-[#E2C27A] font-bold" data-testid="success-balance-due">
+                  {formatPaisaToINR(balanceDuePaisa)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Direct UPI Payment & Manual Verification Section (TASK-2.4B) */}
-        <div data-testid="task-handoff-box">
-          <DirectUpiPaymentView
-            order={currentOrder}
-            orderToken={resolvedToken}
-            onOrderRefresh={(updated) => setCurrentOrder(updated)}
-          />
-        </div>
+        {!isTerminal && (
+          <div data-testid="task-handoff-box">
+            <DirectUpiPaymentView
+              order={currentOrder}
+              orderToken={resolvedToken}
+              onOrderRefresh={(updated) => setCurrentOrder(updated)}
+            />
+          </div>
+        )}
 
         {/* Navigation Return & Tracking Buttons */}
         <div className="ld-success-actions">
@@ -316,9 +711,10 @@ export function CheckoutSuccessView({
             <Link
               href={`/order/${orderId}?token=${resolvedToken}`}
               className="ld-btn-gold-cta ld-btn-track-order"
+              data-testid="success-track-order-link"
               style={{ minHeight: '48px', padding: '0 24px' }}
             >
-              Track Order Live
+              Track Order Live →
             </Link>
           )}
 
@@ -335,4 +731,3 @@ export function CheckoutSuccessView({
     </div>
   );
 }
-

@@ -4408,6 +4408,229 @@ body,
 }
 
 /* ==========================================================================
+   Phase 3: Order Tracking, Distinct Status Badges & Shipment Presentation
+   ========================================================================== */
+
+.ld-success-circle-terminal {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #F87171 !important;
+  background: rgba(127, 29, 29, 0.25) !important;
+}
+
+.ld-terminal-banner {
+  padding: 14px 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid;
+}
+
+.ld-terminal-banner-cancelled {
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.ld-terminal-banner-expired {
+  background: rgba(120, 53, 15, 0.35);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.ld-terminal-banner-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.ld-advance-balance-box {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.ld-payment-complete-box {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.ld-status-trio {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+}
+
+.ld-status-badge-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 calc(33.333% - 8px);
+  min-width: 90px;
+}
+
+.ld-status-badge-label {
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  color: #8A857D;
+  letter-spacing: 0.06em;
+}
+
+.ld-status-badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ld-status-badge-order-pending {
+  background: rgba(229, 169, 60, 0.12);
+  color: #FDE68A;
+  border-color: rgba(229, 169, 60, 0.35);
+}
+
+.ld-status-badge-order-confirmed {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93C5FD;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.ld-status-badge-order-paid {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86EFAC;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.ld-status-badge-order-shipped {
+  background: rgba(139, 92, 246, 0.12);
+  color: #C4B5FD;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.ld-status-badge-order-cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #FCA5A5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.ld-status-badge-order-expired {
+  background: rgba(156, 163, 175, 0.12);
+  color: #D1D5DB;
+  border-color: rgba(156, 163, 175, 0.35);
+}
+
+.ld-status-badge-payment-unpaid {
+  background: rgba(234, 179, 8, 0.12);
+  color: #FDE047;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+.ld-status-badge-payment-advance {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6EE7B7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.ld-status-badge-payment-paid {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86EFAC;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.ld-status-badge-fulfilment-not-ready {
+  background: rgba(107, 114, 128, 0.12);
+  color: #D1D5DB;
+  border-color: rgba(107, 114, 128, 0.35);
+}
+
+.ld-status-badge-fulfilment-ready {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93C5FD;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.ld-status-badge-fulfilment-shipped {
+  background: rgba(139, 92, 246, 0.12);
+  color: #C4B5FD;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.ld-shipment-card {
+  background: #141413;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.ld-shipment-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ld-shipment-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: #D4AF37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ld-timeline-step.halted .ld-timeline-icon-box {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #F87171;
+}
+
+.ld-timeline-step.halted .ld-timeline-step-title {
+  color: #FCA5A5;
+}
+
+.ld-timeline-step.held .ld-timeline-icon-box {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #FCD34D;
+}
+
+
+/* ==========================================================================
    Header Drop View Component Tokens (/drop/[slug])
    ========================================================================== */
 
