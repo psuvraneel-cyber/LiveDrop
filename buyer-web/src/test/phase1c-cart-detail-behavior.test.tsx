@@ -391,6 +391,62 @@ describe('Phase 1C: Comprehensive Cart & Product Detail Presentation', () => {
     expect(screen.getByText(/Persisted instruction/i)).toBeInTheDocument();
   });
 
+  // 8B. Explicit production storage key regression test
+  it('8B. Backward-compatible read from authoritative production key "livedrop_buyer_cart_v1"', () => {
+    expect(CART_STORAGE_KEY).toBe('livedrop_buyer_cart_v1');
+
+    // Seed directly using the raw literal production storage key
+    window.localStorage.setItem(
+      'livedrop_buyer_cart_v1',
+      JSON.stringify({
+        version: 1,
+        dropId: mockDrop.id,
+        items: [
+          {
+            productId: mockProduct02.id,
+            dropId: mockDrop.id,
+            code: mockProduct02.code,
+            title: mockProduct02.title,
+            pricePaisa: mockProduct02.price_paisa,
+            size: mockProduct02.size,
+            imageUrl: mockProduct02.image_url,
+            addedAt: 1727548800000,
+          },
+        ],
+        orderNote: 'Heritage gold zari packaging',
+        updatedAt: 1727548800000,
+      })
+    );
+    resetCartStore();
+
+    function TestHarness() {
+      const { isDrawerOpen, openDrawer, closeDrawer } = useCart();
+      return (
+        <div>
+          <button onClick={openDrawer} data-testid="open-cart-literal">
+            Open Bag
+          </button>
+          <CartDrawer isOpen={isDrawerOpen} onClose={closeDrawer} catalogProducts={[mockProduct02]} />
+        </div>
+      );
+    }
+
+    render(
+      <CartProvider>
+        <TestHarness />
+      </CartProvider>
+    );
+
+    fireEvent.click(screen.getByTestId('open-cart-literal'));
+
+    // Verify item from 'livedrop_buyer_cart_v1' is rendered accurately
+    expect(screen.getByTestId('cart-item-prod-02')).toBeInTheDocument();
+    expect(screen.getByText('Burgundy Brocade Corset')).toBeInTheDocument();
+    expect(screen.getByText('#V02')).toBeInTheDocument();
+    expect(screen.getByTestId('cart-subtotal')).toHaveTextContent('₹1,450');
+    expect(screen.getByText(/Heritage gold zari packaging/i)).toBeInTheDocument();
+  });
+
   // 9. Invalid or stale persisted cart item
   it('9. Stale/invalid cart items are flagged through catalog reconciliation', () => {
     const staleItems = [

@@ -425,6 +425,19 @@ function CheckoutPageContent() {
       />
 
       <main className="ld-container ld-checkout-main" role="main">
+        {/* Screen Reader Live Region for Form & Submission Status */}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {submissionStatus === 'submitting'
+            ? 'Reserving your items with database...'
+            : submissionStatus === 'network_ambiguous'
+            ? 'Connection warning. Please do not submit repeatedly.'
+            : submissionStatus === 'failure' && generalError
+            ? generalError
+            : collisionError
+            ? collisionError.message
+            : ''}
+        </div>
+
         {/* Breadcrumb Steps matching luxury template */}
         <div className="ld-checkout-breadcrumbs" aria-label="Checkout Progress">
           <div className="ld-step-item active">

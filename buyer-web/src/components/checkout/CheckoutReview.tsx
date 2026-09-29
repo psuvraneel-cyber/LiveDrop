@@ -48,19 +48,21 @@ export function CheckoutReview({
         <h2 id="order-summary-title" className="ld-checkout-card-title">
           Order Summary ({items.length} {items.length === 1 ? 'item' : 'items'})
         </h2>
+        <span className="ld-summary-mode-pill">Pre-reservation</span>
       </div>
 
       {/* Unavailable Items Warning Banner */}
       {hasUnavailableItems && (
-        <div className="ld-cart-alert-banner" data-testid="checkout-unavailable-banner">
+        <div className="ld-cart-alert-banner ld-checkout-alert" data-testid="checkout-unavailable-banner" role="alert">
           <svg
-            width="16"
-            height="16"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
             aria-hidden="true"
+            className="flex-shrink-0"
           >
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
@@ -180,7 +182,7 @@ export function CheckoutReview({
         {/* Hold Explanation Notice */}
         <div className="ld-cart-disclaimer ld-checkout-hold-notice" data-testid="checkout-hold-notice">
           <span className="ld-cart-disclaimer-icon" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
@@ -213,3 +215,4 @@ export function CheckoutReview({
     </section>
   );
 }
+

@@ -3208,6 +3208,20 @@ body,
   gap: 24px;
 }
 
+@media (min-width: 1024px) {
+  .ld-checkout-grid {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 32px;
+    align-items: start;
+  }
+
+  .ld-checkout-review-column {
+    position: sticky;
+    top: 88px;
+  }
+}
+
 .ld-checkout-section {
   background: var(--obsidian-surface);
   border: 1px solid var(--card-border);
@@ -3386,6 +3400,33 @@ body,
 .ld-checkout-item-size {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.ld-cart-remove-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  color: #FCA5A5;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.ld-cart-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  color: #FFFFFF;
+}
+
+.ld-cart-remove-btn:focus-visible {
+  outline: 2px solid #EF4444;
+  outline-offset: 2px;
 }
 
 .ld-checkout-pricing-card {
@@ -3712,21 +3753,30 @@ body,
 }
 
 .ld-copy-btn {
-  background: var(--obsidian);
-  border: 1px solid var(--card-border-gold);
-  color: var(--gold-primary);
-  font-size: 11px;
+  background: var(--ld-surface, #0d0f0d);
+  border: 1px solid var(--ld-border-gold, rgba(243, 198, 83, 0.26));
+  color: var(--ld-gold, #f3c653);
+  font-size: 12px;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: 6px;
   cursor: pointer;
-  min-height: 32px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s ease;
 }
 
 .ld-copy-btn:hover {
-  background: var(--gold-gradient);
-  color: #0C0C0E;
+  background: var(--ld-gold-gradient, linear-gradient(135deg, #ffe18e 0%, #f3c653 50%, #d49a1c 100%));
+  color: #0c0c0e;
+}
+
+.ld-copy-btn:focus-visible {
+  outline: 2px solid var(--ld-gold, #f3c653);
+  outline-offset: 2px;
 }
 
 .ld-intent-cta-wrap {
@@ -3757,7 +3807,7 @@ body,
 }
 
 .ld-btn-claim {
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 20px;
   background: var(--gold-gradient);
   color: #0C0C0E;
@@ -3767,7 +3817,280 @@ body,
   font-weight: 700;
   cursor: pointer;
   box-shadow: var(--shadow-gold);
+  transition: all 0.15s ease;
 }
+
+.ld-btn-claim:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ld-btn-claim:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Direct UPI Payment Verification & State Screens */
+.ld-payment-box {
+  background: var(--ld-surface, #0d0f0d);
+  border: 1px solid var(--ld-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--ld-radius, 18px);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--ld-shadow, 0 18px 60px rgba(0, 0, 0, 0.34));
+}
+
+.ld-payment-box-verified {
+  border-color: rgba(50, 210, 150, 0.35);
+  background: linear-gradient(180deg, rgba(50, 210, 150, 0.08) 0%, rgba(13, 15, 13, 0.98) 100%);
+  box-shadow: 0 0 40px rgba(50, 210, 150, 0.08);
+}
+
+.ld-payment-box-terminal {
+  border-color: rgba(255, 55, 95, 0.25);
+  background: rgba(26, 13, 17, 0.4);
+}
+
+.ld-payment-headline {
+  font-family: var(--font-display, serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ld-text-primary, #f8f4ec);
+  margin: 0;
+}
+
+.ld-payment-subtext {
+  font-size: 14px;
+  color: var(--ld-text-secondary, rgba(248, 244, 236, 0.72));
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ld-payment-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  padding: 14px;
+  background: var(--ld-surface-elevated, #121512);
+  border: 1px solid var(--ld-border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.ld-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ld-meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ld-text-muted, #b7b0a4);
+}
+
+.ld-meta-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ld-text-primary, #f8f4ec);
+}
+
+.ld-text-emerald {
+  color: var(--ld-success, #32d296) !important;
+}
+
+.ld-badge-ready {
+  color: var(--ld-success, #32d296);
+  font-weight: 700;
+}
+
+.ld-payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 12px;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.ld-badge-paid {
+  background: rgba(50, 210, 150, 0.16);
+  color: var(--ld-success, #32d296);
+  border: 1px solid rgba(50, 210, 150, 0.35);
+}
+
+.ld-badge-expired {
+  background: rgba(255, 55, 95, 0.15);
+  color: var(--ld-live, #ff375f);
+  border: 1px solid rgba(255, 55, 95, 0.3);
+}
+
+.ld-badge-waiting {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--ld-warning, #f59e0b);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ld-claim-submitted-box {
+  background: var(--ld-surface-elevated, #121512);
+  border: 1px solid var(--ld-border-gold, rgba(243, 198, 83, 0.26));
+  border-radius: var(--ld-radius, 18px);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ld-claim-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: rgba(243, 198, 83, 0.14);
+  border: 1px solid var(--ld-border-gold, rgba(243, 198, 83, 0.26));
+  border-radius: var(--radius-pill, 9999px);
+  color: var(--ld-gold-soft, #ffe6a3);
+  font-size: 12px;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.ld-claim-badge.ld-badge-error {
+  background: rgba(255, 55, 95, 0.14);
+  border-color: rgba(255, 55, 95, 0.3);
+  color: #ff859f;
+}
+
+.ld-claim-headline {
+  font-family: var(--font-display, serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ld-text-primary, #f8f4ec);
+  margin: 0;
+}
+
+.ld-claim-text {
+  font-size: 13px;
+  color: var(--ld-text-secondary, rgba(248, 244, 236, 0.72));
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ld-claim-rejected-box {
+  background: rgba(45, 20, 28, 0.4);
+  border: 1px solid rgba(255, 55, 95, 0.3);
+  border-radius: var(--ld-radius, 18px);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ld-reject-desc {
+  font-size: 14px;
+  color: #fca5a5;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ld-reject-action {
+  font-size: 13px;
+  color: var(--ld-text-secondary, rgba(248, 244, 236, 0.72));
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ld-utr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.ld-utr-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ld-text-secondary, rgba(248, 244, 236, 0.72));
+}
+
+.ld-utr-input-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ld-utr-input {
+  flex: 1;
+  min-width: 220px;
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--ld-surface-elevated, #121512);
+  border: 1px solid var(--ld-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 16px;
+  color: var(--ld-text-primary, #f8f4ec);
+  letter-spacing: 0.05em;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ld-utr-input:focus {
+  outline: none;
+  border-color: var(--ld-gold, #f3c653);
+  box-shadow: 0 0 0 2px rgba(243, 198, 83, 0.25);
+}
+
+.ld-utr-input.ld-input-error {
+  border-color: var(--ld-live, #ff375f);
+  background: rgba(255, 55, 95, 0.06);
+}
+
+.ld-form-instruction {
+  font-size: 13px;
+  color: var(--ld-text-secondary, rgba(248, 244, 236, 0.72));
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ld-claim-disclaimer {
+  font-size: 12px;
+  color: var(--ld-text-muted, #b7b0a4);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ld-submitted-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--ld-surface, #0d0f0d);
+  border: 1px solid var(--ld-border, rgba(255, 255, 255, 0.06));
+  border-radius: 8px;
+}
+
+.ld-sub-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ld-text-secondary, rgba(248, 244, 236, 0.72));
+}
+
+.ld-sub-row strong {
+  color: var(--ld-text-primary, #f8f4ec);
+  font-weight: 600;
+}
+
 
 /* ==========================================================================
    Order Confirmation & Tracking Timeline (Screen 6)

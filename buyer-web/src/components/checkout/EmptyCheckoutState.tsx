@@ -8,12 +8,12 @@ export function EmptyCheckoutState() {
     <div className="ld-checkout-empty" data-testid="checkout-empty-state">
       <div className="ld-checkout-empty-icon" aria-hidden="true">
         <svg
-          width="36"
-          height="36"
+          width="40"
+          height="40"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="1.75"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
@@ -26,9 +26,10 @@ export function EmptyCheckoutState() {
       <p className="ld-checkout-empty-desc">
         There are no items to check out. Visit a live drop to select garments before reserving.
       </p>
-      <Link href="/" className="ld-btn-browse" data-testid="checkout-browse-btn">
+      <Link href="/" className="ld-btn-browse ld-btn-gold-cta" data-testid="checkout-browse-btn">
         Browse Live Drops
       </Link>
     </div>
   );
 }
+

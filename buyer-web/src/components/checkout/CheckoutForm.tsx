@@ -22,12 +22,14 @@ export function CheckoutForm({
 }: CheckoutFormProps) {
   return (
     <section className="ld-checkout-section" aria-labelledby="delivery-info-title">
-      <h2 id="delivery-info-title" className="ld-checkout-card-title">
-        Delivery Information
-      </h2>
-      <p className="ld-checkout-card-subtitle">
-        Enter the delivery details for your order. Only required fulfillment details are collected.
-      </p>
+      <div className="ld-checkout-section-header">
+        <h2 id="delivery-info-title" className="ld-checkout-card-title">
+          Delivery Information
+        </h2>
+        <p className="ld-checkout-card-subtitle">
+          Enter the delivery details for your order. Only required fulfillment details are collected.
+        </p>
+      </div>
 
       <div className="ld-checkout-form-fields">
         {/* Full Name */}
@@ -35,25 +37,32 @@ export function CheckoutForm({
           <label htmlFor="buyer_name" className="ld-form-label">
             Full Name <span className="ld-required-star" aria-hidden="true">*</span>
           </label>
-          <input
-            id="buyer_name"
-            name="buyer_name"
-            type="text"
-            className={`ld-form-input ${touched.buyer_name && errors.buyer_name ? 'invalid' : ''}`}
-            placeholder="e.g. Sangeeta Mukherjee"
-            value={form.buyer_name}
-            disabled={isSubmitting}
-            autoComplete="name"
-            aria-required="true"
-            aria-invalid={Boolean(touched.buyer_name && errors.buyer_name)}
-            aria-describedby={touched.buyer_name && errors.buyer_name ? 'error-buyer_name' : undefined}
-            onChange={(e) => onChange('buyer_name', e.target.value)}
-            onBlur={() => onBlur('buyer_name')}
-            data-testid="input-buyer-name"
-          />
+          <div className="ld-input-wrapper">
+            <input
+              id="buyer_name"
+              name="buyer_name"
+              type="text"
+              className={`ld-form-input ${touched.buyer_name && errors.buyer_name ? 'invalid' : ''}`}
+              placeholder="e.g. Sangeeta Mukherjee"
+              value={form.buyer_name}
+              disabled={isSubmitting}
+              autoComplete="name"
+              aria-required="true"
+              aria-invalid={Boolean(touched.buyer_name && errors.buyer_name)}
+              aria-describedby={touched.buyer_name && errors.buyer_name ? 'error-buyer_name' : undefined}
+              onChange={(e) => onChange('buyer_name', e.target.value)}
+              onBlur={() => onBlur('buyer_name')}
+              data-testid="input-buyer-name"
+            />
+          </div>
           {touched.buyer_name && errors.buyer_name && (
             <p id="error-buyer_name" className="ld-field-error" role="alert" data-testid="error-buyer-name">
-              {errors.buyer_name}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ld-field-error-icon">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{errors.buyer_name}</span>
             </p>
           )}
         </div>
@@ -63,26 +72,33 @@ export function CheckoutForm({
           <label htmlFor="buyer_phone" className="ld-form-label">
             Mobile Number (WhatsApp) <span className="ld-required-star" aria-hidden="true">*</span>
           </label>
-          <input
-            id="buyer_phone"
-            name="buyer_phone"
-            type="tel"
-            className={`ld-form-input ${touched.buyer_phone && errors.buyer_phone ? 'invalid' : ''}`}
-            placeholder="10-digit Indian mobile number"
-            value={form.buyer_phone}
-            disabled={isSubmitting}
-            autoComplete="tel"
-            inputMode="numeric"
-            aria-required="true"
-            aria-invalid={Boolean(touched.buyer_phone && errors.buyer_phone)}
-            aria-describedby={touched.buyer_phone && errors.buyer_phone ? 'error-buyer_phone' : 'hint-buyer_phone'}
-            onChange={(e) => onChange('buyer_phone', e.target.value)}
-            onBlur={() => onBlur('buyer_phone')}
-            data-testid="input-buyer-phone"
-          />
+          <div className="ld-input-wrapper">
+            <input
+              id="buyer_phone"
+              name="buyer_phone"
+              type="tel"
+              className={`ld-form-input ${touched.buyer_phone && errors.buyer_phone ? 'invalid' : ''}`}
+              placeholder="10-digit Indian mobile number"
+              value={form.buyer_phone}
+              disabled={isSubmitting}
+              autoComplete="tel"
+              inputMode="numeric"
+              aria-required="true"
+              aria-invalid={Boolean(touched.buyer_phone && errors.buyer_phone)}
+              aria-describedby={touched.buyer_phone && errors.buyer_phone ? 'error-buyer_phone' : 'hint-buyer_phone'}
+              onChange={(e) => onChange('buyer_phone', e.target.value)}
+              onBlur={() => onBlur('buyer_phone')}
+              data-testid="input-buyer-phone"
+            />
+          </div>
           {touched.buyer_phone && errors.buyer_phone ? (
             <p id="error-buyer_phone" className="ld-field-error" role="alert" data-testid="error-buyer-phone">
-              {errors.buyer_phone}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ld-field-error-icon">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{errors.buyer_phone}</span>
             </p>
           ) : (
             <span id="hint-buyer_phone" className="ld-form-hint">
@@ -96,27 +112,34 @@ export function CheckoutForm({
           <label htmlFor="pincode" className="ld-form-label">
             Delivery Pincode <span className="ld-required-star" aria-hidden="true">*</span>
           </label>
-          <input
-            id="pincode"
-            name="pincode"
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            className={`ld-form-input ${touched.pincode && errors.pincode ? 'invalid' : ''}`}
-            placeholder="6-digit pincode (e.g. 700019)"
-            value={form.pincode}
-            disabled={isSubmitting}
-            autoComplete="postal-code"
-            aria-required="true"
-            aria-invalid={Boolean(touched.pincode && errors.pincode)}
-            aria-describedby={touched.pincode && errors.pincode ? 'error-pincode' : undefined}
-            onChange={(e) => onChange('pincode', e.target.value)}
-            onBlur={() => onBlur('pincode')}
-            data-testid="input-pincode"
-          />
+          <div className="ld-input-wrapper">
+            <input
+              id="pincode"
+              name="pincode"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              className={`ld-form-input ${touched.pincode && errors.pincode ? 'invalid' : ''}`}
+              placeholder="6-digit pincode (e.g. 700019)"
+              value={form.pincode}
+              disabled={isSubmitting}
+              autoComplete="postal-code"
+              aria-required="true"
+              aria-invalid={Boolean(touched.pincode && errors.pincode)}
+              aria-describedby={touched.pincode && errors.pincode ? 'error-pincode' : undefined}
+              onChange={(e) => onChange('pincode', e.target.value)}
+              onBlur={() => onBlur('pincode')}
+              data-testid="input-pincode"
+            />
+          </div>
           {touched.pincode && errors.pincode && (
             <p id="error-pincode" className="ld-field-error" role="alert" data-testid="error-pincode">
-              {errors.pincode}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ld-field-error-icon">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{errors.pincode}</span>
             </p>
           )}
         </div>
@@ -126,25 +149,32 @@ export function CheckoutForm({
           <label htmlFor="shipping_address" className="ld-form-label">
             Full Street Address <span className="ld-required-star" aria-hidden="true">*</span>
           </label>
-          <textarea
-            id="shipping_address"
-            name="shipping_address"
-            rows={3}
-            className={`ld-form-textarea ${touched.shipping_address && errors.shipping_address ? 'invalid' : ''}`}
-            placeholder="Flat/House no., building, street name, landmark"
-            value={form.shipping_address}
-            disabled={isSubmitting}
-            autoComplete="street-address"
-            aria-required="true"
-            aria-invalid={Boolean(touched.shipping_address && errors.shipping_address)}
-            aria-describedby={touched.shipping_address && errors.shipping_address ? 'error-shipping_address' : undefined}
-            onChange={(e) => onChange('shipping_address', e.target.value)}
-            onBlur={() => onBlur('shipping_address')}
-            data-testid="input-shipping-address"
-          />
+          <div className="ld-input-wrapper">
+            <textarea
+              id="shipping_address"
+              name="shipping_address"
+              rows={3}
+              className={`ld-form-textarea ${touched.shipping_address && errors.shipping_address ? 'invalid' : ''}`}
+              placeholder="Flat/House no., building, street name, landmark"
+              value={form.shipping_address}
+              disabled={isSubmitting}
+              autoComplete="street-address"
+              aria-required="true"
+              aria-invalid={Boolean(touched.shipping_address && errors.shipping_address)}
+              aria-describedby={touched.shipping_address && errors.shipping_address ? 'error-shipping_address' : undefined}
+              onChange={(e) => onChange('shipping_address', e.target.value)}
+              onBlur={() => onBlur('shipping_address')}
+              data-testid="input-shipping-address"
+            />
+          </div>
           {touched.shipping_address && errors.shipping_address && (
             <p id="error-shipping_address" className="ld-field-error" role="alert" data-testid="error-shipping-address">
-              {errors.shipping_address}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ld-field-error-icon">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{errors.shipping_address}</span>
             </p>
           )}
         </div>
@@ -152,3 +182,4 @@ export function CheckoutForm({
     </section>
   );
 }
+

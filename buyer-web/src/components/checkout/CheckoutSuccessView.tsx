@@ -315,13 +315,19 @@ export function CheckoutSuccessView({
           {orderId && resolvedToken && (
             <Link
               href={`/order/${orderId}?token=${resolvedToken}`}
-              className="ld-btn-gold-cta"
+              className="ld-btn-gold-cta ld-btn-track-order"
+              style={{ minHeight: '48px', padding: '0 24px' }}
             >
               Track Order Live
             </Link>
           )}
 
-          <Link href={backLink} className="ld-btn-browse" data-testid="success-back-drop-btn">
+          <Link
+            href={backLink}
+            className="ld-btn-browse ld-btn-continue-shopping"
+            data-testid="success-back-drop-btn"
+            style={{ minHeight: '48px', padding: '0 24px' }}
+          >
             Continue Shopping
           </Link>
         </div>
@@ -329,3 +335,4 @@ export function CheckoutSuccessView({
     </div>
   );
 }
+

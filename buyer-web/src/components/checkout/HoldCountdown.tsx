@@ -39,8 +39,24 @@ export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
 
   if (secondsRemaining <= 0) {
     return (
-      <div className="ld-hold-timer-pill expired" data-testid="hold-countdown-expired">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ld-hold-timer-icon" aria-hidden="true">
+      <div
+        className="ld-hold-timer-pill expired"
+        data-testid="hold-countdown-expired"
+        role="status"
+        aria-live="polite"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="ld-hold-timer-icon flex-shrink-0"
+          aria-hidden="true"
+        >
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
@@ -54,8 +70,24 @@ export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
   const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
   return (
-    <div className="ld-hold-timer-pill" data-testid="hold-countdown">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ld-hold-timer-icon" aria-hidden="true">
+    <div
+      className="ld-hold-timer-pill"
+      data-testid="hold-countdown"
+      role="timer"
+      aria-label={`Reservation hold remaining: ${minutes} minutes ${seconds} seconds`}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="ld-hold-timer-icon flex-shrink-0"
+        aria-hidden="true"
+      >
         <circle cx="12" cy="12" r="10" />
         <polyline points="12 6 12 12 16 14" />
       </svg>
@@ -65,3 +97,4 @@ export function HoldCountdown({ expiresAt }: HoldCountdownProps) {
     </div>
   );
 }
+

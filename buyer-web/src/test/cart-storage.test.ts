@@ -25,6 +25,10 @@ describe('TASK-2.2: Cart Storage & Schema Validation', () => {
     window.localStorage.clear();
   });
 
+  it('asserts that CART_STORAGE_KEY is strictly "livedrop_buyer_cart_v1"', () => {
+    expect(CART_STORAGE_KEY).toBe('livedrop_buyer_cart_v1');
+  });
+
   it('creates a clean empty cart snapshot', () => {
     const empty = createEmptyCart('drop-01');
     expect(empty.version).toBe(CURRENT_CART_SCHEMA_VERSION);

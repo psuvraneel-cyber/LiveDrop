@@ -98,6 +98,7 @@ export function DirectUpiPaymentView({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isUpiAppOpened, setIsUpiAppOpened] = useState<boolean>(false);
 
   // Synchronize internal state if order prop changes from parent
   const [prevOrder, setPrevOrder] = useState(order);
@@ -608,8 +609,30 @@ export function DirectUpiPaymentView({
               </div>
             )}
           </div>
+          <div
+            className="ld-shipping-blocked-notice"
+            data-testid="shipping-blocked-balance-notice"
+            style={{
+              marginTop: '10px',
+              padding: '8px 12px',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#FDE68A',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span aria-hidden="true">⚠️</span>
+            <span>
+              Garment preparation is underway. Shipment and courier dispatch are held until the remaining balance ({formatPaisaToINR(order.balance_due_paisa)}) is settled.
+            </span>
+          </div>
         </div>
       )}
+
 
       {/* Main Payment Card */}
       <div className="ld-upi-card">
@@ -756,6 +779,7 @@ export function DirectUpiPaymentView({
                       data-testid="pay-with-upi-intent-btn"
                       target="_self"
                       rel="noopener noreferrer"
+                      onClick={() => setIsUpiAppOpened(true)}
                     >
                       Pay {formatPaisaToINR(activeAttempt.expected_amount_paisa)} with UPI App
                     </a>
@@ -764,8 +788,46 @@ export function DirectUpiPaymentView({
                     </span>
                   </div>
                 )}
+
+                {/* Explicit indicator when UPI App was opened */}
+                {isUpiAppOpened && (
+                  <div
+                    className="ld-upi-app-opened-banner"
+                    data-testid="upi-app-opened-banner"
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      marginTop: '10px',
+                      padding: '10px 14px',
+                      backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                      border: '1px solid rgba(212, 175, 55, 0.3)',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      color: 'var(--gold-light, #F5D78E)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <span
+                      className="ld-status-dot"
+                      style={{
+                        backgroundColor: 'var(--gold-primary, #D4AF37)',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <strong>UPI App Opened:</strong> Complete the transfer in your app, then submit the 12-digit UTR below. Opening a UPI link does not complete payment.
+                    </span>
+                  </div>
+                )}
               </>
             )}
+
 
             {/* Claim / UTR Submission Workflow */}
             <div className="ld-claim-section" data-testid="payment-claim-section">
@@ -1016,6 +1078,26 @@ export function DirectUpiPaymentView({
           </a>
         </div>
       </div>
+
+      {/* Screen Reader Live Region for Payment Status */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {isPaidInFull
+          ? 'Full payment verified by boutique. Order confirmed.'
+          : isAdvancePaid
+          ? 'Advance payment verified by boutique. Remaining balance due.'
+          : isClaimUnderReview
+          ? 'Payment claim submitted. Awaiting boutique verification.'
+          : activeAttempt?.status === 'rejected'
+          ? 'Payment claim could not be verified by boutique. Please re-submit your UTR.'
+          : isExpiredClaim
+          ? 'Payment verification window elapsed.'
+          : isTerminal
+          ? 'Order is cancelled.'
+          : isUpiAppOpened
+          ? 'UPI App opened. Please submit your UTR after paying.'
+          : 'Awaiting direct UPI payment.'}
+      </div>
     </div>
   );
 }
+

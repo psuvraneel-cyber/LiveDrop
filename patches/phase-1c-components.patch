@@ -1,0 +1,541 @@
+diff --git a/buyer-web/src/app/cart/page.tsx b/buyer-web/src/app/cart/page.tsx
+index bf6362c..e4487b4 100644
+--- a/buyer-web/src/app/cart/page.tsx
++++ b/buyer-web/src/app/cart/page.tsx
+@@ -112,7 +112,7 @@ function CartPageContent() {
+             <button
+               type="button"
+               onClick={clearCart}
+-              className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors"
++              className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors min-h-[44px] px-2 flex items-center cursor-pointer"
+               data-testid="cart-page-clear-btn"
+             >
+               Clear
+@@ -122,6 +122,13 @@ function CartPageContent() {
+       />
+ 
+       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4" role="main">
++        {/* Screen-reader polite live region for cart updates */}
++        <div className="sr-only" aria-live="polite" aria-atomic="true">
++          {items.length === 0
++            ? 'Your shopping bag is empty'
++            : `Shopping bag contains ${itemCount} piece${itemCount > 1 ? 's' : ''}, payable subtotal ${formatPaisaToINR(payableSubtotalPaisa)}`}
++        </div>
++
+         {/* Informational Stock Notice - shown only when there are available items */}
+         {items.length > 0 && availableItems.length > 0 && (
+           <div className="p-3 rounded-xl bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-start gap-2.5 text-xs text-[#F3E5AB]">
+@@ -153,7 +160,7 @@ function CartPageContent() {
+                   .filter((item) => !item.isAvailable)
+                   .forEach((item) => removeItem(item.productId));
+               }}
+-              className="px-3 py-1 rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-200 border border-red-500/30 text-[11px] font-sans font-medium transition-colors flex-shrink-0"
++              className="px-3.5 py-2 min-h-[44px] rounded-full bg-red-900/50 hover:bg-red-800/70 text-red-200 border border-red-500/30 text-[11px] font-sans font-medium transition-colors flex items-center justify-center flex-shrink-0 cursor-pointer"
+               data-testid="page-cart-remove-unavailable-btn"
+             >
+               {availableItems.length === 0 ? 'Remove' : 'Remove unavailable'}
+diff --git a/buyer-web/src/components/ProductCard.tsx b/buyer-web/src/components/ProductCard.tsx
+index c665b6e..bff4258 100644
+--- a/buyer-web/src/components/ProductCard.tsx
++++ b/buyer-web/src/components/ProductCard.tsx
+@@ -20,8 +20,18 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
+   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+   const [isDetailOpen, setIsDetailOpen] = useState(false);
+   const [isFavorite, setIsFavorite] = useState(false);
++  const cardRef = React.useRef<HTMLElement>(null);
+   const cart = useOptionalCart();
+ 
++  const handleOpenDetail = () => {
++    setIsDetailOpen(true);
++  };
++
++  const handleCloseDetail = () => {
++    setIsDetailOpen(false);
++    cardRef.current?.focus();
++  };
++
+   const isAvailable = product.status === 'available';
+   const isReserved = product.status === 'reserved';
+   const isSold = product.status === 'sold';
+@@ -69,10 +79,21 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
+   return (
+     <>
+       <article
++        ref={cardRef}
++        tabIndex={0}
++        role="button"
++        aria-haspopup="dialog"
++        aria-expanded={isDetailOpen}
+         className={`ld-product-card ${!isAvailable ? 'unavailable' : ''}`}
+         data-testid={`product-card-${product.id}`}
+         aria-label={`${product.code}: ${product.title} - ${formatPaisaToINR(product.price_paisa)} - ${statusText}`}
+-        onClick={() => setIsDetailOpen(true)}
++        onClick={handleOpenDetail}
++        onKeyDown={(e) => {
++          if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
++            e.preventDefault();
++            handleOpenDetail();
++          }
++        }}
+       >
+       {/* Media Thumbnail Container (3:4 aspect ratio) */}
+       <div className="ld-card-media relative">
+@@ -88,13 +109,16 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
+         {/* Favorite Heart Button (Top-Right) */}
+         <button
+           type="button"
+-          className={`ld-card-heart-btn absolute top-2 right-2 w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
++          className={`ld-card-heart-btn absolute top-2 right-2 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center transition-colors z-10 cursor-pointer ${
+             isFavorite ? 'text-[#D4AF37]' : 'text-white/80 hover:text-white'
+           }`}
+           onClick={(e) => {
+             e.stopPropagation();
+             setIsFavorite(!isFavorite);
+           }}
++          onKeyDown={(e) => {
++            e.stopPropagation();
++          }}
+           aria-label={isFavorite ? `Remove ${product.title} from favorites` : `Add ${product.title} to favorites`}
+           data-testid={`favorite-btn-${product.id}`}
+         >
+@@ -246,7 +270,7 @@ export function ProductCard({ product, dropId, storeName, onAddToCart }: Product
+     <ProductDetailModal
+       product={product}
+       isOpen={isDetailOpen}
+-      onClose={() => setIsDetailOpen(false)}
++      onClose={handleCloseDetail}
+       dropId={dropId}
+       storeName={storeName}
+       onAddToCart={onAddToCart}
+diff --git a/buyer-web/src/components/ProductDetailModal.tsx b/buyer-web/src/components/ProductDetailModal.tsx
+index 57b0470..12dd743 100644
+--- a/buyer-web/src/components/ProductDetailModal.tsx
++++ b/buyer-web/src/components/ProductDetailModal.tsx
+@@ -1,6 +1,6 @@
+ 'use client';
+ 
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useRef } from 'react';
+ import { useRouter } from 'next/navigation';
+ import { PublicProductView } from '../types/domain';
+ import { formatPaisaToINR } from '../lib/utils/currency';
+@@ -22,9 +22,9 @@ export function ProductDetailModal({
+   isOpen,
+   onClose,
+   dropId,
+-  storeName = 'Priya Boutique',
+-  storeRating = '4.9',
+-  storeReviewsCount = 128,
++  storeName = 'LiveDrop Boutique',
++  storeRating,
++  storeReviewsCount,
+   onAddToCart,
+ }: ProductDetailModalProps) {
+   const router = useRouter();
+@@ -36,6 +36,9 @@ export function ProductDetailModal({
+   const [isWishlisted, setIsWishlisted] = useState(false);
+   const [copiedLink, setCopiedLink] = useState(false);
+ 
++  const sheetRef = useRef<HTMLDivElement>(null);
++  const previousActiveElement = useRef<HTMLElement | null>(null);
++
+   // Reset active image when product changes
+   if (product?.id !== prevProductId) {
+     setPrevProductId(product?.id);
+@@ -56,6 +59,57 @@ export function ProductDetailModal({
+     };
+   }, [isOpen]);
+ 
++  // Focus trap and focus restoration
++  useEffect(() => {
++    if (isOpen) {
++      previousActiveElement.current = document.activeElement as HTMLElement | null;
++      const timer = setTimeout(() => {
++        const closeBtn = sheetRef.current?.querySelector<HTMLElement>('[data-testid="product-detail-close-btn"]');
++        if (closeBtn) {
++          closeBtn.focus();
++        } else {
++          sheetRef.current?.focus();
++        }
++      }, 50);
++      return () => clearTimeout(timer);
++    } else if (previousActiveElement.current) {
++      previousActiveElement.current.focus();
++      previousActiveElement.current = null;
++    }
++  }, [isOpen]);
++
++  // Tab key focus trap
++  useEffect(() => {
++    if (!isOpen) return;
++
++    const handleTabKey = (e: KeyboardEvent) => {
++      if (e.key !== 'Tab' || !sheetRef.current) return;
++
++      const focusables = sheetRef.current.querySelectorAll<HTMLElement>(
++        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
++      );
++      if (focusables.length === 0) return;
++
++      const first = focusables[0];
++      const last = focusables[focusables.length - 1];
++
++      if (e.shiftKey) {
++        if (document.activeElement === first) {
++          e.preventDefault();
++          last.focus();
++        }
++      } else {
++        if (document.activeElement === last) {
++          e.preventDefault();
++          first.focus();
++        }
++      }
++    };
++
++    window.addEventListener('keydown', handleTabKey);
++    return () => window.removeEventListener('keydown', handleTabKey);
++  }, [isOpen]);
++
+   // Escape key listener
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+@@ -161,9 +215,6 @@ export function ProductDetailModal({
+   } else if (isSold) {
+     stockBadge = 'Sold Out';
+     stockBadgeClass = 'ld-badge-sold';
+-  } else if (product.quantity_available && product.quantity_available <= 3) {
+-    stockBadge = `Only ${product.quantity_available} Left`;
+-    stockBadgeClass = 'ld-badge-urgent';
+   }
+ 
+   return (
+@@ -177,9 +228,15 @@ export function ProductDetailModal({
+     >
+       <div
+         className="ld-product-sheet"
++        ref={sheetRef}
+         onClick={(e) => e.stopPropagation()}
+         data-testid={`product-detail-sheet-${product.id}`}
+       >
++        {/* Screen-reader polite live region for availability and cart state */}
++        <div className="sr-only" aria-live="polite" aria-atomic="true">
++          Status: {isAvailable ? 'In Stock' : isReserved ? 'On Hold' : 'Sold'}. {inCart ? 'This piece is in your shopping bag.' : ''}
++        </div>
++
+         {/* Mobile Pull Indicator */}
+         <div className="ld-sheet-handle-bar" aria-hidden="true">
+           <div className="ld-sheet-handle" />
+@@ -362,16 +419,22 @@ export function ProductDetailModal({
+               </div>
+               <div className="ld-sheet-boutique-meta">
+                 <span className="ld-sheet-boutique-name">{storeName}</span>
+-                <span className="ld-sheet-boutique-rating">
+-                  ★ {storeRating} ({storeReviewsCount} verified reviews)
+-                </span>
++                {storeRating ? (
++                  <span className="ld-sheet-boutique-rating">
++                    ★ {storeRating} {storeReviewsCount ? `(${storeReviewsCount} reviews)` : ''}
++                  </span>
++                ) : (
++                  <span className="ld-sheet-boutique-rating">
++                    ✦ Verified Atelier • Handcrafted Originals
++                  </span>
++                )}
+               </div>
+               <button
+                 type="button"
+                 className="ld-sheet-boutique-btn"
+                 onClick={onClose}
+               >
+-                View Shop
++                Done
+               </button>
+             </div>
+           </div>
+diff --git a/buyer-web/src/components/cart/CartDrawer.tsx b/buyer-web/src/components/cart/CartDrawer.tsx
+index b34750a..ca31fd1 100644
+--- a/buyer-web/src/components/cart/CartDrawer.tsx
++++ b/buyer-web/src/components/cart/CartDrawer.tsx
+@@ -43,6 +43,7 @@ export function CartDrawer({
+   const [noteDraft, setNoteDraft] = useState(orderNote);
+   const [prevOrderNote, setPrevOrderNote] = useState(orderNote);
+   const drawerRef = useRef<HTMLDivElement>(null);
++  const previousActiveElement = useRef<HTMLElement | null>(null);
+   const router = useRouter();
+ 
+   if (prevOrderNote !== orderNote) {
+@@ -50,6 +51,57 @@ export function CartDrawer({
+     setNoteDraft(orderNote);
+   }
+ 
++  // Focus trap and focus restoration
++  useEffect(() => {
++    if (isOpen) {
++      previousActiveElement.current = document.activeElement as HTMLElement | null;
++      const timer = setTimeout(() => {
++        const closeBtn = drawerRef.current?.querySelector<HTMLElement>('[data-testid="cart-drawer-close"]');
++        if (closeBtn) {
++          closeBtn.focus();
++        } else {
++          drawerRef.current?.focus();
++        }
++      }, 50);
++      return () => clearTimeout(timer);
++    } else if (previousActiveElement.current) {
++      previousActiveElement.current.focus();
++      previousActiveElement.current = null;
++    }
++  }, [isOpen]);
++
++  // Tab key trap inside drawer
++  useEffect(() => {
++    if (!isOpen) return;
++
++    const handleTabKey = (e: KeyboardEvent) => {
++      if (e.key !== 'Tab' || !drawerRef.current) return;
++
++      const focusables = drawerRef.current.querySelectorAll<HTMLElement>(
++        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
++      );
++      if (focusables.length === 0) return;
++
++      const first = focusables[0];
++      const last = focusables[focusables.length - 1];
++
++      if (e.shiftKey) {
++        if (document.activeElement === first) {
++          e.preventDefault();
++          last.focus();
++        }
++      } else {
++        if (document.activeElement === last) {
++          e.preventDefault();
++          first.focus();
++        }
++      }
++    };
++
++    window.addEventListener('keydown', handleTabKey);
++    return () => window.removeEventListener('keydown', handleTabKey);
++  }, [isOpen]);
++
+   // Close on Escape key
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+@@ -120,13 +172,20 @@ export function CartDrawer({
+         aria-labelledby="cart-drawer-title"
+         data-testid="cart-drawer"
+       >
++        {/* Screen-reader polite announcement */}
++        <div className="sr-only" aria-live="polite" aria-atomic="true">
++          {itemCount === 0
++            ? 'Your shopping bag is empty'
++            : `Shopping bag with ${itemCount} piece${itemCount > 1 ? 's' : ''}, subtotal ${formatPaisaToINR(payableSubtotalPaisa)}`}
++        </div>
++
+         {/* 1. Header: Back Arrow '<' + Title 'Your Cart (N)' */}
+         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0 bg-[#08080A]/95 backdrop-blur-md z-10">
+           <div className="flex items-center gap-3">
+             <button
+               type="button"
+               onClick={onClose}
+-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors"
++              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
+               aria-label="Back to shopping"
+               data-testid="cart-back-btn"
+             >
+@@ -145,7 +204,7 @@ export function CartDrawer({
+               <button
+                 type="button"
+                 onClick={clearCart}
+-                className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors"
++                className="text-xs text-white/40 hover:text-red-400 font-mono transition-colors min-h-[44px] px-2 flex items-center cursor-pointer"
+                 data-testid="cart-clear-btn"
+               >
+                 Clear
+@@ -154,7 +213,7 @@ export function CartDrawer({
+             <button
+               type="button"
+               onClick={onClose}
+-              className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
++              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
+               aria-label="Close cart drawer"
+               data-testid="cart-drawer-close"
+             >
+diff --git a/buyer-web/src/components/cart/CartItemRow.tsx b/buyer-web/src/components/cart/CartItemRow.tsx
+index 31264be..40b00e1 100644
+--- a/buyer-web/src/components/cart/CartItemRow.tsx
++++ b/buyer-web/src/components/cart/CartItemRow.tsx
+@@ -26,7 +26,7 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
+     <div
+       className={`p-3.5 sm:p-4 rounded-2xl bg-[#101014] border ${
+         isAvailable ? 'border-white/10 hover:border-[rgba(212,175,55,0.3)]' : 'border-red-500/40 bg-red-950/10'
+-      } flex gap-3.5 items-center transition-all shadow-md group`}
++      } flex gap-3.5 items-start transition-all shadow-md group`}
+       data-testid={`cart-item-${item.productId}`}
+     >
+       {/* Square Thumbnail */}
+@@ -53,7 +53,7 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
+       </div>
+ 
+       {/* Details & Controls */}
+-      <div className="flex-1 min-w-0 flex flex-col justify-between h-20 sm:h-22 py-0.5">
++      <div className="flex-1 min-w-0 flex flex-col gap-2">
+         <div>
+           <div className="flex items-start justify-between gap-2">
+             <h4 className="text-sm font-medium text-white truncate group-hover:text-[#D4AF37] transition-colors">
+@@ -62,11 +62,11 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
+             <button
+               type="button"
+               onClick={() => onRemove(item.productId)}
+-              className="text-white/40 hover:text-red-400 p-1 transition-colors flex-shrink-0"
++              className="text-white/40 hover:text-red-400 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors flex-shrink-0 cursor-pointer"
+               aria-label={`Remove ${item.title} from cart`}
+               data-testid={`cart-remove-${item.productId}`}
+             >
+-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
++              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                 <polyline points="3 6 5 6 21 6" />
+                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                 <line x1="10" y1="11" x2="10" y2="17" />
+@@ -106,8 +106,8 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
+           )}
+         </div>
+ 
+-        {/* Quantity Indicator / Stepper */}
+-        <div className="flex items-center justify-between pt-1">
++        {/* Quantity Indicator / Single-Piece Control */}
++        <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+           <div className="inline-flex items-center rounded-lg bg-black/60 border border-white/10 px-2 py-0.5 gap-2.5 text-xs text-white/80">
+             <button
+               type="button"
+@@ -129,7 +129,7 @@ export function CartItemRow({ item, onRemove, isAvailable = true, availabilityRe
+             </button>
+           </div>
+ 
+-          <span className="text-[10px] font-mono text-[#D4AF37]/80 uppercase tracking-widest">
++          <span className="text-[10px] font-mono text-[#D4AF37]/90 uppercase tracking-widest">
+             Single Piece
+           </span>
+         </div>
+diff --git a/buyer-web/src/components/product/ProductQuickViewDrawer.tsx b/buyer-web/src/components/product/ProductQuickViewDrawer.tsx
+index d63ad51..40362a6 100644
+--- a/buyer-web/src/components/product/ProductQuickViewDrawer.tsx
++++ b/buyer-web/src/components/product/ProductQuickViewDrawer.tsx
+@@ -1,6 +1,6 @@
+ 'use client';
+ 
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useRef } from 'react';
+ import Image from 'next/image';
+ import { PublicProductView } from '../../types/domain';
+ import { formatPaisaToINR } from '../../lib/utils/currency';
+@@ -99,7 +99,7 @@ function ProductQuickViewContent({
+         <button
+           type="button"
+           onClick={onClose}
+-          className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
++          className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors cursor-pointer"
+           aria-label="Close product quick view"
+           data-testid="quick-view-close-btn"
+         >
+@@ -107,6 +107,11 @@ function ProductQuickViewContent({
+         </button>
+       </div>
+ 
++      {/* Screen-reader polite live announcement */}
++      <div className="sr-only" aria-live="polite" aria-atomic="true">
++        {product.title} is {product.status === 'available' ? 'Available' : product.status === 'reserved' ? 'Reserved' : 'Sold Out'}. {isInCart ? 'This piece is in your shopping bag.' : ''}
++      </div>
++
+       {/* Scrollable Content */}
+       <div className="overflow-y-auto px-6 py-4 space-y-5">
+         {/* Hero Garment Image */}
+@@ -143,7 +148,7 @@ function ProductQuickViewContent({
+           <button
+             type="button"
+             onClick={handleShare}
+-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
++            className="absolute top-3 right-3 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
+             aria-label="Share this garment"
+           >
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+@@ -280,7 +285,7 @@ function ProductQuickViewContent({
+           {addedMessage ? (
+             <span>✓ {addedMessage}</span>
+           ) : isInCart ? (
+-            <span>In Your Bag • Add Another</span>
++            <span>In Your Bag</span>
+           ) : isAvailable ? (
+             <>
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25">
+@@ -307,6 +312,60 @@ export function ProductQuickViewDrawer({
+   onClose,
+   onOpenCart,
+ }: ProductQuickViewDrawerProps) {
++  const drawerRef = useRef<HTMLDivElement>(null);
++  const previousActiveElement = useRef<HTMLElement | null>(null);
++
++  // Focus trap and focus restoration
++  useEffect(() => {
++    if (isOpen) {
++      previousActiveElement.current = document.activeElement as HTMLElement | null;
++      const timer = setTimeout(() => {
++        const closeBtn = drawerRef.current?.querySelector<HTMLElement>('[data-testid="quick-view-close-btn"]');
++        if (closeBtn) {
++          closeBtn.focus();
++        } else {
++          drawerRef.current?.focus();
++        }
++      }, 50);
++      return () => clearTimeout(timer);
++    } else if (previousActiveElement.current) {
++      previousActiveElement.current.focus();
++      previousActiveElement.current = null;
++    }
++  }, [isOpen]);
++
++  // Tab key trap inside quick view drawer
++  useEffect(() => {
++    if (!isOpen) return;
++
++    const handleTabKey = (e: KeyboardEvent) => {
++      if (e.key !== 'Tab' || !drawerRef.current) return;
++
++      const focusables = drawerRef.current.querySelectorAll<HTMLElement>(
++        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
++      );
++      if (focusables.length === 0) return;
++
++      const first = focusables[0];
++      const last = focusables[focusables.length - 1];
++
++      if (e.shiftKey) {
++        if (document.activeElement === first) {
++          e.preventDefault();
++          last.focus();
++        }
++      } else {
++        if (document.activeElement === last) {
++          e.preventDefault();
++          first.focus();
++        }
++      }
++    };
++
++    window.addEventListener('keydown', handleTabKey);
++    return () => window.removeEventListener('keydown', handleTabKey);
++  }, [isOpen]);
++
+   // Handle escape key
+   useEffect(() => {
+     const handleKeyDown = (e: KeyboardEvent) => {
+@@ -324,6 +383,7 @@ export function ProductQuickViewDrawer({
+ 
+   return (
+     <div
++      ref={drawerRef}
+       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm transition-opacity duration-300"
+       role="dialog"
+       aria-modal="true"
