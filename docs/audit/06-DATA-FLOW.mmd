@@ -1,0 +1,12 @@
+sequenceDiagram
+  participant S as Seller app
+  participant DB as Supabase
+  participant B as Buyer web
+  S->>DB: create product/drop (RLS)
+  S->>DB: set approved drop live
+  B->>DB: public views / live catalog
+  B->>DB: create_order_with_reservation
+  B->>DB: initiate attempt + submit claim
+  S->>DB: verify/reject claim RPC
+  DB-->>B: order/payment Realtime or token lookup
+  S->>DB: ready_to_ship / shipped RPC

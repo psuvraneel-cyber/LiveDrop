@@ -1,0 +1,8 @@
+erDiagram
+  PROFILES ||--o{ DROPS : owns
+  DROPS ||--o{ PRODUCTS : contains
+  DROPS ||--o{ ORDERS : receives
+  ORDERS ||--|{ ORDER_ITEMS : contains
+  ORDERS ||--o{ PAYMENT_ATTEMPTS : has
+  ORDERS ||--o{ ORDER_PAYMENTS : ledger
+  PRODUCTS ||--o{ ORDER_ITEMS : reserved_as

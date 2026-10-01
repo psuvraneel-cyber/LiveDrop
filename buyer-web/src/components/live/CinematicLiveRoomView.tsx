@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PublicDropCatalog, PublicProductView } from '../../types/domain';
@@ -37,6 +37,18 @@ export function CinematicLiveRoomView({
   const isDrawerOpen = cart?.isDrawerOpen ?? false;
   const openDrawer = cart?.openDrawer;
   const closeDrawer = cart?.closeDrawer;
+  const hasGlobalCartDrawer = cart?.hasGlobalCartDrawer ?? false;
+  const setActiveDrop = cart?.setActiveDrop;
+  const setCatalogProducts = cart?.setCatalogProducts;
+
+  useEffect(() => {
+    setActiveDrop?.(drop);
+    setCatalogProducts?.(products);
+    return () => {
+      setActiveDrop?.(null);
+      setCatalogProducts?.([]);
+    };
+  }, [drop, products, setActiveDrop, setCatalogProducts]);
 
   // Selected pinned product (default to first available, or first piece)
   const availableProducts = useMemo(() => {
@@ -431,13 +443,15 @@ export function CinematicLiveRoomView({
         }}
       />
 
-      {/* 8. SLIDE-OVER CART DRAWER */}
-      <CartDrawer
-        isOpen={isDrawerOpen}
-        onClose={closeDrawer || (() => {})}
-        catalogProducts={products}
-        drop={drop}
-      />
+      {/* 8. SLIDE-OVER CART DRAWER (local mount fallback when no global overlay drawer is active) */}
+      {!hasGlobalCartDrawer && (
+        <CartDrawer
+          isOpen={isDrawerOpen}
+          onClose={closeDrawer || (() => {})}
+          catalogProducts={products}
+          drop={drop}
+        />
+      )}
 
       {/* 9. MOBILE BOTTOM DOCK (Screen 03) */}
       <MobileBottomDock activeTabOverride="live" />

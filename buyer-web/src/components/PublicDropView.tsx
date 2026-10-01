@@ -62,7 +62,23 @@ function PublicDropContent({
   const [activeFilter, setActiveFilter] = useState<AvailabilityFilter>('all');
 
   // Cart drawer control
-  const { isDrawerOpen, openDrawer, closeDrawer } = useCart();
+  const {
+    isDrawerOpen,
+    openDrawer,
+    closeDrawer,
+    hasGlobalCartDrawer,
+    setActiveDrop,
+    setCatalogProducts,
+  } = useCart();
+
+  useEffect(() => {
+    setActiveDrop(drop);
+    setCatalogProducts(products);
+    return () => {
+      setActiveDrop(null);
+      setCatalogProducts([]);
+    };
+  }, [drop, products, setActiveDrop, setCatalogProducts]);
 
   // Cinematic live room mode (e.g. from ?view=live or button click)
   const [isCinematicMode, setIsCinematicMode] = useState<boolean>(() => {
@@ -389,13 +405,15 @@ function PublicDropContent({
       {/* Sticky Bottom Cart Bar */}
       <StickyCartBar onOpenCart={openDrawer} />
 
-      {/* Slide-over Cart Drawer */}
-      <CartDrawer
-        isOpen={isDrawerOpen}
-        onClose={closeDrawer}
-        catalogProducts={products}
-        drop={drop}
-      />
+      {/* Slide-over Cart Drawer (local mount fallback when no global overlay drawer is active) */}
+      {!hasGlobalCartDrawer && (
+        <CartDrawer
+          isOpen={isDrawerOpen}
+          onClose={closeDrawer}
+          catalogProducts={products}
+          drop={drop}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,12 @@
+{
+  "audit_timestamp": "2026-10-02T00:00:00+05:30",
+  "results": [
+    {"command":"buyer-web: npm run typecheck","status":"PASS","exit_code":0,"confidence":"VERIFIED_STATICALLY"},
+    {"command":"buyer-web: npm run lint","status":"INCONCLUSIVE","reason":"no exit code captured"},
+    {"command":"buyer-web: npm test","status":"BLOCKED","reason":"Vitest did not emit results and left worker processes"},
+    {"command":"seller-app: flutter analyze","status":"BLOCKED","reason":"did not emit completion result"},
+    {"command":"seller-app: flutter test","status":"NOT_RUN","reason":"analyzer did not complete and shared process state was contaminated"},
+    {"command":"Supabase migration/RLS/runtime tests","status":"BLOCKED","reason":"Supabase CLI, Docker, and staging credentials unavailable"},
+    {"command":"Playwright true E2E","status":"BLOCKED","reason":"no safe target environment or test identities"}
+  ]
+}
