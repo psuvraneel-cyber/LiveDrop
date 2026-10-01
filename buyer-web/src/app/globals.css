@@ -4511,7 +4511,8 @@ a:visited {
   letter-spacing: 0.06em;
 }
 
-.ld-status-badge {
+/* Order-tracking badge variant — scoped to avoid overriding product-card badges */
+.ld-status-badge[class*="ld-status-badge-"] {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 11px;
