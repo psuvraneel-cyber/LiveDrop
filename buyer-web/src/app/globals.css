@@ -199,13 +199,15 @@
   --border-focus: var(--ld-gold);
 }
 
-/* Reset & Box Sizing */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Reset & Box Sizing — inside @layer base so Tailwind v4 utilities can override */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 /* Global Reset: Eliminate All Default Link and Button Underlines */
@@ -219,32 +221,34 @@ a:visited {
   text-decoration: none !important;
 }
 
-/* Strict Typography Discipline: Functional UI locked to Clean Sans */
-html,
-body,
-button,
-input,
-textarea,
-select {
-  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
+@layer base {
+  /* Strict Typography Discipline: Functional UI locked to Clean Sans */
+  html,
+  body,
+  button,
+  input,
+  textarea,
+  select {
+    font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
 
-html {
-  background-color: var(--ld-bg);
-  color: var(--ld-text-primary);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  line-height: 1.5;
-  scroll-behavior: smooth;
-}
+  html {
+    background-color: var(--ld-bg);
+    color: var(--ld-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+    scroll-behavior: smooth;
+  }
 
-body {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--ld-bg);
-  color: var(--ld-text-primary);
-  overflow-x: hidden;
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--ld-bg);
+    color: var(--ld-text-primary);
+    overflow-x: hidden;
+  }
 }
 
 /* =========================================================================
@@ -317,8 +321,14 @@ body {
 }
 
 /* Zero horizontal page overflow reset (Section 46) */
-html,
-body,
+@layer base {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+}
+
 .ld-body-root {
   max-width: 100%;
   overflow-x: clip;
@@ -1992,6 +2002,8 @@ body,
   align-items: center;
   gap: 5px;
   margin-top: 2px;
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
 .ld-product-price {
@@ -2009,6 +2021,8 @@ body,
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1px 4px;
   border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Compact Cart Action Button (Icon-First, Adaptive Density) */
@@ -4501,7 +4515,8 @@ body,
   letter-spacing: 0.06em;
 }
 
-.ld-status-badge {
+/* Order-tracking badge variant — scoped to avoid overriding product-card badges */
+.ld-status-badge[class*="ld-status-badge-"] {
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 11px;

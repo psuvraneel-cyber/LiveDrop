@@ -267,6 +267,7 @@ describe('LiveDrop Phase 3: Order Lookup, Receipts & Order Tracking Behavior', (
       ...baseOrderReceipt,
       payment_status: 'paid',
       fulfilment_status: 'ready_to_ship',
+      shipped_at: '2026-09-29T10:00:00Z', // Regression: non-null timestamp must NOT bypass fulfilment_status === 'shipped'
     };
 
     vi.spyOn(buyerCatalog, 'getOrderByToken').mockResolvedValue(readyOrder);
@@ -278,6 +279,26 @@ describe('LiveDrop Phase 3: Order Lookup, Receipts & Order Tracking Behavior', (
     });
 
     // Tracking card is not shown until actually shipped
+    expect(screen.queryByTestId('shipment-tracking-card')).not.toBeInTheDocument();
+  });
+
+  // 10b. Not-ready order with non-null shipped_at timestamp (Regression Case 1)
+  it('10b. Not-ready order: hides shipment tracking card even when shipped_at timestamp is present', async () => {
+    const notReadyOrder: OrderReceipt = {
+      ...baseOrderReceipt,
+      payment_status: 'unpaid',
+      fulfilment_status: 'not_ready',
+      shipped_at: '2026-09-29T08:00:00Z', // Regression: non-null timestamp on not_ready must NOT show shipment card
+    };
+
+    vi.spyOn(buyerCatalog, 'getOrderByToken').mockResolvedValue(notReadyOrder);
+
+    render(<OrderTrackingPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status-badge-fulfilment')).toHaveTextContent('Not Ready');
+    });
+
     expect(screen.queryByTestId('shipment-tracking-card')).not.toBeInTheDocument();
   });
 
@@ -331,6 +352,31 @@ describe('LiveDrop Phase 3: Order Lookup, Receipts & Order Tracking Behavior', (
       /AWB tracking number is being registered by the courier partner/i
     );
     expect(screen.queryByTestId('tracking-awb-number')).not.toBeInTheDocument();
+  });
+
+  // 12b. Shipped order with null shipped_at timestamp (Regression Case 3)
+  it('12b. Shipped order with null shipped_at: displays shipment card without fabricated timestamp', async () => {
+    const shippedNullTimestamp: OrderReceipt = {
+      ...baseOrderReceipt,
+      status: 'shipped',
+      payment_status: 'paid',
+      fulfilment_status: 'shipped',
+      courier_partner: 'Blue Dart Express',
+      tracking_number: 'BLUEDART-554433',
+      shipped_at: null,
+    };
+
+    vi.spyOn(buyerCatalog, 'getOrderByToken').mockResolvedValue(shippedNullTimestamp);
+
+    render(<OrderTrackingPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('shipment-tracking-card')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('tracking-awb-number')).toHaveTextContent('BLUEDART-554433');
+    // Invariant: no fabricated timestamp when shipped_at is null
+    expect(screen.queryByTestId('shipped-at-timestamp')).not.toBeInTheDocument();
   });
 
   // 13. Expired order

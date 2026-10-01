@@ -876,7 +876,7 @@ index e2e55ba..17c5192 100644
  
        <MobileBottomDock activeTabOverride="orders" />
 diff --git a/buyer-web/src/components/checkout/CheckoutSuccessView.tsx b/buyer-web/src/components/checkout/CheckoutSuccessView.tsx
-index d99a2a3..838c828 100644
+index d99a2a3..3dd5e69 100644
 --- a/buyer-web/src/components/checkout/CheckoutSuccessView.tsx
 +++ b/buyer-web/src/components/checkout/CheckoutSuccessView.tsx
 @@ -1,10 +1,16 @@
@@ -1204,8 +1204,8 @@ index d99a2a3..838c828 100644
 +          </div>
 +        </div>
 +
-+        {/* Dedicated Shipment & Tracking Card (When Shipped or Shipped Timestamp Exists) */}
-+        {(fulfilmentStatus === 'shipped' || Boolean(shippedAt)) && (
++        {/* Dedicated Shipment & Tracking Card (Strictly requires authoritative Shipped fulfillment state) */}
++        {fulfilmentStatus === 'shipped' && (
 +          <div className="ld-shipment-card" data-testid="shipment-tracking-card">
 +            <div className="ld-shipment-header">
 +              <div className="ld-shipment-icon" aria-hidden="true">

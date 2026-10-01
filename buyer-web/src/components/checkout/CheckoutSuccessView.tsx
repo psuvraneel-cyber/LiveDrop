@@ -377,8 +377,8 @@ export function CheckoutSuccessView({
           </div>
         </div>
 
-        {/* Dedicated Shipment & Tracking Card (When Shipped or Shipped Timestamp Exists) */}
-        {(fulfilmentStatus === 'shipped' || Boolean(shippedAt)) && (
+        {/* Dedicated Shipment & Tracking Card (Strictly requires authoritative Shipped fulfillment state) */}
+        {fulfilmentStatus === 'shipped' && (
           <div className="ld-shipment-card" data-testid="shipment-tracking-card">
             <div className="ld-shipment-header">
               <div className="ld-shipment-icon" aria-hidden="true">
