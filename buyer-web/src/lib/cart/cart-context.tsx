@@ -19,7 +19,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { CartItem, CartStorageSchema, ReconciledCartItem } from '../../types/cart';
-import { PublicProductView } from '../../types/domain';
+import { PublicDropCatalog, PublicProductView } from '../../types/domain';
 import {
   CART_STORAGE_KEY,
   CURRENT_CART_SCHEMA_VERSION,
@@ -41,13 +41,19 @@ export interface CartContextValue {
   orderNote: string;
   isHydrated: boolean;
   isDrawerOpen: boolean;
+  hasGlobalCartDrawer: boolean;
+  activeDrop: PublicDropCatalog | null;
+  catalogProducts: PublicProductView[];
+  setHasGlobalCartDrawer: (has: boolean) => void;
+  setActiveDrop: (drop: PublicDropCatalog | null) => void;
+  setCatalogProducts: (products: PublicProductView[]) => void;
   addItem: (product: PublicProductView, dropId: string) => AddToCartResult;
   replaceCartWithItem: (product: PublicProductView, dropId: string) => void;
   removeItem: (productId: string) => void;
   clearCart: () => void;
   setOrderNote: (note: string) => void;
   isInCart: (productId: string) => boolean;
-  getReconciledItems: (catalogProducts: PublicProductView[]) => ReconciledCartItem[];
+  getReconciledItems: (catalogProducts?: PublicProductView[]) => ReconciledCartItem[];
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
@@ -146,6 +152,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartSnapshot = useSyncExternalStore(subscribeToStore, getClientSnapshot, getServerSnapshot);
   const isHydrated = useSyncExternalStore(subscribeNoop, getHydratedClient, getHydratedServer);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [hasGlobalCartDrawer, setHasGlobalCartDrawer] = useState(false);
+  const [activeDrop, setActiveDrop] = useState<PublicDropCatalog | null>(null);
+  const [catalogProducts, setCatalogProducts] = useState<PublicProductView[]>([]);
 
   const items = cartSnapshot.items;
   const dropId = cartSnapshot.dropId;
@@ -246,9 +255,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Reconciles cart items against authoritative catalog snapshot or realtime products
   const getReconciledItems = useCallback(
-    (catalogProducts: PublicProductView[]): ReconciledCartItem[] => {
+    (targetCatalog?: PublicProductView[]): ReconciledCartItem[] => {
+      const effectiveCatalog =
+        targetCatalog && targetCatalog.length > 0 ? targetCatalog : catalogProducts;
+
+      // If no catalog snapshot is provided, retain available state
+      if (!effectiveCatalog || effectiveCatalog.length === 0) {
+        return items.map((cartItem) => ({
+          ...cartItem,
+          status: 'available',
+          isAvailable: true,
+        }));
+      }
+
       const catalogMap = new Map<string, PublicProductView>();
-      for (const p of catalogProducts) {
+      for (const p of effectiveCatalog) {
         catalogMap.set(p.id, p);
       }
 
@@ -278,7 +299,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         };
       });
     },
-    [items]
+    [items, catalogProducts]
   );
 
   // Integer Paisa subtotal: sum(item.pricePaisa)
@@ -307,6 +328,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       orderNote,
       isHydrated,
       isDrawerOpen,
+      hasGlobalCartDrawer,
+      activeDrop,
+      catalogProducts,
+      setHasGlobalCartDrawer,
+      setActiveDrop,
+      setCatalogProducts,
       addItem,
       replaceCartWithItem,
       removeItem,
@@ -326,6 +353,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       orderNote,
       isHydrated,
       isDrawerOpen,
+      hasGlobalCartDrawer,
+      activeDrop,
+      catalogProducts,
+      setHasGlobalCartDrawer,
+      setActiveDrop,
+      setCatalogProducts,
       addItem,
       replaceCartWithItem,
       removeItem,

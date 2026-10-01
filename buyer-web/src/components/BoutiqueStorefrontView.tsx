@@ -64,6 +64,22 @@ export function BoutiqueStorefrontView({
   const isDrawerOpen = cart?.isDrawerOpen ?? false;
   const openDrawer = cart?.openDrawer ?? (() => {});
   const closeDrawer = cart?.closeDrawer ?? (() => {});
+  const hasGlobalCartDrawer = cart?.hasGlobalCartDrawer ?? false;
+  const setActiveDrop = cart?.setActiveDrop;
+  const setCatalogProducts = cart?.setCatalogProducts;
+
+  const hasLiveDrop = Boolean(activeLiveDrop && activeLiveDrop.status === 'live');
+
+  useEffect(() => {
+    if (hasLiveDrop && activeLiveDrop) {
+      setActiveDrop?.(activeLiveDrop);
+      setCatalogProducts?.(liveProducts);
+      return () => {
+        setActiveDrop?.(null);
+        setCatalogProducts?.([]);
+      };
+    }
+  }, [hasLiveDrop, activeLiveDrop, liveProducts, setActiveDrop, setCatalogProducts]);
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
@@ -76,8 +92,6 @@ export function BoutiqueStorefrontView({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedImage]);
-
-  const hasLiveDrop = Boolean(activeLiveDrop && activeLiveDrop.status === 'live');
   const storeSlug = storefront.store_slug || 'boutique';
   const storeName = storefront.store_name || 'Boutique';
 
@@ -381,12 +395,14 @@ export function BoutiqueStorefrontView({
       {hasLiveDrop && (
         <>
           <StickyCartBar onOpenCart={openDrawer} />
-          <CartDrawer
-            isOpen={isDrawerOpen}
-            onClose={closeDrawer}
-            catalogProducts={liveProducts}
-            drop={activeLiveDrop}
-          />
+          {!hasGlobalCartDrawer && (
+            <CartDrawer
+              isOpen={isDrawerOpen}
+              onClose={closeDrawer}
+              catalogProducts={liveProducts}
+              drop={activeLiveDrop}
+            />
+          )}
         </>
       )}
 

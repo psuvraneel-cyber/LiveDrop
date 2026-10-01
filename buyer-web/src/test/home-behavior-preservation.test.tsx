@@ -23,6 +23,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { HomeStorefront } from '../components/HomeStorefront';
+import { AppProviders } from '../components/providers/AppProviders';
 import { CartProvider, resetCartStore } from '../lib/cart/cart-context';
 import { ProfileProvider } from '../lib/profile/profile-context';
 import { PublicDropCatalog, PublicSellerStorefront, PublicProductView } from '../types/domain';
@@ -412,5 +413,49 @@ describe('Phase 1A Homepage Stabilization & 15 Production Cases', () => {
     expect(header).toBeInTheDocument();
     expect(screen.getAllByText('LiveDrop').length).toBeGreaterThan(0);
     expect(within(header).getByRole('link', { name: 'Shop' })).toHaveAttribute('href', '/shop');
+  });
+
+  // Case 16: Clicking desktop luxury bag button on Homepage opens CartDrawer
+  it('Case 16: Clicking desktop luxury bag button on Homepage opens CartDrawer', () => {
+    render(
+      <AppProviders>
+        <HomeStorefront
+          storefronts={[mockBoutiqueA]}
+          featuredProducts={[mockAvailableProduct]}
+        />
+      </AppProviders>
+    );
+
+    // Initial state: CartDrawer not visible
+    expect(screen.queryByTestId('cart-drawer')).not.toBeInTheDocument();
+
+    // Click cart button in header
+    const bagBtn = screen.getByTestId('luxury-bag-btn');
+    fireEvent.click(bagBtn);
+
+    // CartDrawer is now visible
+    expect(screen.getByTestId('cart-drawer')).toBeInTheDocument();
+  });
+
+  // Case 17: Clicking mobile bottom dock bag tab on Homepage opens CartDrawer
+  it('Case 17: Clicking mobile bottom dock bag tab on Homepage opens CartDrawer', () => {
+    render(
+      <AppProviders>
+        <HomeStorefront
+          storefronts={[mockBoutiqueA]}
+          featuredProducts={[mockAvailableProduct]}
+        />
+      </AppProviders>
+    );
+
+    // Initial state: CartDrawer not visible
+    expect(screen.queryByTestId('cart-drawer')).not.toBeInTheDocument();
+
+    // Click bag tab in bottom dock
+    const dockBagTab = screen.getByTestId('dock-bag-tab');
+    fireEvent.click(dockBagTab);
+
+    // CartDrawer is now visible
+    expect(screen.getByTestId('cart-drawer')).toBeInTheDocument();
   });
 });
