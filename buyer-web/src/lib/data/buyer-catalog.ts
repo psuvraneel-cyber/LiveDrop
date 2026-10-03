@@ -84,9 +84,7 @@ export async function getLiveDropBySlug(
         store_name,
         store_slug,
         phone_number,
-        upi_vpa,
         upi_display_name,
-        upi_qr_url,
         upi_enabled,
         default_shipping_fee_paisa,
         free_shipping_threshold_paisa,
@@ -107,8 +105,6 @@ export async function getLiveDropBySlug(
           store_name: storefrontData.store_name,
           store_slug: storefrontData.store_slug,
           phone_number: storefrontData.phone_number || undefined,
-          upi_id: storefrontData.upi_vpa || ((storefrontData as Record<string, unknown>).upi_id as string) || '',
-          upi_qr_url: storefrontData.upi_qr_url,
           default_shipping_fee_paisa: storefrontData.default_shipping_fee_paisa,
           free_shipping_threshold_paisa: storefrontData.free_shipping_threshold_paisa,
           advance_confirmation_enabled: storefrontData.advance_confirmation_enabled,
@@ -118,8 +114,6 @@ export async function getLiveDropBySlug(
       : {
           store_name: 'LiveDrop Boutique',
           store_slug: '',
-          upi_id: '',
-          upi_qr_url: null,
           default_shipping_fee_paisa: 0,
           free_shipping_threshold_paisa: null,
           advance_confirmation_enabled: false,
@@ -158,9 +152,7 @@ export async function getStorefrontBySlug(
         store_name,
         store_slug,
         phone_number,
-        upi_vpa,
         upi_display_name,
-        upi_qr_url,
         upi_enabled,
         default_shipping_fee_paisa,
         free_shipping_threshold_paisa,
@@ -179,11 +171,9 @@ export async function getStorefrontBySlug(
 
     if (!data) return null;
 
-    // Map upi_vpa back to upi_id if needed for interface compatibility
     const rawData = data as Record<string, unknown>;
     const storefront = {
       ...data,
-      upi_id: (rawData.upi_vpa as string) || (rawData.upi_id as string) || '',
       is_approved: typeof rawData.is_approved === 'boolean' ? rawData.is_approved : true,
       is_verified: typeof rawData.is_verified === 'boolean' ? rawData.is_verified : undefined,
       is_published: typeof rawData.is_published === 'boolean' ? rawData.is_published : undefined,
@@ -252,8 +242,6 @@ export async function getStorefrontData(
         store_name: storefront.store_name,
         store_slug: storefront.store_slug,
         phone_number: storefront.phone_number || undefined,
-        upi_id: storefront.upi_vpa || storefront.upi_id || '',
-        upi_qr_url: storefront.upi_qr_url,
         default_shipping_fee_paisa: storefront.default_shipping_fee_paisa,
         free_shipping_threshold_paisa: storefront.free_shipping_threshold_paisa,
         advance_confirmation_enabled: storefront.advance_confirmation_enabled,
@@ -495,9 +483,7 @@ export async function getAllVerifiedStorefronts(
         store_name,
         store_slug,
         phone_number,
-        upi_vpa,
         upi_display_name,
-        upi_qr_url,
         upi_enabled,
         default_shipping_fee_paisa,
         free_shipping_threshold_paisa,
@@ -517,7 +503,6 @@ export async function getAllVerifiedStorefronts(
       const raw = row as Record<string, unknown>;
       return {
         ...row,
-        upi_id: (raw.upi_vpa as string) || (raw.upi_id as string) || '',
         is_approved: typeof raw.is_approved === 'boolean' ? raw.is_approved : true,
         is_verified: typeof raw.is_verified === 'boolean' ? raw.is_verified : undefined,
         is_published: typeof raw.is_published === 'boolean' ? raw.is_published : undefined,
@@ -595,8 +580,6 @@ export async function getAllActiveLiveDrops(
               store_name: (sf.store_name as string) || 'LiveDrop Boutique',
               store_slug: (sf.store_slug as string) || '',
               phone_number: (sf.phone_number as string) || undefined,
-              upi_id: (sf.upi_vpa as string) || (sf.upi_id as string) || '',
-              upi_qr_url: (sf.upi_qr_url as string) || null,
               default_shipping_fee_paisa: (sf.default_shipping_fee_paisa as number) ?? 0,
               free_shipping_threshold_paisa: (sf.free_shipping_threshold_paisa as number) ?? null,
               advance_confirmation_enabled: Boolean(sf.advance_confirmation_enabled),
@@ -606,8 +589,6 @@ export async function getAllActiveLiveDrops(
           : {
               store_name: 'LiveDrop Boutique',
               store_slug: '',
-              upi_id: '',
-              upi_qr_url: null,
               default_shipping_fee_paisa: 0,
               free_shipping_threshold_paisa: null,
               advance_confirmation_enabled: false,

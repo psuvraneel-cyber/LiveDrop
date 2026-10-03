@@ -94,7 +94,7 @@ export function DirectUpiPaymentView({
   const [utrError, setUtrError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [copiedField, setCopiedField] = useState<'vpa' | 'ref' | 'amount' | null>(null);
+  const [copiedField, setCopiedField] = useState<'ref' | 'amount' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -352,7 +352,7 @@ export function DirectUpiPaymentView({
   }, [activeAttempt, paymentType, order.payment_status, isPaidInFull, isTerminal, ensurePaymentAttempt]);
 
   // 6. Handle copy to clipboard
-  const handleCopy = (text: string, field: 'vpa' | 'ref' | 'amount') => {
+  const handleCopy = (text: string, field: 'ref' | 'amount') => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedField(field);
@@ -724,24 +724,6 @@ export function DirectUpiPaymentView({
                     <span className="ld-detail-val" data-testid="payee-name">
                       {activeAttempt.payee_display_name_snapshot || 'Boutique'}
                     </span>
-                  </div>
-
-                  <div className="ld-detail-row">
-                    <span className="ld-detail-label">UPI ID</span>
-                    <div className="ld-copyable-box">
-                      <code className="ld-vpa-code" data-testid="payee-vpa">
-                        {activeAttempt.payee_vpa_snapshot}
-                      </code>
-                      <button
-                        type="button"
-                        className="ld-copy-btn"
-                        onClick={() => handleCopy(activeAttempt.payee_vpa_snapshot, 'vpa')}
-                        aria-label="Copy UPI ID"
-                        data-testid="copy-vpa-btn"
-                      >
-                        {copiedField === 'vpa' ? 'Copied!' : 'Copy'}
-                      </button>
-                    </div>
                   </div>
 
                   <div className="ld-detail-row">

@@ -130,7 +130,8 @@ describe('TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX', () => {
     render(<DirectUpiPaymentView order={baseOrder} orderToken={mockOrderToken} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('payee-vpa')).toHaveTextContent('priya@okaxis');
+      expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
+      expect(screen.queryByText('priya@okaxis')).not.toBeInTheDocument();
       expect(screen.getByTestId('payment-expected-amount')).toHaveTextContent('₹250');
       expect(screen.getByTestId('utr-submission-form')).toBeInTheDocument();
       expect(screen.getByTestId('utr-input-field')).toBeInTheDocument();
@@ -308,7 +309,8 @@ describe('TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX', () => {
     render(<DirectUpiPaymentView order={orderWithActiveAttempt} orderToken={mockOrderToken} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('payee-vpa')).toHaveTextContent('priya@okaxis');
+      expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
+      expect(screen.queryByText('priya@okaxis')).not.toBeInTheDocument();
       expect(screen.getByTestId('payment-reference')).toHaveTextContent('LD1001-ADV');
     });
 

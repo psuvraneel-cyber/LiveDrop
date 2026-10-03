@@ -70,6 +70,7 @@ describe('LiveDrop Storefront Architecture & Showcase Mode', () => {
         '016_public_projection_views.sql',
         '029_add_image_urls_to_public_products_catalog.sql',
         '031_seller_storefronts_and_catalog_showcase.sql',
+        '033_hide_seller_upi_from_public_storefronts.sql',
       ];
 
       for (const file of migrationFiles) {
@@ -140,6 +141,17 @@ describe('LiveDrop Storefront Architecture & Showcase Mode', () => {
       expect(res.rows.length).toBe(1);
       expect(res.rows[0].phone_number).toBe('9830123456');
       expect(res.rows[0].store_slug).toBe('suv-s');
+    });
+
+    it('never exposes seller UPI ID, UPI QR image or return address in public_seller_storefronts (migration 033)', async () => {
+      const res = await db.query<Record<string, unknown>>(`SELECT * FROM public_seller_storefronts WHERE store_slug = 'suv-s';`);
+      expect(res.rows.length).toBe(1);
+      const columns = Object.keys(res.rows[0]);
+      expect(columns).not.toContain('upi_vpa');
+      expect(columns).not.toContain('upi_id');
+      expect(columns).not.toContain('upi_qr_url');
+      expect(columns).not.toContain('return_address');
+      expect(JSON.stringify(res.rows[0])).not.toMatch(/@ok|@ybl|@paytm|@upi/i);
     });
 
     it('strictly hides unapproved sellers from public_seller_storefronts view (SEC-01)', async () => {

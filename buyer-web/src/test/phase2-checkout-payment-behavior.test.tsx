@@ -551,7 +551,8 @@ describe('LiveDrop Phase 2: Checkout & Direct UPI Payment Presentation Gate', ()
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('payee-vpa')).toHaveTextContent('heritage@okaxis');
+      expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
+      expect(screen.queryByText('heritage@okaxis')).not.toBeInTheDocument();
       expect(screen.getByTestId('payment-expected-amount')).toHaveTextContent('₹500');
     });
   });
@@ -573,7 +574,8 @@ describe('LiveDrop Phase 2: Checkout & Direct UPI Payment Presentation Gate', ()
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('payee-vpa')).toHaveTextContent(basePaymentAttempt.payee_vpa_snapshot);
+      expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
+      expect(screen.queryByText(basePaymentAttempt.payee_vpa_snapshot)).not.toBeInTheDocument();
     });
 
     // initiatePaymentAttempt should NOT be called since active_payment_attempt was supplied

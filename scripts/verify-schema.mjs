@@ -336,16 +336,18 @@ async function run() {
   }
   console.log('  ✓ Verified: Direct anon SELECT on profiles table revoked/blocked.');
 
-  // As anon, querying public_seller_storefronts view should succeed and NOT have return_address or phone_number
+  // As anon, querying public_seller_storefronts view should succeed and NOT have return_address or seller UPI fields.
+  // phone_number is intentionally public as the boutique support contact (migration 031).
   const viewStoreRes = await db.query('SELECT * FROM public_seller_storefronts');
   if (viewStoreRes.rows.length === 0) {
     throw new Error('Expected public_seller_storefronts view to return active seller profiles for anon!');
   }
   const firstStore = viewStoreRes.rows[0];
-  if ('phone_number' in firstStore || 'return_address' in firstStore) {
-    throw new Error('CRITICAL PRIVACY FAILURE: public_seller_storefronts exposed phone_number or return_address!');
+  const privateColumns = ['return_address', 'upi_vpa', 'upi_id', 'upi_qr_url'].filter((c) => c in firstStore);
+  if (privateColumns.length > 0) {
+    throw new Error(`CRITICAL PRIVACY FAILURE: public_seller_storefronts exposed ${privateColumns.join(', ')}!`);
   }
-  console.log('  ✓ Verified: public_seller_storefronts projection returns public branding without phone_number or return_address.');
+  console.log('  ✓ Verified: public_seller_storefronts projection returns public branding without return_address or seller UPI ID/QR (migration 033).');
 
   // As anon, querying public_products_catalog view should succeed and NOT have reserved_by_order_id
   const viewProdRes = await db.query('SELECT * FROM public_products_catalog');
