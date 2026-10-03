@@ -37,7 +37,7 @@ Phase 0: Workspace & Repo Foundation
 
 #### `[COMPLETED] TASK-0.1: Initialize Antigravity Monorepo Workspace`
 * **Requirement IDs:** `NFR-SYS-01`
-* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/PHASE-0-COMPLETION-REPORT.md`](file:///c:/LiveDrop/docs/PHASE-0-COMPLETION-REPORT.md))
+* **Status:** **COMPLETED** (Verified 2026-09-11)
 * **Dependencies:** None.
 * **Files / Modules Expected:**
   * `buyer-web/` (Next.js 16+ App Router, TypeScript, Vitest, ESLint)
@@ -59,7 +59,7 @@ Phase 0: Workspace & Repo Foundation
 
 #### `[COMPLETED] TASK-1.1: Deploy Relational Tables & Indexes`
 * **Requirement IDs:** `REQ-DB-01..05`
-* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.1-COMPLETION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.1-COMPLETION-REPORT.md))
+* **Status:** **COMPLETED** (Verified 2026-09-11)
 * **Dependencies:** `TASK-0.1`
 * **Files Created:**
   * `supabase/migrations/001_create_profiles.sql`
@@ -78,15 +78,12 @@ Phase 0: Workspace & Repo Foundation
 
 #### `[COMPLETED] TASK-1.2: Row-Level Security & Database Access Control`
 * **Requirement IDs:** `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
-* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.2-COMPLETION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.2-COMPLETION-REPORT.md))
+* **Status:** **COMPLETED** (Verified 2026-09-11)
 * **Dependencies:** `TASK-1.1`
 * **Files Created / Modified:**
   * `supabase/migrations/008_enable_rls_and_policies.sql`
   * `buyer-web/src/test/rls.test.ts`
   * `docs/RLS-ACCESS-MATRIX.md`
-  * `docs/TASK-1.2-RLS-SECURITY-MATRIX.md`
-  * `docs/TASK-1.2-RLS-TEST-REPORT.md`
-  * `docs/TASK-1.2-COMPLETION-REPORT.md`
   * `scripts/verify-schema.mjs`
   * `buyer-web/src/test/schema.test.ts`
   * `docs/16-security-architecture.md`
@@ -98,14 +95,11 @@ Phase 0: Workspace & Repo Foundation
 
 #### `[COMPLETED] TASK-1.3: Implement Core Database RPC Functions`
 * **Requirement IDs:** `REQ-FR-B4.1`, `REQ-FR-S3.2`, `REQ-SEC-01..04`, `ADR-003`, `ADR-009`
-* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.3-COMPLETION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.3-COMPLETION-REPORT.md))
+* **Status:** **COMPLETED** (Verified 2026-09-11)
 * **Dependencies:** `TASK-1.2`
 * **Files Created / Modified:**
   * `supabase/migrations/009_create_core_business_rpcs.sql`
   * `buyer-web/src/test/rpcs.test.ts`
-  * `docs/TASK-1.3-RPC-CONTRACT.md`
-  * `docs/TASK-1.3-CONCURRENCY-TEST-REPORT.md`
-  * `docs/TASK-1.3-COMPLETION-REPORT.md`
   * `scripts/verify-schema.mjs`
   * `buyer-web/src/test/schema.test.ts`
   * `buyer-web/src/test/rls.test.ts`
@@ -117,7 +111,7 @@ Phase 0: Workspace & Repo Foundation
 
 #### `[COMPLETED] TASK-1.4: Supabase Integration, Realtime Foundation & Development Data/Environment Gate`
 * **Requirement IDs:** `NFR-SYS-01`, `REQ-SEC-01..04`, `REQ-PRV-01..02`, `ADR-003`, `ADR-009`
-* **Status:** **COMPLETED** (Verified 2026-09-11 — see [`docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md))
+* **Status:** **COMPLETED** (Verified 2026-09-11)
 * **Dependencies:** `TASK-1.3`, `TASK-1.3.1`
 * **Files Created / Modified:**
   * `buyer-web/.env.example`
@@ -139,8 +133,7 @@ Phase 0: Workspace & Repo Foundation
   * `seller-app/test/seller_repository_test.dart`
   * `seller-app/test/realtime_test.dart`
   * `supabase/seed.sql`
-  * `docs/TASK-1.4-SUPABASE-INTEGRATION-REPORT.md`
-* **Inputs:** [`docs/04-technical-design.md`](file:///c:/LiveDrop/docs/04-technical-design.md), [`docs/13-api-contract.md`](file:///c:/LiveDrop/docs/13-api-contract.md), [`docs/14-realtime-contract.md`](file:///c:/LiveDrop/docs/14-realtime-contract.md), [`docs/TASK-1.3-RPC-CONTRACT.md`](file:///c:/LiveDrop/docs/TASK-1.3-RPC-CONTRACT.md), [`docs/TASK-1.3.1-HARDENING-REPORT.md`](file:///c:/LiveDrop/docs/TASK-1.3.1-HARDENING-REPORT.md).
+* **Inputs:** [`docs/04-technical-design.md`](file:///c:/LiveDrop/docs/04-technical-design.md), [`docs/13-api-contract.md`](file:///c:/LiveDrop/docs/13-api-contract.md), [`docs/14-realtime-contract.md`](file:///c:/LiveDrop/docs/14-realtime-contract.md), [`docs/TASK-1.3-RPC-CONTRACT.md`](file:///c:/LiveDrop/docs/TASK-1.3-RPC-CONTRACT.md).
 * **Outputs:** Browser-safe public Supabase client for buyer web; authenticated Supabase service for seller app; domain and error types; typed data access operations; Realtime subscription and cleanup abstraction; deterministic development seed data; integration and contract test suites.
 * **Acceptance Criteria:** Strict credential isolation (zero `service_role` exposure to clients); `release_expired_holds` withheld from client APIs; server-authoritative integer Paisa pricing preserved; realtime monotonic version filtering; clean typecheck, lint, and tests across web and mobile.
 * **Tests:** 18 new automated integration/contract tests (132/132 total in buyer-web, 10/10 in seller-app). Production Next.js build passes. Flutter analyze and tests pass. Deterministic seed data verified.
