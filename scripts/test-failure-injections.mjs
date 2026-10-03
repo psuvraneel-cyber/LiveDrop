@@ -1020,7 +1020,9 @@ async function main() {
   console.log('================================================================');
 
   // Export results as JSON
-  fs.writeFileSync(path.resolve(__dirname, '../scratch/failure-injection-results.json'), JSON.stringify(results, null, 2));
+  const outDir = path.resolve(__dirname, '../test-results');
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, 'failure-injection-results.json'), JSON.stringify(results, null, 2));
 }
 
 void main();

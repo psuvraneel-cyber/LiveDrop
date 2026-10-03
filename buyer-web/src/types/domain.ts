@@ -38,10 +38,12 @@ export interface PublicSellerStorefront {
   store_name: string;
   store_slug: string;
   phone_number?: string | null;
+  // Seller UPI ID / QR image are private: never served by public_seller_storefronts (migration 033).
+  // The payee VPA reaches the buyer only via the payment-attempt RPC, for the QR and UPI intent link.
   upi_id?: string;
   upi_vpa?: string;
   upi_display_name?: string | null;
-  upi_qr_url: string | null;
+  upi_qr_url?: string | null;
   upi_enabled?: boolean;
   default_shipping_fee_paisa: number;
   free_shipping_threshold_paisa: number | null;
@@ -81,8 +83,8 @@ export interface PublicDropCatalog extends Drop {
     store_name: string;
     store_slug: string;
     phone_number?: string;
-    upi_id: string;
-    upi_qr_url: string | null;
+    upi_id?: string;
+    upi_qr_url?: string | null;
     default_shipping_fee_paisa: number;
     free_shipping_threshold_paisa: number | null;
     advance_confirmation_enabled: boolean;

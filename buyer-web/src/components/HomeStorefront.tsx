@@ -73,8 +73,6 @@ export function HomeStorefront({
             store_name: drop.profiles.store_name,
             store_slug: drop.profiles.store_slug || 'boutique',
             phone_number: drop.profiles.phone_number || null,
-            upi_id: drop.profiles.upi_id,
-            upi_qr_url: drop.profiles.upi_qr_url,
             default_shipping_fee_paisa: drop.profiles.default_shipping_fee_paisa,
             free_shipping_threshold_paisa: drop.profiles.free_shipping_threshold_paisa,
             advance_confirmation_enabled: drop.profiles.advance_confirmation_enabled,

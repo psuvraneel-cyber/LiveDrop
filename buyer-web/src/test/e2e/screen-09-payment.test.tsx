@@ -5,7 +5,7 @@
  *
  * Test Inventory (>=5 tests):
  * 1. Renders amount display in integer Paisa, QR container, and UPI scan instructions
- * 2. Displays boutique UPI ID box with copy button
+ * 2. Keeps the seller UPI ID private (no UPI ID text or copy button)
  * 3. Enforces 12-digit numeric constraint on UTR / Transaction ID input
  * 4. Submits valid UTR through "Verify Payment" action calling submitBuyerPaymentClaim
  * 5. Handles advance payment and full payment modes cleanly
@@ -40,14 +40,7 @@ describe('Tier 1: Screen 09 — Direct UPI Payment View', () => {
     expect(screen.getByText(/Scan with any UPI app to pay exact amount/i)).toBeInTheDocument();
   });
 
-  it('displays boutique UPI ID box with copy button', async () => {
-    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: writeTextSpy,
-      },
-    });
-
+  it('keeps the seller UPI ID private: shows QR and UPI app button but no UPI ID or copy button', async () => {
     renderWithProviders(
       <DirectUpiPaymentView
         order={mockOrderReceiptFull}
@@ -55,17 +48,11 @@ describe('Tier 1: Screen 09 — Direct UPI Payment View', () => {
       />
     );
 
-    const upiIdDisplay = screen.getByTestId('payee-vpa');
-    expect(upiIdDisplay).toBeInTheDocument();
-    expect(upiIdDisplay).toHaveTextContent(mockPaymentAttempt.payee_vpa_snapshot);
-
-    const copyBtn = screen.getByTestId('copy-vpa-btn');
-    expect(copyBtn).toBeInTheDocument();
-    fireEvent.click(copyBtn);
-
-    await waitFor(() => {
-      expect(writeTextSpy).toHaveBeenCalledWith(mockPaymentAttempt.payee_vpa_snapshot);
-    });
+    expect(await screen.findByTestId('payment-reference')).toBeInTheDocument();
+    expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('copy-vpa-btn')).not.toBeInTheDocument();
+    expect(screen.queryByText(mockPaymentAttempt.payee_vpa_snapshot)).not.toBeInTheDocument();
+    expect(screen.getByTestId('pay-with-upi-intent-btn')).toBeInTheDocument();
   });
 
   it('validates 12-digit numeric UTR constraint and shows alert on invalid input', async () => {
