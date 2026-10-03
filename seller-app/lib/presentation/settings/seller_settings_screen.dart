@@ -431,7 +431,9 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.cardBorder),
                   ),
-                  child: SwitchListTile(
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Enable Advance Payments',
@@ -447,6 +449,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                       BoutiqueHaptics.selection();
                       setModalState(() => advanceEnabled = val);
                     },
+                    ),
                   ),
                 ),
                 if (advanceEnabled) ...[
@@ -921,7 +924,11 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
+    // Own transparent Material so the tile's ink/ripple paints above the card's coloured
+    // DecoratedBox (newer Flutter asserts when a ListTile sits directly inside one).
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -944,6 +951,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
       ),
       trailing: const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 13),
       onTap: onTap,
+      ),
     );
   }
 
