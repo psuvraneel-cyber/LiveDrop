@@ -29,7 +29,7 @@ console.log('---------------------------------------------------------');
 if (isDryRun) {
   console.log('🔍 [DRY RUN] Validating reaper runner environment:');
   console.log(`   - SUPABASE_URL: ${targetUrl ? 'Configured (' + targetUrl + ')' : 'MISSING (Unset)'}`);
-  console.log(`   - SUPABASE_SERVICE_ROLE_KEY: ${serviceKey ? 'Configured (' + serviceKey.slice(0, 8) + '...)' : 'MISSING (Unset)'}`);
+  console.log(`   - SUPABASE_SERVICE_ROLE_KEY: ${serviceKey ? 'Configured' : 'MISSING (Unset)'}`);
   console.log('✅ [DRY RUN] Script syntax and operational logic verified.');
   process.exit(0);
 }

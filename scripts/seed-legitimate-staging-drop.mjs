@@ -7,11 +7,21 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(path.resolve(__dirname, '../buyer-web/package.json'));
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = 'https://aoagqdtnrbmayfoajzes.supabase.co';
-const ANON_KEY = 'sb_publishable_7jbVHNR-o2ZTQZJzapUctg_uHil0B15';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SELLER_EMAIL = process.env.STAGING_SELLER_EMAIL;
+const SELLER_PASSWORD = process.env.STAGING_SELLER_PASSWORD;
 
-const SELLER_EMAIL = 'september@gmail.com';
-const SELLER_PASSWORD = 'LiveDropSeller2026!';
+const missing = [
+  ['SUPABASE_URL', SUPABASE_URL],
+  ['SUPABASE_ANON_KEY', ANON_KEY],
+  ['STAGING_SELLER_EMAIL', SELLER_EMAIL],
+  ['STAGING_SELLER_PASSWORD', SELLER_PASSWORD],
+].filter(([, v]) => !v).map(([k]) => k);
+if (missing.length > 0) {
+  console.error(`Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
 
 const GARMENT_IMAGES = [
   {
