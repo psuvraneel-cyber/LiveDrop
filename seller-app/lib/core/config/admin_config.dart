@@ -8,14 +8,20 @@ class AdminConfig {
   /// Admin WhatsApp number with country code (no + prefix, digits only).
   /// Used by the "Contact Admin" button on the login screen.
   /// Format: country code + number, e.g. '917439583884' for +91 74395 83884.
-  static const String whatsAppNumber = '917439583884';
+  /// Override at build time with `--dart-define=ADMIN_WHATSAPP_NUMBER=...`.
+  static const String whatsAppNumber =
+      String.fromEnvironment('ADMIN_WHATSAPP_NUMBER', defaultValue: '917439583884');
 
   /// Admin UPI VPA for receiving the ₹50 onboarding fee.
   /// Displayed to new sellers during registration.
-  static const String onboardingUpiId = 'psuvraneel@okaxis';
+  /// Override at build time with `--dart-define=ADMIN_UPI_ID=...`.
+  static const String onboardingUpiId =
+      String.fromEnvironment('ADMIN_UPI_ID', defaultValue: 'psuvraneel@okaxis');
 
   /// Admin/payee display name shown on the UPI payment screen and QR.
-  static const String onboardingUpiDisplayName = 'Suvraneel Paul';
+  /// Override at build time with `--dart-define=ADMIN_UPI_NAME=...`.
+  static const String onboardingUpiDisplayName =
+      String.fromEnvironment('ADMIN_UPI_NAME', defaultValue: 'Suvraneel Paul');
 
   /// Asset path to the admin UPI QR code image.
   static const String qrCodeAssetPath = 'assets/images/admin_upi_qr.jpg';
