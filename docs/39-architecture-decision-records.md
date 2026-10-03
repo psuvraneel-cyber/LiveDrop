@@ -26,6 +26,10 @@ Architecture Decision Records (ADRs) capture critical technical choices, the rat
 | [ADR-007](file:///c:/LiveDrop/docs/adr/ADR-007-client-side-pdf-shipping-label-engine.md) | Client-Side 4×6 Thermal PDF Shipping Label Engine | **Accepted** | 2026-09-11 | Mobile Lead | Logistics & Hardware |
 | [ADR-008](file:///c:/LiveDrop/docs/adr/ADR-008-zero-cost-infrastructure-limits-and-mitigations.md) | Zero-Cost Infrastructure Limits & Keepalive Mitigations | **Accepted** | 2026-09-11 | DevOps Architect | Cloud Cost & Availability |
 | [ADR-009](file:///c:/LiveDrop/docs/adr/ADR-009-currency-standardization-and-concurrency-hardening.md) | Currency Integer Paisa Standardization, Secure Token RPC & Concurrency Hardening | **Accepted** | 2026-09-11 | Principal Architect | Schema, Security & Concurrency |
+| [ADR-010](file:///c:/LiveDrop/docs/adr/ADR-010-refund-obligation-tracking-for-late-upi-payments.md) | Refund-Obligation Tracking for Late Direct-UPI Payments (supersedes migration 023 refund note) | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Payments & Ledger Integrity |
+| [ADR-011](file:///c:/LiveDrop/docs/adr/ADR-011-reservation-hold-expiry-inside-the-database.md) | Reservation Hold Expiry Inside the Database (pg_cron + lazy expiry; claimed payments never auto-expire) | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Concurrency & Reservation |
+| [ADR-012](file:///c:/LiveDrop/docs/adr/ADR-012-android-release-signing-and-ci-release-builds.md) | Android Release Signing & CI Release Builds | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Build, Release & Secrets |
+| [ADR-013](file:///c:/LiveDrop/docs/adr/ADR-013-seller-app-level-live-store.md) | Seller App-Level Live Store (one realtime channel, debounced refresh, catch-up) | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Realtime & Seller UX |
 
 ---
 

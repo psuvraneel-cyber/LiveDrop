@@ -1,15 +1,24 @@
 == 14.1 40 concurrent checkouts for one piece (#A01)
      39 false
       1 true
-PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/82602c65-d241-4bb6-b210-c3503117d98b)
+PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/d1a5d38f-71b6-4360-b8a1-8a0da4d988e0)
 == 14.2 late-claim verification racing a fresh checkout of the same piece (#A02)
-   setup: order X=51113bb9-3db9-4b0c-a18c-6427c4c15a4a is cancelled, attempt is late_claim_pending_review, piece is available
+   setup: order X=5c3048ab-df45-4e90-b713-78a01ec55a93 is cancelled, attempt is late_claim_pending_review, piece is available
    session B checkout success: true
-   seller verify result: "message": "Late payment verified and inventory successfully secured for order."
-   X=paid/paid | Y=pending/unpaid | piece=sold reserved_by=NULL
-FINDING 14.2 double allocation: late claim marked piece sold for order X while order Y still holds it as a pending reservation
-   after buyer Y pays and seller verifies: paid orders containing the single piece #A02 = 2
-FINDING 14.2b one unique garment is now attached to 2 fully paid orders
-== 14.3 seller verify (locks attempt -> order) vs reaper (locks order -> attempt)
-   reaper session deadlock errors: 1 ; seller verify deadlock errors: 0
-FINDING 14.3 deadlock between seller verification and the reaper (opposite lock order); aborted side: reaper-transaction
+   seller verify result: "message": "Late payment verified, but items are no longer available. Seller refund or resolution required."  
+   X=cancelled/paid refund=required:250000 total=250000 | Y=pending/unpaid | piece=reserved reserved_by=Y
+PASS 14.2 late claim recorded as refund-required on cancelled order X; order Y keeps the piece (no overwrite)
+   after buyer Y pays and seller verifies: live orders owning #A02 = 1 (paid money on 2 orders; X is refund-required) | Y paid & piece sold = t | ledger mismatches = 0
+PASS 14.2b exactly one live paid order owns #A02 (Y); X's money is tracked as a refund
+== 14.3 seller verify (claimed order) vs reaper holding the order lock
+   reaper session deadlock errors: 0 ; seller verify deadlock errors: 0 ; order/attempt/piece after both = paid/verified/sold
+PASS 14.3 no deadlock; reaper left the claimed order alone and the seller's verification succeeded
+== 14.4 seller verify waits on an order the reaper is releasing (unclaimed attempt, expired hold)
+   reaper deadlock errors: 0 ; seller verify deadlock errors: 0 ; order/attempt/piece = cancelled/expired/available ; verify -> "error": "INVALID_ORDER_STATE"
+PASS 14.4 no deadlock; reaper released the unclaimed hold first, verify then saw the cancelled order (INVALID_ORDER_STATE)
+== 14.5 40 concurrent checkouts for a piece behind an expired, unclaimed hold (#B02, lazy expiry)
+     39 false
+      1 true
+   successes=1 ; stale order/attempt = cancelled/expired ; piece holder = new-buyer ; pending orders on #B02 = 1
+PASS 14.5 lazy expiry released the stale hold once; exactly one racer reserved the piece
+PASS 14.6 ledger invariant after all concurrent cases: total_paid_paisa = verified ledger sum for every order

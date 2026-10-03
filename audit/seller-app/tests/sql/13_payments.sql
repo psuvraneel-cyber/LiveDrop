@@ -122,9 +122,11 @@ BEGIN
 END $$;
 
 -- 13.5 LATE CLAIM on an ADVANCE order: only the advance is received
+--      Expected (SA-PAY-001): confirmed / advance_paid, balance due = total - advance,
+--      piece held for this order again, ledger sum = total_paid.
 UPDATE profiles SET advance_confirmation_enabled = true, advance_amount_paisa = 25000 WHERE id = audit.seller_a();
 DO $$
-DECLARE b jsonb; v jsonb; o record; led_sum int; led_type text;
+DECLARE b jsonb; v jsonb; o record; led_sum int; led_type text; piece record;
 BEGIN
   b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a2()], 'advance', NULL);
   RAISE NOTICE 'INFO 13.5a advance order total=% advance_required=% attempt_amount=%', b->>'total_paisa', b->>'advance_required_paisa', b->>'attempt_amount';
@@ -138,17 +140,29 @@ BEGIN
     (SELECT status FROM orders WHERE id = (b->>'order_id')::uuid), (SELECT status FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid);
   v := pg_temp.verify_as_a((b->>'attempt_id')::uuid);
   SELECT * INTO o FROM orders WHERE id = (b->>'order_id')::uuid;
-  SELECT sum(amount_paisa), string_agg(payment_type, ',') INTO led_sum, led_type FROM order_payments WHERE order_id = o.id;
-  RAISE NOTICE '% 13.5c late advance verified -> order %/% total=% total_paid=% balance_due=% | ledger records %=% paisa',
-    CASE WHEN o.status='paid' AND o.total_paid_paisa > led_sum THEN 'FINDING' ELSE 'PASS' END,
-    o.status, o.payment_status, o.total_paisa, o.total_paid_paisa, o.balance_due_paisa, led_type, led_sum;
+  SELECT sum(amount_paisa), string_agg(payment_type, ',') INTO led_sum, led_type FROM order_payments WHERE order_id = o.id AND status = 'verified';
+  SELECT status, reserved_by_order_id INTO piece FROM products WHERE id = audit.p_a2();
+  RAISE NOTICE '% 13.5c late advance verified -> order %/% total=% total_paid=% advance_paid=% balance_due=% hold_left=% piece=%/% | ledger records %=% paisa | rpc late=% inventory=% refund=%',
+    CASE WHEN o.status='paid' AND o.total_paid_paisa > led_sum THEN 'FINDING'
+         WHEN (v->>'success')::boolean AND o.status='confirmed' AND o.payment_status='advance_paid'
+              AND o.total_paid_paisa = 25000 AND o.advance_paid_paisa = 25000 AND led_sum = o.total_paid_paisa
+              AND o.balance_due_paisa = o.total_paisa - 25000 AND o.hold_expires_at > now() + interval '1 day'
+              AND piece.status = 'reserved' AND piece.reserved_by_order_id = o.id
+              AND (v->>'is_late_claim')::boolean AND (v->>'inventory_available')::boolean
+              AND NOT (v->>'refund_required')::boolean THEN 'PASS'
+         ELSE 'FAIL' END,
+    o.status, o.payment_status, o.total_paisa, o.total_paid_paisa, o.advance_paid_paisa, o.balance_due_paisa,
+    date_trunc('day', o.hold_expires_at - now()), piece.status, CASE WHEN piece.reserved_by_order_id = o.id THEN 'this-order' ELSE coalesce(piece.reserved_by_order_id::text, 'none') END,
+    led_type, led_sum, v->>'is_late_claim', v->>'inventory_available', v->>'refund_required';
 END $$;
 
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
 
 -- 13.6 LATE CLAIM (full payment) after the piece was re-reserved by another buyer
+--      Expected (SA-PAY-004): money recorded, order stays cancelled, refund_status = 'required'
+--      with refund_amount = the payment, the other buyer keeps the piece.
 DO $$
-DECLARE b jsonb; other jsonb; v jsonb; o record;
+DECLARE b jsonb; other jsonb; v jsonb; o record; led_sum int; piece record;
 BEGIN
   b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1()], 'full_payment', NULL);
   UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = (b->>'order_id')::uuid;
@@ -160,16 +174,29 @@ BEGIN
   PERFORM audit.as_postgres();
   v := pg_temp.verify_as_a((b->>'attempt_id')::uuid);
   SELECT * INTO o FROM orders WHERE id = (b->>'order_id')::uuid;
-  RAISE NOTICE '% 13.6 late full payment, piece gone -> rpc success=% refund_required=% | order status=% payment=% notes=%',
-    CASE WHEN o.status='cancelled' AND o.payment_status='paid' THEN 'FINDING' ELSE 'PASS' END,
-    v->>'success', v->>'refund_required', o.status, o.payment_status, left(COALESCE(o.notes,''), 60);
+  SELECT coalesce(sum(amount_paisa), 0) INTO led_sum FROM order_payments WHERE order_id = o.id AND status = 'verified';
+  SELECT status, reserved_by_order_id INTO piece FROM products WHERE id = audit.p_a1();
+  RAISE NOTICE '% 13.6 late full payment, piece gone -> rpc success=% refund_required=% refund_amount=% | order status=% payment=% total_paid=% ledger=% refund_status=% refund_amount=% reason=% | piece=% held by other buyer=%',
+    CASE WHEN o.status='cancelled' AND o.payment_status='paid' AND (to_jsonb(o)->>'refund_status') IS DISTINCT FROM 'required' THEN 'FINDING'
+         WHEN (v->>'success')::boolean AND (v->>'refund_required')::boolean
+              AND (v->>'refund_amount_paisa')::int = (b->>'attempt_amount')::int
+              AND o.status = 'cancelled' AND to_jsonb(o)->>'refund_status' = 'required'
+              AND (to_jsonb(o)->>'refund_amount_paisa')::int = (b->>'attempt_amount')::int
+              AND to_jsonb(o)->>'refund_reason' = 'LATE_PAYMENT_INVENTORY_UNAVAILABLE' AND to_jsonb(o)->>'refund_required_at' IS NOT NULL
+              AND o.total_paid_paisa = led_sum AND o.balance_due_paisa = o.total_paisa - o.total_paid_paisa
+              AND piece.status = 'reserved' AND piece.reserved_by_order_id = (other->>'order_id')::uuid THEN 'PASS'
+         ELSE 'FAIL' END,
+    v->>'success', v->>'refund_required', v->>'refund_amount_paisa', o.status, o.payment_status, o.total_paid_paisa, led_sum,
+    to_jsonb(o)->>'refund_status', to_jsonb(o)->>'refund_amount_paisa', to_jsonb(o)->>'refund_reason', piece.status, (piece.reserved_by_order_id = (other->>'order_id')::uuid);
 END $$;
 
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
 
--- 13.7 LATE CLAIM (advance) after the piece was re-reserved: verification cannot complete
+-- 13.7 LATE CLAIM (advance) after the piece was re-reserved
+--      Expected (SA-PAY-006): no constraint error; advance recorded with a consistent balance,
+--      order stays cancelled, refund_status = 'required' for the advance amount.
 DO $$
-DECLARE b jsonb; other jsonb; v jsonb;
+DECLARE b jsonb; other jsonb; v jsonb; o record; led_sum int;
 BEGIN
   b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a2()], 'advance', NULL);
   UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = (b->>'order_id')::uuid;
@@ -180,16 +207,29 @@ BEGIN
   PERFORM submit_buyer_payment_claim((b->>'order_id')::uuid, b->>'order_token', (b->>'attempt_id')::uuid, '912345678902');
   PERFORM audit.as_postgres();
   v := pg_temp.verify_as_a((b->>'attempt_id')::uuid);
-  RAISE NOTICE '% 13.7 late advance, piece gone -> % %',
-    CASE WHEN v->>'error' LIKE 'EXCEPTION%' THEN 'FINDING' ELSE 'PASS' END, v->>'error', left(COALESCE(v->>'message',''), 90);
+  SELECT * INTO o FROM orders WHERE id = (b->>'order_id')::uuid;
+  SELECT coalesce(sum(amount_paisa), 0) INTO led_sum FROM order_payments WHERE order_id = o.id AND status = 'verified';
+  RAISE NOTICE '% 13.7 late advance, piece gone -> % % | order=%/% total=% total_paid=% advance_paid=% balance_due=% ledger=% refund=%/%',
+    CASE WHEN v->>'error' LIKE 'EXCEPTION%' THEN 'FINDING'
+         WHEN (v->>'success')::boolean AND (v->>'refund_required')::boolean
+              AND o.status = 'cancelled' AND o.payment_status = 'advance_paid'
+              AND o.total_paid_paisa = 25000 AND o.advance_paid_paisa = 25000 AND led_sum = o.total_paid_paisa
+              AND o.balance_due_paisa = o.total_paisa - 25000
+              AND to_jsonb(o)->>'refund_status' = 'required' AND (to_jsonb(o)->>'refund_amount_paisa')::int = 25000 THEN 'PASS'
+         ELSE 'FAIL' END,
+    coalesce(v->>'error', 'success=' || (v->>'success')), left(COALESCE(v->>'message',''), 90),
+    o.status, o.payment_status, o.total_paisa, o.total_paid_paisa, o.advance_paid_paisa, o.balance_due_paisa, led_sum,
+    to_jsonb(o)->>'refund_status', to_jsonb(o)->>'refund_amount_paisa';
 END $$;
 
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
 UPDATE profiles SET advance_confirmation_enabled = false WHERE id = audit.seller_a();
 
--- 13.8 a claimed-but-unverified payment silently expires after 24h and the piece is released
+-- 13.8 a claimed-but-unverified payment must not expire after 24h (SA-PAY-003)
+--      Expected: the reaper leaves order, attempt and piece untouched; the claim stays in the
+--      seller queue (overdue) and can still be verified.
 DO $$
-DECLARE b jsonb; o text; a text; p text; queue int;
+DECLARE b jsonb; o text; a text; p text; p_by uuid; queue int; v jsonb; o_after text;
 BEGIN
   b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a3()], 'full_payment', '102345678901');
   UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = (b->>'order_id')::uuid;
@@ -198,13 +238,19 @@ BEGIN
   PERFORM pg_temp.reap();
   SELECT status INTO o FROM orders WHERE id = (b->>'order_id')::uuid;
   SELECT status INTO a FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid;
-  SELECT status INTO p FROM products WHERE id = audit.p_a3();
+  SELECT status, reserved_by_order_id INTO p, p_by FROM products WHERE id = audit.p_a3();
   PERFORM audit.as_seller(audit.seller_a());
   SELECT count(*) INTO queue FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid
      AND status IN ('buyer_claimed','awaiting_seller_verification','late_claim_pending_review');
   PERFORM audit.as_postgres();
-  RAISE NOTICE '% 13.8 buyer-claimed payment after 24h without seller action -> order=% attempt=% piece=% still in seller queue=%',
-    CASE WHEN o='cancelled' AND queue=0 THEN 'FINDING' ELSE 'PASS' END, o, a, p, queue;
+  v := pg_temp.verify_as_a((b->>'attempt_id')::uuid);
+  SELECT status INTO o_after FROM orders WHERE id = (b->>'order_id')::uuid;
+  RAISE NOTICE '% 13.8 buyer-claimed payment after 24h without seller action -> order=% attempt=% piece=% held by order=% still in seller queue=% | verify afterwards -> % (order=%)',
+    CASE WHEN o='cancelled' AND queue=0 THEN 'FINDING'
+         WHEN o='pending' AND a='awaiting_seller_verification' AND p='reserved' AND p_by = (b->>'order_id')::uuid
+              AND queue=1 AND (v->>'success')::boolean AND o_after='paid' THEN 'PASS'
+         ELSE 'FAIL' END,
+    o, a, p, (p_by = (b->>'order_id')::uuid), queue, coalesce(v->>'error', 'success=' || (v->>'success')), o_after;
 END $$;
 
 -- 13.9 UPI deep link built from seller-controlled display name

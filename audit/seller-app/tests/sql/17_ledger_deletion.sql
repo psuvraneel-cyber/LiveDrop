@@ -65,8 +65,14 @@ BEGIN
   SELECT count(*) INTO before_led FROM order_payments WHERE order_id = (b->>'order_id')::uuid AND status = 'verified';
   r := pg_temp.seller_delete_order((b->>'order_id')::uuid);
   SELECT count(*) INTO after_led FROM order_payments WHERE order_id = (b->>'order_id')::uuid;
+  -- Expected (SA-PAY-018): the deletion guard refuses (error names the refund) and the ledger row survives.
   RAISE NOTICE '% 17.1 seller DELETE of a refund-owed order (refund_required=%) -> % | verified ledger rows before=% after=%',
-    CASE WHEN after_led < before_led THEN 'FINDING' ELSE 'PASS' END, v->>'refund_required', r, before_led, after_led;
+    CASE WHEN after_led < before_led THEN 'FINDING'
+         WHEN r LIKE 'ERR%' AND r ILIKE '%refund%' AND before_led = 1 AND after_led = 1
+              AND (v->>'refund_required')::boolean
+              AND EXISTS (SELECT 1 FROM orders WHERE id = (b->>'order_id')::uuid) THEN 'PASS'
+         ELSE 'FAIL' END,
+    v->>'refund_required', r, before_led, after_led;
 END $$;
 
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();

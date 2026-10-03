@@ -1,21 +1,27 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/realtime/seller_order_realtime.dart';
+import '../../data/realtime/seller_live_store.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
 import 'order_card.dart';
 
 /// Screen 6: Luxury Boutique Orders Kanban Pipeline Screen
 /// 4 Pipeline Tabs: Pending, Paid, Ready, Shipped
+///
+/// Live updates come from the app-level [SellerLiveStore] (SA-RT-001): the
+/// board reloads its current selection — "All Drops" or one drop — whenever
+/// the store's revision changes.
 class KanbanBoardScreen extends StatefulWidget {
   final SellerRepository repository;
+  final SellerLiveStore? liveStore;
 
   const KanbanBoardScreen({
     super.key,
     required this.repository,
+    this.liveStore,
   });
 
   @override
@@ -23,7 +29,7 @@ class KanbanBoardScreen extends StatefulWidget {
 }
 
 class _KanbanBoardScreenState extends State<KanbanBoardScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, SellerLiveRefreshMixin<KanbanBoardScreen> {
   late TabController _tabController;
   List<SellerOrder> _allOrders = [];
   List<SellerDrop> _drops = [];
@@ -32,8 +38,15 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
   String _searchQuery = '';
   bool _isLoading = true;
   String? _errorMessage;
+  int _ordersLoadSequence = 0;
 
-  SellerOrderRealtimeSubscription? _realtimeSubscription;
+  @override
+  SellerLiveStore? get liveStore => widget.liveStore;
+
+  @override
+  void onLiveRevision() {
+    _refreshOrders();
+  }
 
   @override
   void initState() {
@@ -44,12 +57,12 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
 
   @override
   void dispose() {
-    _realtimeSubscription?.unsubscribe();
     _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _loadInitialData() async {
+    final sequence = ++_ordersLoadSequence;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -61,46 +74,47 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
       final ordersFuture = widget.repository.getAllOrders(dropId: _selectedDropId);
 
       final results = await Future.wait([profileFuture, dropsFuture, ordersFuture]);
-      if (mounted) {
+      if (mounted && sequence == _ordersLoadSequence) {
         setState(() {
           _profile = results[0] as SellerProfile;
           _drops = results[1] as List<SellerDrop>;
           _allOrders = results[2] as List<SellerOrder>;
           _isLoading = false;
         });
-
-        _setupRealtime();
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && sequence == _ordersLoadSequence) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e is LiveDropException ? e.message : e.toString();
+          _errorMessage = e is LiveDropException ? e.message : 'Could not load orders. Check your connection and retry.';
         });
       }
     }
   }
 
   Future<void> _refreshOrders() async {
+    final sequence = ++_ordersLoadSequence;
     try {
       final orders = await widget.repository.getAllOrders(dropId: _selectedDropId);
-      if (mounted) {
+      if (mounted && sequence == _ordersLoadSequence) {
         setState(() {
           _allOrders = orders;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      // Keep the orders already on screen; the next live update or a pull
+      // to refresh will try again.
+    }
   }
 
-  void _setupRealtime() {
-    _realtimeSubscription?.unsubscribe();
-    if (_selectedDropId != null) {
-      _realtimeSubscription = SellerOrderRealtimeSubscription(
-        dropId: _selectedDropId!,
-        onOrderCreated: (newOrder) => _refreshOrders(),
-        onOrderUpdated: (updatedOrder) => _refreshOrders(),
-      );
-      _realtimeSubscription!.subscribe();
+  /// After an action on a card: refresh every tab through the live store
+  /// (falls back to refreshing only this board when there is no store).
+  void _onOrderMutated() {
+    final store = widget.liveStore;
+    if (store != null) {
+      store.requestRefresh(immediate: true);
+    } else {
+      _refreshOrders();
     }
   }
 
@@ -317,7 +331,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
                   holdDurationDays: 30,
                 ),
             repository: widget.repository,
-            onOrderUpdated: _refreshOrders,
+            onOrderUpdated: _onOrderMutated,
           );
         },
       ),

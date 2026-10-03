@@ -36,7 +36,7 @@ FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public' AND has_function_privilege('anon', p.oid, 'EXECUTE')
 ORDER BY 1;
 
--- H6: migrations actually applied on this project (compare with supabase/migrations/001..033)
+-- H6: migrations actually applied on this project (compare with supabase/migrations/001..036)
 SELECT version, name FROM supabase_migrations.schema_migrations ORDER BY version;
 
 -- H7: Realtime publication membership (seller app relies on orders; buyer web on products)
@@ -71,6 +71,68 @@ FROM public.orders o
 WHERE EXISTS (SELECT 1 FROM public.order_payments op WHERE op.order_id = o.id AND op.status = 'verified')
   AND o.status NOT IN ('confirmed', 'paid', 'shipped', 'expired')
 GROUP BY o.status;
+
+-- =============================================================================
+-- Post-remediation checks (after migrations 034, 035, 036 are applied). Read-only.
+-- =============================================================================
+
+-- H14 (034, SA-SEC-001): client roles must hold SELECT only on every public view.
+--      Expected: zero rows.
+SELECT c.relname AS view_name, g.rolname, pr.p AS privilege
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+CROSS JOIN (VALUES ('anon'), ('authenticated')) AS g(rolname)
+CROSS JOIN unnest(ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS pr(p)
+WHERE n.nspname = 'public' AND c.relkind = 'v' AND has_table_privilege(g.rolname, c.oid, pr.p)
+ORDER BY 1, 2, 3;
+
+-- H15 (035, SA-PAY-004): structured refund obligations — what sellers owe, per drop.
+SELECT o.drop_id, count(*) AS refunds_owed, sum(o.refund_amount_paisa) AS owed_paisa, min(o.refund_required_at) AS oldest
+FROM public.orders o WHERE o.refund_status = 'required'
+GROUP BY o.drop_id ORDER BY oldest;
+
+-- H16 (035): internal helpers are not callable by client roles; record_refund is seller/backend only.
+--      Expected: every *_anon / *_auth column false except record_refund_auth = true.
+SELECT has_function_privilege('anon', 'public.release_stale_hold(uuid)', 'EXECUTE') AS release_stale_hold_anon,
+       has_function_privilege('authenticated', 'public.release_stale_hold(uuid)', 'EXECUTE') AS release_stale_hold_auth,
+       has_function_privilege('anon', 'public.apply_upi_payment_transition(uuid,uuid,text,text,uuid)', 'EXECUTE') AS transition_anon,
+       has_function_privilege('authenticated', 'public.apply_upi_payment_transition(uuid,uuid,text,text,uuid)', 'EXECUTE') AS transition_auth,
+       has_function_privilege('anon', 'public.record_refund(uuid,text,text)', 'EXECUTE') AS record_refund_anon,
+       has_function_privilege('authenticated', 'public.record_refund(uuid,text,text)', 'EXECUTE') AS record_refund_auth;
+
+-- H17 (036, SA-OPS-001): in-database reaper schedule. Run only when H8 shows pg_cron installed.
+--      Expected: one active job every minute, recent runs 'succeeded'.
+-- SELECT jobid, jobname, schedule, command, active FROM cron.job WHERE jobname = 'livedrop-release-expired-holds';
+-- SELECT status, start_time, end_time, return_message FROM cron.job_run_details
+--  WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname = 'livedrop-release-expired-holds')
+--  ORDER BY start_time DESC LIMIT 10;
+
+-- H18 (035, SA-OPS-001): unclaimed holds past expiry (reaper lag). Expected: 0 within ~2 minutes.
+--      Pending orders past expiry WITH a payment claim are expected to stay (H19).
+SELECT count(*) AS expired_unclaimed_holds, min(o.hold_expires_at) AS oldest_expiry
+FROM public.orders o
+WHERE o.status = 'pending' AND o.hold_expires_at < now() - interval '2 minutes'
+  AND NOT EXISTS (SELECT 1 FROM public.payment_attempts pa WHERE pa.order_id = o.id
+                    AND pa.status IN ('buyer_claimed', 'awaiting_seller_verification', 'late_claim_pending_review'));
+
+-- H19 (035, SA-PAY-003): overdue payment claims still waiting for the seller (never auto-expired).
+SELECT pa.status, count(*) AS claims, min(coalesce(pa.verification_expires_at, pa.buyer_claimed_at)) AS oldest
+FROM public.payment_attempts pa
+WHERE pa.status IN ('buyer_claimed', 'awaiting_seller_verification', 'late_claim_pending_review')
+  AND coalesce(pa.verification_expires_at, pa.expires_at) < now()
+GROUP BY pa.status;
+
+-- H20 (owner reconciliation, SA-PAY-003 history): claims the PRE-035 reaper expired although the
+--      buyer had submitted a UTR and nothing was verified. Review each with the seller; 035 does not
+--      change these rows automatically.
+SELECT pa.id AS payment_attempt_id, o.order_code, o.status AS order_status, pa.payment_type,
+       pa.expected_amount_paisa, pa.buyer_submitted_utr, pa.buyer_claimed_at, pa.updated_at AS expired_at
+FROM public.payment_attempts pa JOIN public.orders o ON o.id = pa.order_id
+WHERE pa.status = 'expired' AND pa.buyer_submitted_utr IS NOT NULL AND pa.seller_verified_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM public.order_payments op
+                   WHERE op.order_id = o.id AND op.status = 'verified'
+                     AND op.metadata ->> 'payment_attempt_id' = pa.id::text)
+ORDER BY pa.buyer_claimed_at;
 
 -- =============================================================================
 -- Optional non-destructive HTTP probe for storage listing (SA-SEC-008):

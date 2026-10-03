@@ -24,10 +24,11 @@
 ├──────────────────────────────────────┬──────────────────────────────────────┤
 │ Channel A: Public Buyer Catalog      │ Channel B: Authenticated Seller Pipeline
 ├──────────────────────────────────────┼──────────────────────────────────────┤
-│ • Name: `drop:{drop_id}:products`    │ • Name: `seller:{seller_id}:orders`  │
+│ • Name: `drop:{drop_id}:products`    │ • Name: `seller:{seller_id}:live:{n}`│
 │ • Audience: Unauthenticated Buyers   │ • Audience: Authenticated Seller App │
 │ • Security: Public Channel           │ • Security: Private RLS / JWT Filter │
-│ • Events: `product_status_changed`   │ • Events: `order_created`, `updated` │
+│ • Events: `product_status_changed`   │ • Tables: orders, payment_attempts,  │
+│                                      │   products (ADR-013, §3.3)           │
 └──────────────────────────────────────┴──────────────────────────────────────┘
 ```
 
@@ -86,7 +87,10 @@ Subscribed by all viewers browsing a specific live drop catalog.
 
 ---
 
-### 3.2 Channel: `seller:{seller_id}:orders` (Seller Kanban)
+### 3.2 Channel: `seller:{seller_id}:orders` (Seller Kanban) — SUPERSEDED by §3.3
+
+> **Superseded on 2026-10-03 (ADR-013, audit finding SA-RT-001).** The per-drop `seller-orders` channel below was opened only for the selected drop, so the dashboard, products list, "All Drops" orders and Payments did not update live. The seller app now uses the app-level channel in §3.3. This section is kept for history.
+
 Subscribed exclusively by the authenticated seller's Flutter application.
 
 * **PostgreSQL Source Table:** `orders`
@@ -136,6 +140,19 @@ Subscribed exclusively by the authenticated seller's Flutter application.
 ```
 
 ---
+
+### 3.3 Channel: `seller:{seller_id}:live:{n}` (Seller App-Level Live Store, ADR-013)
+Opened once per signed-in seller session by `SellerLiveStore` (`seller-app/lib/data/realtime/seller_live_store.dart`). `{n}` is a sequence number so a reconnect never reuses a closed channel.
+
+* **PostgreSQL source tables:** `orders`, `payment_attempts`, `products` (all three are in the `supabase_realtime` publication).
+* **Events:** `postgres_changes`, all event types.
+* **Scoping:** RLS limits `orders` and `payment_attempts` events to the seller's own rows; `products` and `orders` events are also filtered client-side by the seller's drop ids.
+* **Debounce:** bursts of events are merged into one `revision` bump after 400 ms. Home, Products, Orders and Payments reload when the revision changes; hidden tabs reload when shown.
+* **Badges:** the store keeps pending-claim, overdue-claim and refunds-owed counts for the shell.
+* **Own actions:** a successful seller RPC (for example verify) bumps the revision at once, without waiting for realtime.
+* **Catch-up:** after a reconnect, and when the app resumes after more than 3 s in the background, the store bumps the revision and refetches counts from PostgREST. While the channel is down it polls every 30 s.
+* **Payloads are hints, never truth:** screens always reload from PostgREST (§1).
+* **Tests:** `seller-app/test/seller_live_store_test.dart`.
 
 ## 4. Resilience & Reconciliation Protocol
 

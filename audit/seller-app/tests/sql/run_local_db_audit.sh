@@ -7,16 +7,24 @@
 # Usage:
 #   PGHOST=/tmp PGPORT=55432 PGUSER=postgres ./run_local_db_audit.sh
 #
-# Output: evidence files under audit/seller-app/evidence/
+# Environment:
+#   AUDIT_DB      database to (re)create for the suites   (default livedrop_audit)
+#   CONC_DB       database for 14_concurrency.sh          (default livedrop_conc)
+#   EVIDENCE_DIR  where evidence files are written         (default audit/seller-app/evidence)
+#                 Reviewers can point this at a scratch directory so a local run
+#                 does not overwrite the committed evidence.
+#
+# Output: evidence files under $EVIDENCE_DIR
 # =============================================================================
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../../.." && pwd)"
 MIGRATIONS="$REPO/supabase/migrations"
-EVIDENCE="$REPO/audit/seller-app/evidence"
+EVIDENCE="${EVIDENCE_DIR:-$REPO/audit/seller-app/evidence}"
 DB="${AUDIT_DB:-livedrop_audit}"
 mkdir -p "$EVIDENCE"
+EVIDENCE="$(cd "$EVIDENCE" && pwd)"
 
 psql_db() { psql -X -v ON_ERROR_STOP=1 -d "$DB" "$@"; }
 

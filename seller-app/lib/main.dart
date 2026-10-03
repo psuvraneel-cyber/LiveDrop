@@ -5,12 +5,14 @@ import 'core/config/env_config.dart';
 import 'core/services/supabase_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'data/realtime/seller_live_store.dart';
 import 'data/repositories/seller_repository.dart';
 import 'domain/models/models.dart';
 import 'core/services/offline_intake_queue.dart';
 import 'presentation/analytics/seller_analytics_screen.dart';
 import 'presentation/auth/seller_login_screen.dart';
 import 'presentation/auth/seller_pending_approval_screen.dart';
+import 'presentation/common/live_refresh.dart';
 import 'presentation/configuration_error_screen.dart';
 import 'presentation/dashboard/seller_dashboard_screen.dart';
 import 'presentation/drops/create_drop_screen.dart';
@@ -169,10 +171,18 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
 }
 
 /// Seller Main Navigation Shell (5-Tab Luxury Boutique Operations)
+///
+/// Owns the app-level [SellerLiveStore] for the signed-in seller (SA-RT-001):
+/// one Realtime channel drives live reloads of Home, Products, Orders and
+/// Payments and the Payments badge. The shell only exists while a session
+/// exists, so signing out disposes the store and closes the channel.
 class SellerHomeScreen extends StatefulWidget {
   final SellerRepository repository;
 
-  const SellerHomeScreen({super.key, required this.repository});
+  /// Injected store (tests). When null the shell creates and owns one.
+  final SellerLiveStore? liveStore;
+
+  const SellerHomeScreen({super.key, required this.repository, this.liveStore});
 
   @override
   State<SellerHomeScreen> createState() => _SellerHomeScreenState();
@@ -182,16 +192,28 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
   int _currentIndex = 0;
   SellerProfile? _profile;
   final OfflineIntakeQueue _sharedIntakeQueue = OfflineIntakeQueue();
+  late final SellerLiveStore _liveStore;
+  late final bool _ownsLiveStore;
 
   @override
   void initState() {
     super.initState();
+    _ownsLiveStore = widget.liveStore == null;
+    _liveStore = widget.liveStore ??
+        SellerLiveStore(
+          repository: widget.repository,
+          source: SellerLiveStore.defaultSource(),
+        );
+    unawaited(_liveStore.start());
     _sharedIntakeQueue.initialize();
     _loadProfile();
   }
 
   @override
   void dispose() {
+    if (_ownsLiveStore) {
+      _liveStore.dispose();
+    }
     _sharedIntakeQueue.dispose();
     super.dispose();
   }
@@ -322,29 +344,46 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
         index: _currentIndex,
         children: [
           // Tab 0: Home / Live Dashboard (Screen 2)
-          SellerDashboardScreen(
-            repository: widget.repository,
-            onNavigateToAddProduct: _openAddProduct,
-            onNavigateToOrders: () => _navigateToTab(2),
-            onNavigateToPayments: () => _navigateToTab(3),
-            onNavigateToAnalytics: _openAnalytics,
-            onNavigateToShipping: _openShipping,
-            onManageDrop: _openManageDrops,
+          LiveTabVisibility(
+            visible: _currentIndex == 0,
+            child: SellerDashboardScreen(
+              repository: widget.repository,
+              liveStore: _liveStore,
+              onNavigateToAddProduct: _openAddProduct,
+              onNavigateToOrders: () => _navigateToTab(2),
+              onNavigateToPayments: () => _navigateToTab(3),
+              onNavigateToAnalytics: _openAnalytics,
+              onNavigateToShipping: _openShipping,
+              onManageDrop: _openManageDrops,
+            ),
           ),
           // Tab 1: Products & Inventory (Screen 3)
-          ProductsInventoryScreen(
-            repository: widget.repository,
-            intakeQueue: _sharedIntakeQueue,
+          LiveTabVisibility(
+            visible: _currentIndex == 1,
+            child: ProductsInventoryScreen(
+              repository: widget.repository,
+              intakeQueue: _sharedIntakeQueue,
+              liveStore: _liveStore,
+            ),
           ),
           // Tab 2: Orders Kanban (Screen 6)
-          KanbanBoardScreen(repository: widget.repository),
+          LiveTabVisibility(
+            visible: _currentIndex == 2,
+            child: KanbanBoardScreen(repository: widget.repository, liveStore: _liveStore),
+          ),
           // Tab 3: Payment Verifications (Screen 7)
-          Scaffold(
-            backgroundColor: AppColors.obsidian,
-            appBar: AppBar(
-              title: const Text('Verify Payments', style: TextStyle(fontWeight: FontWeight.bold)),
+          LiveTabVisibility(
+            visible: _currentIndex == 3,
+            child: Scaffold(
+              backgroundColor: AppColors.obsidian,
+              appBar: AppBar(
+                title: const Text('Verify Payments', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              body: PendingVerificationsScreen(
+                repository: widget.repository,
+                liveStore: _liveStore,
+              ),
             ),
-            body: PendingVerificationsScreen(repository: widget.repository),
           ),
           // Tab 4: Settings & More (Screen 11)
           SellerSettingsScreen(repository: widget.repository),
@@ -359,15 +398,24 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
           top: false,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-                _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Products'),
-                _buildNavItem(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
-                _buildNavItem(3, Icons.verified_outlined, Icons.verified_rounded, 'Payments'),
-                _buildNavItem(4, Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
-              ],
+            child: ListenableBuilder(
+              listenable: _liveStore,
+              builder: (context, _) => Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
+                  _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Products'),
+                  _buildNavItem(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
+                  _buildNavItem(
+                    3,
+                    Icons.verified_outlined,
+                    Icons.verified_rounded,
+                    'Payments',
+                    badgeCount: _liveStore.paymentsBadgeCount,
+                  ),
+                  _buildNavItem(4, Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
+                ],
+              ),
             ),
           ),
         ),
@@ -375,8 +423,19 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData unselectedIcon, IconData selectedIcon, String label) {
+  Widget _buildNavItem(
+    int index,
+    IconData unselectedIcon,
+    IconData selectedIcon,
+    String label, {
+    int badgeCount = 0,
+  }) {
     final isSelected = _currentIndex == index;
+    final icon = Icon(
+      isSelected ? selectedIcon : unselectedIcon,
+      color: isSelected ? AppColors.goldPrimary : AppColors.textMuted,
+      size: 22,
+    );
 
     return InkWell(
       onTap: () => _navigateToTab(index),
@@ -391,11 +450,37 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? selectedIcon : unselectedIcon,
-              color: isSelected ? AppColors.goldPrimary : AppColors.textMuted,
-              size: 22,
-            ),
+            if (badgeCount > 0)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  icon,
+                  Positioned(
+                    right: -10,
+                    top: -6,
+                    child: Container(
+                      key: ValueKey('nav-badge-$label'),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.crimson,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              icon,
             const SizedBox(height: 3),
             Text(
               label,

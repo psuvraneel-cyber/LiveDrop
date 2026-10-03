@@ -260,6 +260,17 @@ GRANT SELECT ON order_items TO authenticated;
 
 ---
 
+### 3.1 Public View Privilege Lockdown (migration 034, SA-SEC-001)
+The seller-app audit (commit 94ccfc9) found that `anon` could `UPDATE`/`DELETE` seller profiles through the auto-updatable owner-rights view `public_seller_storefronts`, because Supabase's default privileges had granted every privilege on new views to `anon` and `authenticated`. The view runs with its owner's rights, so base-table RLS did not protect it.
+
+Rules since migration 034:
+* Every view in `public` has `REVOKE ALL FROM PUBLIC, anon, authenticated`; `SELECT` is granted back only to roles that had it. `public_seller_storefronts` and `public_products_catalog` get explicit `GRANT SELECT TO anon, authenticated, service_role`.
+* Views stay owner-rights views (switching to `security_invoker` would break them, because `anon` has no `SELECT` on `profiles`).
+* Default privileges: `ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon;` and `... REVOKE TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM authenticated;` (TRUNCATE bypasses RLS).
+* `TRUNCATE`, `REFERENCES` and `TRIGGER` are revoked from `PUBLIC`, `anon` and `authenticated` on every existing public table.
+* RLS policies are unchanged.
+* **Any new view must be granted SELECT only.** Checked locally by SQL 10.3–10.9 and 19.20a–c; on hosted by `audit/seller-app/tests/sql/90_hosted_readonly_checks.sql` H1 and H14.
+
 ## 4. Database Security Definer Hardening
 
 PostgreSQL functions declared with `SECURITY DEFINER` execute with the privileges of the database owner.
@@ -273,6 +284,7 @@ PostgreSQL functions declared with `SECURITY DEFINER` execute with the privilege
   REVOKE EXECUTE ON FUNCTION mark_order_paid(UUID) FROM PUBLIC, anon;
   GRANT EXECUTE ON FUNCTION mark_order_paid(UUID) TO authenticated;
   ```
+* **Internal helpers (migration 035):** `release_stale_hold`, `apply_upi_payment_transition`, `upi_verification_response` and the trigger function `prevent_finalized_order_deletion` have EXECUTE revoked from `PUBLIC`, `anon` and `authenticated` (the three helpers also from `service_role`). `record_refund` is granted to `authenticated` and `service_role` only. Verified by SQL 19.3 and 19.9a; hosted check H16.
 
 ---
 
@@ -309,3 +321,9 @@ The checkout handshake relies on generating standard `https://wa.me/{seller_phon
 ```
 
 * **Git Secret Defense:** Pre-commit hooks (`git-secrets` / `trufflehog`) scan for Supabase service role tokens and private keys prior to any commit.
+* **CI Secret Scanning (SA-SEC-002, since 2026-10-03):** `.github/workflows/secret-scan.yml` runs gitleaks (config `.gitleaks.toml`) on every push and pull request over the new commits only; findings are redacted in the log. History is not rescanned, because it still contains a staging seller credential leaked in commit 0abdaeb (`scripts/seed-legitimate-staging-drop.mjs`). That credential must be rotated by the owner, and purging the history is a separate decision: see `docs/ops/credential-rotation-runbook.md`.
+
+### 6.1 Android Release Signing (SA-AND-001, ADR-012)
+* Release builds of the seller app are signed only with the owner's upload/release key, from `seller-app/android/key.properties` (gitignored) or the env vars `LIVEDROP_KEYSTORE_PATH`, `LIVEDROP_KEYSTORE_PASSWORD`, `LIVEDROP_KEY_ALIAS`, `LIVEDROP_KEY_PASSWORD`. Without them a release task fails with a `GradleException`; there is no silent fallback to the debug key.
+* CI (`seller-app-ci.yml`): pull requests run analyze, test and a debug build. On push to main or manual dispatch a release job builds a signed AAB and APK from the secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, checks that the certificate is not the Android debug certificate (and matches `vars.ANDROID_RELEASE_CERT_SHA256` when set), and deletes the keystore afterwards. Without the secrets the job is skipped with a notice.
+* The keystore, its passwords and `key.properties` never enter the repository, the APK assets or `NEXT_PUBLIC_*`. Setup: `docs/ops/android-release-signing.md`.

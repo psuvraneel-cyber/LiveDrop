@@ -170,8 +170,8 @@ async function run() {
     }
     console.log(`  ✓ ${col.table_name}.${col.column_name}: integer (Paisa)`);
   }
-  if (paisaRes.rows.length !== 17) {
-    throw new Error(`Expected 17 base table paisa columns, found ${paisaRes.rows.length}`);
+  if (paisaRes.rows.length !== 18) {
+    throw new Error(`Expected 18 base table paisa columns (incl. orders.refund_amount_paisa, migration 035), found ${paisaRes.rows.length}`);
   }
 
   console.log('🔍 Verifying 10 triggers (including Migration 012 & 013 enforcement):');

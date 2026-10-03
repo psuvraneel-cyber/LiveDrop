@@ -281,13 +281,89 @@ This enables the client UI to highlight the exact contested dress and allow the 
 
 ---
 
+### 3.4 Lock Order for Payment, Hold and Checkout Functions (migration 035)
+Audit finding SA-INT-002 found a deadlock between `verify_manual_upi_payment` (attempt locked before order) and `release_expired_holds` (order before attempt). Since migration 035 every function that touches orders, payment attempts and products takes locks in one fixed order:
+
+`orders` → `payment_attempts` → `products` (products always `ORDER BY id`).
+
+* `verify_manual_upi_payment` and `reject_manual_upi_payment` read the attempt's `order_id` without a lock, lock the order, then lock and re-read the attempt, then lock the products.
+* `close_drop` locks orders → attempts → products and re-checks for claims under the order lock. `force_release_hold` locks only the order row (`FOR UPDATE OF o`).
+* `release_expired_holds` and `release_stale_hold` never wait: they use `FOR UPDATE SKIP LOCKED` on orders, attempts and products and leave a busy row for the next run.
+* Every product `UPDATE` carries its expected-status predicate and checks the affected row count (no blind overwrite of another order's reservation, SA-PAY-002).
+* Verified by SQL suite 14 (14.3, 14.4: no deadlock; 14.5: lazy expiry under 40 concurrent racers; 14.6: ledger invariant).
+
 ## 4. Lifecycle & Ownership Boundary Rules
 
 1. **Profile Deletion Guard (`ON DELETE RESTRICT`):** Deleting a seller profile is blocked if any drops exist. Profile cleanup must be handled via a SECURITY DEFINER RPC that verifies no active or historical orders exist before proceeding, or implements soft-delete.
 2. **Drop Deletion Guard (`ON DELETE RESTRICT`):** Deleting a drop is blocked if any products exist. A drop can only be deleted when empty (no products). This is enforced both at the FK level and by RPC validation.
 3. **Order Integrity Protection (`ON DELETE RESTRICT`):** A product that was ordered and sold cannot be hard-deleted from `products` (`order_items.product_id REFERENCES products(id) ON DELETE RESTRICT`). This preserves legal accounting and fulfillment records.
-4. **Finalized Order Protection:** A trigger prevents deletion of orders in `paid` or `shipped` status, ensuring GST-compliant retention of completed financial transactions.
+4. **Finalized Order Protection:** A trigger prevents deletion of orders in `paid` or `shipped` status, ensuring GST-compliant retention of completed financial transactions. Since migration 035 (SA-PAY-018) the trigger function `prevent_finalized_order_deletion()` is `SECURITY DEFINER SET search_path = public, pg_temp` and also refuses deletion of any order that has an `order_payments` row or `refund_status <> 'none'`; the error message names the reason.
 5. **Reservation Integrity (`ON DELETE RESTRICT`):** An order cannot be deleted while any product references it via `reserved_by_order_id`. Reservation cleanup must occur before order deletion.
 6. **Automatic Timestamps:** Triggers update `updated_at = NOW()` across `profiles`, `drops`, `products`, and `orders` on every modification.
 7. **Cross-Seller Isolation Invariant (RPC-enforced):** The schema does not carry a `seller_id` on `orders` directly; seller ownership is derived via `orders.drop_id → drops.seller_id`. All RPCs that create orders MUST enforce `products.drop_id = p_drop_id` in the locking query to prevent cross-seller product inclusion.
 
+
+
+---
+
+## 5. Payment Claim Safety, Refund Obligations & In-Database Reaper (migrations 034–036)
+
+Source: seller-app audit at commit 94ccfc9 (`audit/seller-app/`), findings SA-SEC-001, SA-PAY-001..006, SA-PAY-018, SA-OPS-001, SA-INT-002. Decisions: ADR-010, ADR-011.
+
+### 5.1 `orders` refund columns (migration 035, ADR-010)
+
+```sql
+refund_status        TEXT NOT NULL DEFAULT 'none' CHECK (refund_status IN ('none','required','refunded'))
+refund_amount_paisa  INT  NOT NULL DEFAULT 0      CHECK (refund_amount_paisa >= 0)
+refund_reason        TEXT NULL          -- e.g. 'LATE_PAYMENT_INVENTORY_UNAVAILABLE'
+refund_required_at   TIMESTAMPTZ NULL
+refund_reference     TEXT NULL          -- UPI/bank reference typed by the seller
+refunded_at          TIMESTAMPTZ NULL
+refund_recorded_by   UUID NULL REFERENCES auth.users(id)
+
+CHECK ((refund_status = 'none' AND refund_amount_paisa = 0)
+    OR (refund_status <> 'none' AND refund_amount_paisa > 0 AND refund_amount_paisa <= total_paid_paisa))
+CHECK (refund_status <> 'refunded' OR (refund_reference IS NOT NULL AND refunded_at IS NOT NULL))
+-- partial index
+CREATE INDEX ... ON orders (drop_id) WHERE refund_status = 'required';
+```
+
+* All refund columns are on the protected list of `enforce_orders_payment_immutability()`: sellers cannot change them with a direct `UPDATE` (SQL 19.7). Only `verify_manual_upi_payment`, `record_refund` and the service role write them.
+* Orders flagged as refund-owed by the free-text note of migration 023 are backfilled to `refund_status = 'required'`.
+* Money stays integer paisa.
+
+### 5.2 Ledger invariant
+
+`orders.total_paid_paisa = SUM(order_payments.amount_paisa WHERE status = 'verified')`. `verify_manual_upi_payment` checks it before writing (`LEDGER_INCONSISTENT`) and asserts it afterwards (`RAISE`, so the transaction rolls back). SQL 19.21 and 14.6 check every order.
+
+### 5.3 New and changed functions
+
+| Function | Change | Security |
+|---|---|---|
+| `verify_manual_upi_payment(uuid, text)` | On-time and late claims go through `apply_upi_payment_transition`. Late advance with free pieces → `confirmed/advance_paid` with correct amounts. Pieces resold → ledger row recorded, order stays cancelled/expired, refund obligation set. Claimed attempts stay verifiable past their window. `INVENTORY_CONFLICT` when an on-time order no longer holds its pieces. | `SECURITY DEFINER`, pinned `search_path` |
+| `apply_upi_payment_transition(...)` (new, internal) | Shared state transition for verify. | EXECUTE revoked from PUBLIC, anon, authenticated, service_role |
+| `upi_verification_response(...)` (new, internal) | Builds the verify response with every contract key. | EXECUTE revoked from client roles |
+| `record_refund(uuid, text, text)` (new) | Marks a `required` refund as `refunded`. | EXECUTE to authenticated, service_role only |
+| `force_release_hold(uuid)` | Returns `PAYMENT_CLAIM_PENDING` and changes nothing while a claim exists; expires unclaimed attempts on release. | unchanged grants |
+| `reject_manual_upi_payment(uuid, text, boolean)` | Keeps the hold (`hold_released = false`) while another claim on the order is in flight. | unchanged grants |
+| `release_expired_holds()` | Never cancels/expires an order with an attempt in `buyer_claimed`, `awaiting_seller_verification` or `late_claim_pending_review`. SKIP LOCKED throughout. | unchanged |
+| `release_stale_hold(uuid)` (new, internal) | Releases one pending, expired, unclaimed order without waiting for any lock; returns false and changes nothing if a lock is busy. | EXECUTE revoked from PUBLIC, anon, authenticated, service_role |
+| `create_order_with_reservation(...)` | Lazy expiry (step 9.1): after locking the cart pieces, a piece held by an expired unclaimed pending order is released via `release_stale_hold`. Signature, grants and errors unchanged. | unchanged |
+| `close_drop(uuid)` | Lock order orders → attempts → products; claims stay untouched. | unchanged |
+| `prevent_finalized_order_deletion()` | See §4 item 4. | now `SECURITY DEFINER`, EXECUTE revoked from client roles |
+
+Data repair in 035: claims left in `awaiting_seller_verification` on cancelled/expired orders are moved to `late_claim_pending_review` so they can still be verified.
+
+### 5.4 View privileges (migration 034)
+
+Every view in `public` has `REVOKE ALL FROM PUBLIC, anon, authenticated` followed by `GRANT SELECT` back only to the roles that had it, plus explicit `SELECT` on `public_seller_storefronts` and `public_products_catalog` for anon, authenticated and service_role. The views stay owner-rights views. Default privileges in `public`: anon gets no INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER on new tables, authenticated no TRUNCATE/REFERENCES/TRIGGER; the same three are revoked on every existing public table. RLS is unchanged. See `16-security-architecture.md` §3.1.
+
+### 5.5 Scheduled reaper (migration 036, ADR-011)
+
+If `pg_cron` is available, 036 runs `CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog`, unschedules any job named `livedrop-release-expired-holds` and schedules:
+
+```sql
+SELECT cron.schedule('livedrop-release-expired-holds', '* * * * *', 'SELECT public.release_expired_holds();');
+```
+
+Otherwise it raises a NOTICE and does nothing (exception-guarded DO block). The GitHub Actions workflow `reaper-cron.yml` is kept as a backup trigger only.

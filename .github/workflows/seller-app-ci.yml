@@ -1,5 +1,10 @@
 name: Seller App CI
 
+# Pull requests: analyze + test + debug APK (no release key involved).
+# Push to main / manual dispatch: additionally a signed release App Bundle + APK,
+# but only when the release signing secrets exist (SA-AND-001). See
+# docs/ops/android-release-signing.md for the one-time setup.
+
 on:
   push:
     branches: [main, master, "feat/**", "fix/**"]
@@ -12,30 +17,61 @@ on:
       - "seller-app/**"
       - ".github/workflows/seller-app-ci.yml"
   workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Android versionCode for the release build (defaults to the workflow run number)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seller-app-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Pinned toolchain (SA-CI-001). Bump deliberately, together with local dev setups.
+  FLUTTER_VERSION: "3.41.6"
+  JAVA_VERSION: "17"
 
 jobs:
   validate-flutter:
-    name: Analyze, Test & Android Build
+    name: Analyze, Test & Debug APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: seller-app
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version: ${{ env.JAVA_VERSION }}
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+
+      - name: Verify pinned Flutter version
+        run: |
+          ACTUAL=$(flutter --version --machine | python3 -c 'import json,sys; print(json.load(sys.stdin)["frameworkVersion"])')
+          echo "Flutter ${ACTUAL}"
+          if [ "$ACTUAL" != "$FLUTTER_VERSION" ]; then
+            echo "::error::Expected Flutter ${FLUTTER_VERSION}, got ${ACTUAL}"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: flutter pub get
@@ -46,10 +82,11 @@ jobs:
       - name: Run Flutter unit & widget tests
         run: flutter test
 
-      - name: Build Android Staging Debug APK
+      - name: Build Android staging debug APK
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Secrets are never handed to pull requests from forks.
+          SUPABASE_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && secrets.SUPABASE_URL || '' }}
+          SUPABASE_ANON_KEY: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && secrets.SUPABASE_ANON_KEY || '' }}
         run: |
           SUPABASE_URL=$(printf '%s' "$SUPABASE_URL" | tr -d '\r\n')
           SUPABASE_ANON_KEY=$(printf '%s' "$SUPABASE_ANON_KEY" | tr -d '\r\n')
@@ -61,9 +98,246 @@ jobs:
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
             --dart-define=APP_ENV=staging
 
-      - name: Upload Staging APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload staging debug APK artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: seller-app-staging-debug
           path: seller-app/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          retention-days: 7
+
+  release-android:
+    name: Signed release (AAB + APK)
+    needs: validate-flutter
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Optional protection: add required reviewers / branch rules to this
+    # environment in Settings -> Environments (see docs/ops/android-release-signing.md).
+    environment: android-release
+    defaults:
+      run:
+        working-directory: seller-app
+
+    steps:
+      - name: Check release signing configuration
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        working-directory: .
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::notice title=Release build skipped::ANDROID_KEYSTORE_BASE64 is not set. Add the release signing secrets to build a signed seller-app release (docs/ops/android-release-signing.md)."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          missing=""
+          [ -n "$ANDROID_KEYSTORE_PASSWORD" ] || missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          [ -n "$ANDROID_KEY_ALIAS" ] || missing="$missing ANDROID_KEY_ALIAS"
+          [ -n "$ANDROID_KEY_PASSWORD" ] || missing="$missing ANDROID_KEY_PASSWORD"
+          [ -n "$SUPABASE_URL" ] || missing="$missing SUPABASE_URL"
+          [ -n "$SUPABASE_ANON_KEY" ] || missing="$missing SUPABASE_ANON_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error title=Release secrets incomplete::ANDROID_KEYSTORE_BASE64 is set but these secrets are missing:$missing"
+            exit 1
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Java JDK
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        if: steps.signing.outputs.configured == 'true'
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        if: steps.signing.outputs.configured == 'true'
+        run: flutter pub get
+
+      - name: Install release keystore
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          KEYSTORE_PATH="$RUNNER_TEMP/livedrop-upload-keystore.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d ' \r\n' | base64 --decode > "$KEYSTORE_PATH"
+          # Fail early (without printing anything secret) if the keystore,
+          # store password or alias are wrong.
+          ANDROID_KEY_ALIAS=$(printf '%s' "$ANDROID_KEY_ALIAS" | tr -d '\r\n')
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass:env ANDROID_KEYSTORE_PASSWORD \
+            -alias "$ANDROID_KEY_ALIAS" > /dev/null \
+            || { echo "::error::Keystore could not be opened or alias not found (check ANDROID_KEYSTORE_* / ANDROID_KEY_ALIAS secrets)"; exit 1; }
+          # key.properties is gitignored; values are escaped for java.util.Properties.
+          KEYSTORE_PATH="$KEYSTORE_PATH" python3 - <<'PY'
+          import os
+
+          def esc(value: str) -> str:
+              out = []
+              for i, ch in enumerate(value):
+                  code = ord(ch)
+                  if ch == "\\":
+                      out.append("\\\\")
+                  elif ch == "\n":
+                      out.append("\\n")
+                  elif ch == "\r":
+                      out.append("\\r")
+                  elif ch == "\t":
+                      out.append("\\t")
+                  elif ch == " " and i == 0:
+                      out.append("\\ ")
+                  elif code < 0x20 or code > 0x7E:
+                      units = ch.encode("utf-16-be")
+                      for j in range(0, len(units), 2):
+                          out.append("\\u%04x" % int.from_bytes(units[j:j + 2], "big"))
+                  else:
+                      out.append(ch)
+              return "".join(out)
+
+          values = {
+              "storeFile": os.environ["KEYSTORE_PATH"],
+              "storePassword": os.environ["ANDROID_KEYSTORE_PASSWORD"],
+              "keyAlias": os.environ["ANDROID_KEY_ALIAS"].strip("\r\n"),
+              "keyPassword": os.environ["ANDROID_KEY_PASSWORD"],
+          }
+          path = os.path.join("android", "key.properties")
+          with open(path, "w", encoding="ascii") as fh:
+              for key, value in values.items():
+                  fh.write(f"{key}={esc(value)}\n")
+          os.chmod(path, 0o600)
+          PY
+          echo "Release keystore installed in the runner temp directory."
+
+      - name: Build signed App Bundle and APK
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BUYER_BASE_URL: ${{ vars.BUYER_BASE_URL }}
+          INPUT_BUILD_NUMBER: ${{ inputs.build_number }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          SUPABASE_URL=$(printf '%s' "$SUPABASE_URL" | tr -d '\r\n')
+          SUPABASE_ANON_KEY=$(printf '%s' "$SUPABASE_ANON_KEY" | tr -d '\r\n')
+          echo "::add-mask::$SUPABASE_ANON_KEY"
+          BUILD_NUMBER="${INPUT_BUILD_NUMBER:-$RUN_NUMBER}"
+          if ! printf '%s' "$BUILD_NUMBER" | grep -Eq '^[1-9][0-9]{0,8}$'; then
+            echo "::error::build_number must be a positive integer (got '$BUILD_NUMBER')"
+            exit 1
+          fi
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          defines=(
+            "--dart-define=SUPABASE_URL=$SUPABASE_URL"
+            "--dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+            "--dart-define=APP_ENV=production"
+          )
+          BUYER_BASE_URL=$(printf '%s' "$BUYER_BASE_URL" | tr -d '\r\n')
+          if [ -n "$BUYER_BASE_URL" ]; then
+            defines+=("--dart-define=BUYER_BASE_URL=$BUYER_BASE_URL")
+          fi
+          flutter build appbundle --release --build-number="$BUILD_NUMBER" "${defines[@]}"
+          flutter build apk --release --build-number="$BUILD_NUMBER" "${defines[@]}"
+
+      - name: Verify release signing certificate
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          EXPECTED_CERT_SHA256: ${{ vars.ANDROID_RELEASE_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          BUILD_TOOLS=$(find "${ANDROID_HOME:?ANDROID_HOME is not set}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          [ -x "$APKSIGNER" ] || { echo "::error::apksigner not found in $BUILD_TOOLS"; exit 1; }
+          normalize() { tr -d ': \r\n' | tr 'A-F' 'a-f'; }
+
+          REPORT="$RUNNER_TEMP/apksigner-report.txt"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" > "$REPORT"
+          grep -E '^Verified using|^Signer #[0-9]+ certificate (DN|SHA-256 digest):' "$REPORT"
+          SIGNERS=$(grep -c '^Signer #[0-9]* certificate DN:' "$REPORT" || true)
+          APK_DN=$(grep -m1 '^Signer #1 certificate DN: ' "$REPORT" | sed 's/^Signer #1 certificate DN: //' || true)
+          APK_SHA=$(grep -m1 '^Signer #1 certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | normalize || true)
+          if [ "$SIGNERS" != "1" ] || [ -z "$APK_SHA" ]; then
+            echo "::error::Expected exactly one APK signer, found '$SIGNERS'"; exit 1
+          fi
+          if [[ "${APK_DN,,}" == *"cn=android debug"* ]]; then
+            echo "::error::APK is signed with the Android debug certificate ($APK_DN)"; exit 1
+          fi
+
+          AAB_CERT=$(keytool -printcert -jarfile "$AAB")
+          AAB_OWNER=$(grep -m1 '^Owner: ' <<< "$AAB_CERT" | sed 's/^Owner: //' || true)
+          AAB_SHA=$(grep -m1 -E '^[[:space:]]*SHA256: ' <<< "$AAB_CERT" | sed -E 's/^[[:space:]]*SHA256: //' | normalize || true)
+          if [ -z "$AAB_SHA" ]; then
+            echo "::error::App Bundle is not signed"; exit 1
+          fi
+          if [[ "${AAB_OWNER,,}" == *"cn=android debug"* ]]; then
+            echo "::error::App Bundle is signed with the Android debug certificate ($AAB_OWNER)"; exit 1
+          fi
+          if [ "$AAB_SHA" != "$APK_SHA" ]; then
+            echo "::error::APK and App Bundle are signed with different certificates"; exit 1
+          fi
+
+          if [ -n "${EXPECTED_CERT_SHA256:-}" ]; then
+            EXPECTED=$(printf '%s' "$EXPECTED_CERT_SHA256" | normalize)
+            if [ "$APK_SHA" != "$EXPECTED" ]; then
+              echo "::error::Release certificate SHA-256 $APK_SHA does not match vars.ANDROID_RELEASE_CERT_SHA256"; exit 1
+            fi
+            echo "Certificate matches vars.ANDROID_RELEASE_CERT_SHA256."
+          else
+            echo "::warning::vars.ANDROID_RELEASE_CERT_SHA256 is not set; certificate identity was not pinned."
+          fi
+
+          AAPT2="$BUILD_TOOLS/aapt2"
+          if [ -x "$AAPT2" ]; then
+            BADGING=$("$AAPT2" dump badging "$APK")
+            if grep -q 'application-debuggable' <<< "$BADGING"; then
+              echo "::error::Release APK is debuggable"; exit 1
+            fi
+          fi
+
+          {
+            echo "### Seller app release ${BUILD_NUMBER}"
+            echo "- Signer: \`$APK_DN\`"
+            echo "- Certificate SHA-256: \`$APK_SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload signed release artifacts
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: seller-app-release-${{ env.BUILD_NUMBER }}
+          path: |
+            seller-app/build/app/outputs/bundle/release/app-release.aab
+            seller-app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove keystore and key.properties
+        if: always()
+        working-directory: .
+        run: |
+          rm -f "$RUNNER_TEMP/livedrop-upload-keystore.jks" seller-app/android/key.properties

@@ -21,31 +21,31 @@ UPDATE 3
 psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:122: NOTICE:  INFO 13.4 reject(payment_not_found) -> hold_released=true order=cancelled piece=available (UI offers no "keep hold" choice)
 DO
 UPDATE 1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:145: NOTICE:  INFO 13.5a advance order total=250000 advance_required=25000 attempt_amount=25000
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:145: NOTICE:  INFO 13.5b after reaper + late UTR: order=cancelled attempt=late_claim_pending_review
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:145: NOTICE:  FINDING 13.5c late advance verified -> order paid/paid total=250000 total_paid=250000 balance_due=0 | ledger records advance=25000 paisa
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:157: NOTICE:  INFO 13.5a advance order total=250000 advance_required=25000 attempt_amount=25000
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:157: NOTICE:  INFO 13.5b after reaper + late UTR: order=cancelled attempt=late_claim_pending_review
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:157: NOTICE:  PASS 13.5c late advance verified -> order confirmed/advance_paid total=250000 total_paid=25000 advance_paid=25000 balance_due=225000 hold_left=30 days piece=reserved/this-order | ledger records advance=25000 paisa | rpc late=true inventory=true refund=false
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:166: NOTICE:  FINDING 13.6 late full payment, piece gone -> rpc success=true refund_required=true | order status=cancelled payment=paid notes=LATE_CLAIM_PAYMENT_VERIFIED: Inventory was already reallocat
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:191: NOTICE:  PASS 13.6 late full payment, piece gone -> rpc success=true refund_required=true refund_amount=158000 | order status=cancelled payment=paid total_paid=158000 ledger=158000 refund_status=required refund_amount=158000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE | piece=reserved held by other buyer=t
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:185: NOTICE:  FINDING 13.7 late advance, piece gone -> EXCEPTION 23514 new row for relation "orders" violates check constraint "chk_orders_balance_formula"
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:223: NOTICE:  PASS 13.7 late advance, piece gone -> success=true Late payment verified, but items are no longer available. Seller refund or resolution requ | order=cancelled/advance_paid total=250000 total_paid=25000 advance_paid=25000 balance_due=225000 ledger=25000 refund=required/25000
 DO
 UPDATE 3
 UPDATE 1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:208: NOTICE:  FINDING 13.8 buyer-claimed payment after 24h without seller action -> order=cancelled attempt=expired piece=available still in seller queue=0
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:254: NOTICE:  PASS 13.8 buyer-claimed payment after 24h without seller action -> order=pending attempt=awaiting_seller_verification piece=reserved held by order=t still in seller queue=1 | verify afterwards -> success=true (order=paid)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:216: NOTICE:  FINDING 13.9 generate_upi_payment_uri -> upi://pay?pa=aarohi@okaxis&pn=Aarohi%20#1%20Boutique%20%26%20Co%20100%&am=1500.00&cu=INR&tr=LD-ABC123-FUL-1A2B&tn=LiveDrop%20LD-ABC123
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:262: NOTICE:  FINDING 13.9 generate_upi_payment_uri -> upi://pay?pa=aarohi@okaxis&pn=Aarohi%20#1%20Boutique%20%26%20Co%20100%&am=1500.00&cu=INR&tr=LD-ABC123-FUL-1A2B&tn=LiveDrop%20LD-ABC123
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:232: NOTICE:  FINDING 13.10a drop threshold=299900 profile threshold=200000 subtotal=250000 -> shipping charged=0 (drop banner promises shipping until 299900)
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:232: NOTICE:  FINDING 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=8000 (drop banner promised free shipping)
-DO
-UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:244: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-VSF2UP-FUL-2678 (internal reference, not a bank UTR)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:278: NOTICE:  FINDING 13.10a drop threshold=299900 profile threshold=200000 subtotal=250000 -> shipping charged=0 (drop banner promises shipping until 299900)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:278: NOTICE:  FINDING 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=8000 (drop banner promised free shipping)
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:258: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:290: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-WOF2MT-FUL-5172 (internal reference, not a bank UTR)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:272: NOTICE:  INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:304: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:318: NOTICE:  INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
 DO
 ROLLBACK

@@ -36,6 +36,9 @@ PASS  030_fix_advance_paid_balance_payment_resolution.sql
 PASS  031_seller_storefronts_and_catalog_showcase.sql
 PASS  032_add_stream_url_to_drops.sql
 PASS  033_hide_seller_upi_from_public_storefronts.sql
+PASS  034_lock_down_public_view_privileges.sql
+PASS  035_payment_claim_safety_and_refunds.sql
+PASS  036_schedule_reaper_in_database.sql
 Migration apply exit status: 0
 == Installing audit helpers (schema audit)
 == Running 10_exposure_and_view_dml
@@ -44,20 +47,18 @@ Migration apply exit status: 0
    INFO 10.2   aarohi-boutique exposes phone_number=9876500001
    INFO 10.2   bela-weaves exposes phone_number=9876500002
    INFO 10.2   damini-no-drops exposes phone_number=9876500004
-   FINDING 10.3 anon updated seller A profile via public_seller_storefronts: rows=1 store_name=PWNED BY ANON phone=9000000000 upi_enabled=f shipping_fee=999900 advance=100
-   FINDING 10.4 anon deleted seller D profile through public_seller_storefronts (rows=1)
-   FINDING 10.5 seller B changed seller A store_slug via view (rows=1, slug=hijacked-slug) — storefront URL hijack
+   PASS 10.3 anon UPDATE through view denied: permission denied for view public_seller_storefronts
+   PASS 10.4 anon DELETE through view denied: permission denied for view public_seller_storefronts
+   PASS 10.5 denied: permission denied for view public_seller_storefronts
    PASS 10.6 control: base-table UPDATE of another seller affected 0 rows (RLS)
    INFO 10.7 anon reads 4 product rows (live drops of any seller) via column grant
    PASS 10.7 anon cannot read products.reserved_by_order_id
    PASS 10.8 anon without x-order-token sees 0 orders
-   INFO 10.9 anon holds DELETE on public_seller_storefronts
-   INFO 10.9 anon holds INSERT on public_seller_storefronts
-   INFO 10.9 anon holds REFERENCES on public_seller_storefronts
+   INFO 10.9 anon holds SELECT on public_products_catalog
+   INFO 10.9 authenticated holds SELECT on public_products_catalog
    INFO 10.9 anon holds SELECT on public_seller_storefronts
-   INFO 10.9 anon holds TRIGGER on public_seller_storefronts
-   INFO 10.9 anon holds TRUNCATE on public_seller_storefronts
-   INFO 10.9 anon holds UPDATE on public_seller_storefronts
+   INFO 10.9 authenticated holds SELECT on public_seller_storefronts
+   PASS 10.9 anon/authenticated hold SELECT only on every view in public (4 role/view pairs checked)
 == Running 11_seller_isolation
    PASS 11.1 seller B reads of seller A: orders=0 items=0 attempts=0 ledger=0 products=0 draft_drop=0
    INFO 11.1b seller B can read seller A live drop row (drops_public_read): 1
@@ -103,36 +104,77 @@ Migration apply exit status: 0
    INFO 13.4 reject(payment_not_found) -> hold_released=true order=cancelled piece=available (UI offers no "keep hold" choice)
    INFO 13.5a advance order total=250000 advance_required=25000 attempt_amount=25000
    INFO 13.5b after reaper + late UTR: order=cancelled attempt=late_claim_pending_review
-   FINDING 13.5c late advance verified -> order paid/paid total=250000 total_paid=250000 balance_due=0 | ledger records advance=25000 paisa
-   FINDING 13.6 late full payment, piece gone -> rpc success=true refund_required=true | order status=cancelled payment=paid notes=LATE_CLAIM_PAYMENT_VERIFIED: Inventory was already reallocat
-   FINDING 13.7 late advance, piece gone -> EXCEPTION 23514 new row for relation "orders" violates check constraint "chk_orders_balance_formula"
-   FINDING 13.8 buyer-claimed payment after 24h without seller action -> order=cancelled attempt=expired piece=available still in seller queue=0
+   PASS 13.5c late advance verified -> order confirmed/advance_paid total=250000 total_paid=25000 advance_paid=25000 balance_due=225000 hold_left=30 days piece=reserved/this-order | ledger records advance=25000 paisa | rpc late=true inventory=true refund=false
+   PASS 13.6 late full payment, piece gone -> rpc success=true refund_required=true refund_amount=158000 | order status=cancelled payment=paid total_paid=158000 ledger=158000 refund_status=required refund_amount=158000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE | piece=reserved held by other buyer=t
+   PASS 13.7 late advance, piece gone -> success=true Late payment verified, but items are no longer available. Seller refund or resolution requ | order=cancelled/advance_paid total=250000 total_paid=25000 advance_paid=25000 balance_due=225000 ledger=25000 refund=required/25000
+   PASS 13.8 buyer-claimed payment after 24h without seller action -> order=pending attempt=awaiting_seller_verification piece=reserved held by order=t still in seller queue=1 | verify afterwards -> success=true (order=paid)
    FINDING 13.9 generate_upi_payment_uri -> upi://pay?pa=aarohi@okaxis&pn=Aarohi%20#1%20Boutique%20%26%20Co%20100%&am=1500.00&cu=INR&tr=LD-ABC123-FUL-1A2B&tn=LiveDrop%20LD-ABC123
    FINDING 13.10a drop threshold=299900 profile threshold=200000 subtotal=250000 -> shipping charged=0 (drop banner promises shipping until 299900)
    FINDING 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=8000 (drop banner promised free shipping)
-   INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-VSF2UP-FUL-2678 (internal reference, not a bank UTR)
+   INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-WOF2MT-FUL-5172 (internal reference, not a bank UTR)
    INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
    INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
 == Running 15_perf_seller_queries
-   INFO 15.1 getAllOrders(): 2000 orders, ~2473 KB JSON, 144 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
+   INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 155 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
    INFO 15.2 getPendingVerifications(): 0 rows, 2.0 ms
    INFO 15.3 getProducts(liveDrop): 3 rows, 0.5 ms
 == Running 16_release_and_close_with_claims
    INFO 16.1a buyer claimed payment: attempt=awaiting_seller_verification (order still pending, shown with a Release button)
-   FINDING 16.1b force_release_hold with a claim in flight -> release=true | order=cancelled piece=available attempt=awaiting_seller_verification still in seller queue=1 | verify afterwards -> INVALID_ORDER_STATE
+   PASS 16.1b force_release_hold with a claim in flight -> PAYMENT_CLAIM_PENDING | after release: order=pending piece=reserved held by order=t attempt=awaiting_seller_verification rows unchanged=t in seller queue=1 | verify afterwards -> success=true (order=paid)
+   PASS 16.1c force_release_hold without a claim -> release=true order=cancelled piece=available attempt=expired
    PASS 16.2 close_drop with a claim in flight -> close=true order=pending piece=reserved attempt=awaiting_seller_verification
 == Running 17_ledger_deletion
-   FINDING 17.1 seller DELETE of a refund-owed order (refund_required=true) -> OK rows=1 | verified ledger rows before=1 after=0
-   PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order f20417f7-16e7-42f9-9343-1c9891fc9402 with status "expired" | verified ledger rows before=1 after=1
-   PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order b5e06527-da3d-40d9-9149-26c80dacf43e with status "paid"
+   PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 08214f3f-b090-4d99-8226-6b5a2ff867e3 with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
+   PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order 221a7c13-1951-4bf5-93b5-59298e2f8e48 with status "expired" | verified ledger rows before=1 after=1
+   PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order c77efacb-9021-4624-b602-341f1449c090 with status "paid"
 == Running 18_storage_enumeration
    FINDING 18.1 anon can list 2 object(s) in product-images, incl. draft-drop and unapproved-seller paths: {11111111-1111-1111-1111-111111111111/aaaa0000-0000-0000-0000-000000000002/_D01_queue_1_0.jpg,33333333-3333-3333-3333-333333333333/whatever/not-a-product.jpg}
    PASS 18.2 anon sees the draft drop row: 0 (images above leak what the catalogue hides)
+== Running 19_p0_remediation
+   PASS 19.1 checkout of a piece behind an expired, unclaimed hold -> success=true | stale order=cancelled its attempt=expired | piece=reserved held by new order=t | other piece of the stale order=available
+   PASS 19.2 checkout of a piece behind an expired but CLAIMED hold -> STOCK_UNAVAILABLE | order=pending attempt=awaiting_seller_verification utr=719000000001 piece=reserved held by claimant=t rows unchanged=t
+   PASS 19.3 release_stale_hold / apply_upi_payment_transition / upi_verification_response not executable by anon or authenticated -> grants: none | anon call: permission denied | seller call: permission denied
+   PASS 19.4 late advance (claim=late_claim_pending_review) with the piece still free -> order=confirmed/advance_paid advance_paid=25000 total_paid=25000 balance_due=215000 (total 240000) ledger=25000 hold_left=30 days piece=reserved held=t | rpc late=true inventory=true refund=false
+   PASS 19.4b balance (balance=215000 paisa) on the revived order -> success=true | order=paid/paid total_paid=240000 balance_due=0 ledger=240000 piece=sold | response keys complete=t
+   PASS 19.5 late full payment, piece resold -> rpc refund_required=true refund_amount=128000 inventory=false | order=cancelled/paid total_paid=128000 balance=0 refund=required/128000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE ledger=128000 | other buyer keeps piece=t | response keys complete=t
+   PASS 19.5b verify replay -> success=true idempotent=true refund_required=true keys complete=t | ledger rows before=1 after=1
+   PASS 19.6 late advance, piece resold -> success=true | order=cancelled/advance_paid total=240000 total_paid=25000 advance_paid=25000 balance_due=215000 refund=required/25000 ledger=25000 | other buyer keeps piece=t
+   PASS 19.7 seller direct UPDATE of refund fields -> clear=ERR 42501 Direct | mark refunded=ERR 42501 Direct | amount=ERR 42501 Direct | control (shipping_address)=OK rows=1 | stored refund=required/25000/null
+   PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order adced7c6-0480-49b5-a5f3-5222208493ff wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order 50040ede-17d2-4c77-9d9b-04016330faef bec (rows kept=1) | control without payments -> OK rows=1
+   PASS 19.9a anon cannot execute record_refund -> EXECUTE granted=f call=permission denied
+   PASS 19.9b other seller -> ORDER_NOT_FOUND_OR_UNAUTHORIZED
+   PASS 19.9c invalid references "ab" / "REF;DROP TABLE" -> INVALID_REFUND_REFERENCE / INVALID_REFUND_REFERENCE
+   PASS 19.9d order without a refund obligation -> NO_REFUND_DUE
+   PASS 19.9e happy path -> success=true idempotent=false status=refunded amount=128000 reference="UPI-REF 9876/01" refunded_at set=t | stored by seller A=t note appended=t
+   PASS 19.9f replay with the same reference -> success=true idempotent=true | different reference -> NO_REFUND_DUE
+   PASS 19.9g trusted backend (service_role) -> success=true | order status=refunded recorded_by=null
+   PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order adced7c6-0480-49b5-a5f3-5222208493ff with refund s
+   PASS 19.10a release with a claim in flight -> PAYMENT_CLAIM_PENDING attempt=t utr=819000000010 message=t | order=pending attempt=awaiting_seller_verification piece=reserved held=t rows unchanged=t
+   PASS 19.10b release without a claim -> success=true released=1 expired attempts=1 | order=cancelled attempt=expired piece=available
+   PASS 19.10c release while a late claim (late_claim_pending_review) is pending on a pending order -> PAYMENT_CLAIM_PENDING (order=pending)
+   PASS 19.11 one reaper run -> overdue claim A=pending/awaiting_seller_verification/reserved (untouched=t) | late claim on pending C=pending/late_claim_pending_review/reserved (untouched=t) | overdue balance claim E=confirmed/awaiting_seller_verification/reserved (untouched=t) | unclaimed B=cancelled/expired/available | lapsed advance D=expired/advance_paid/25000/available
+   PASS 19.12 verify after the window: claim A -> ok/paid | late claim C -> ok/paid (late=true) | balance claim E -> ok/paid | control: unclaimed attempt past expiry -> PAYMENT_ATTEMPT_EXPIRED (attempt=expired)
+   PASS 19.13 verify when the piece is not reserved for the order -> INVENTORY_CONFLICT | ledger rows=0 rows unchanged=t
+   PASS 19.14 late full-amount claim on an advance-paid order -> PAYMENT_AMOUNT_MISMATCH | order=confirmed total_paid=25000 ledger=25000 rows unchanged=t
+   PASS 19.15 reject with another claim pending -> hold_released=false (order/piece=pending/reserved) | reject of the last claim -> hold_released=true (order/piece=cancelled/available)
+   PASS 19.16 late balance (claim=late_claim_pending_review) on an expired advance order, piece free -> success=true | order=paid/paid total_paid=240000 ledger=240000 piece=sold
+   PASS 19.17 refund constraints: amount above total paid -> rejected | refunded without reference -> rejected | amount with status none -> rejected
+   PASS 19.18 pg_cron not available here: 036 applied as a no-op (extension installed=f, cron schema=f)
+   PASS 19.19 SECURITY DEFINER functions with pinned search_path: 23 of 23 (unpinned: none)
+   PASS 19.20a no view in public grants anything but SELECT to anon/authenticated (2 views; offenders: none)
+   PASS 19.20b no table in public grants TRUNCATE/REFERENCES/TRIGGER to anon/authenticated (offenders: none)
+   PASS 19.20c new tables/views get no anon INSERT/UPDATE/DELETE/TRUNCATE and no authenticated TRUNCATE by default (offenders: none)
+   PASS 19.21 ledger invariant holds for 22 of 22 orders (violations: none)
 == Catalog inventory
 == Running 14_concurrency.sh
         39 false
          1 true
-   PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/82602c65-d241-4bb6-b210-c3503117d98b)
-   FINDING 14.2 double allocation: late claim marked piece sold for order X while order Y still holds it as a pending reservation
-   FINDING 14.2b one unique garment is now attached to 2 fully paid orders
-   FINDING 14.3 deadlock between seller verification and the reaper (opposite lock order); aborted side: reaper-transaction
+   PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/d1a5d38f-71b6-4360-b8a1-8a0da4d988e0)
+   PASS 14.2 late claim recorded as refund-required on cancelled order X; order Y keeps the piece (no overwrite)
+   PASS 14.2b exactly one live paid order owns #A02 (Y); X's money is tracked as a refund
+   PASS 14.3 no deadlock; reaper left the claimed order alone and the seller's verification succeeded
+   PASS 14.4 no deadlock; reaper released the unclaimed hold first, verify then saw the cancelled order (INVALID_ORDER_STATE)
+        39 false
+         1 true
+   PASS 14.5 lazy expiry released the stale hold once; exactly one racer reserved the piece
+   PASS 14.6 ledger invariant after all concurrent cases: total_paid_paisa = verified ledger sum for every order

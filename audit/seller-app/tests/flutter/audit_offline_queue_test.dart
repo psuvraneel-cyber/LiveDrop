@@ -1,9 +1,15 @@
 // AUDIT-ONLY tests for OfflineIntakeQueue (seller-app/lib/core/services/offline_intake_queue.dart)
+//
+// T16, T17, T18 and T25 were inverted after the SA-INT-001 / SA-OFF-003 fix:
+// they now assert the FIXED behaviour (IDs kept). T14, T15 and T19 still
+// document open findings (SA-OFF-001).
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:seller_app/core/errors/exceptions.dart';
 import 'package:seller_app/core/services/offline_intake_queue.dart';
 import 'package:seller_app/data/repositories/seller_repository.dart';
 import 'package:seller_app/domain/models/models.dart';
@@ -55,6 +61,14 @@ class ServerLikeRepo extends Fake implements SellerRepository {
     }
     return p;
   }
+
+  int lookups = 0;
+
+  @override
+  Future<SellerProduct?> findProductByCode({required String dropId, required String code}) async {
+    lookups++;
+    return serverProducts['$dropId|${code.toUpperCase()}'];
+  }
 }
 
 Uint8List _jpeg() => Uint8List.fromList(List<int>.filled(64, 7));
@@ -84,37 +98,83 @@ void main() {
     expect(manifest, contains('"status":"completed"'));
   });
 
-  test('SA-AUD-T16: a timeout after the server committed turns into a permanent DUPLICATE failure', () async {
+  test('SA-AUD-T16 (fixed): a timeout after the server committed is recognised on retry — 23505 for a product '
+      'carrying our own uploaded photo marks the piece completed (lost-response idempotency)', () async {
     final repo = ServerLikeRepo()..commitThenTimeoutOnce = true;
     final q = OfflineIntakeQueue(storageDir: dir);
     await q.initialize();
     await q.enqueue(dropId: 'd1', code: '#A01', title: 't', pricePaisa: 1000, size: 'M', imageBytes: _jpeg());
     await q.processQueue(repo); // server stores the product, client sees a timeout
+    final afterTimeout = q.items.single.status;
     for (var i = 0; i < 3; i++) {
       await q.retryFailed(repo);
     }
     final it = q.items.single;
     // ignore: avoid_print
-    print('AUDIT T16 status=${it.status} retries=${it.retryCount} lastError=${it.lastError} serverProducts=${repo.serverProducts.length}');
-    expect(repo.serverProducts, hasLength(1)); // the product IS live on the server...
-    expect(it.status, IntakeQueueStatus.failed); // ...but the device shows a failed upload forever
-    expect(it.lastError, contains('DUPLICATE_PRODUCT_CODE'));
-    expect(q.failedCount, 1);
+    print('AUDIT T16 afterTimeout=$afterTimeout status=${it.status} retries=${it.retryCount} '
+        'serverProductId=${it.serverProductId} lookups=${repo.lookups} createCalls=${repo.createCalls} '
+        'serverProducts=${repo.serverProducts.length}');
+    q.dispose();
+    expect(afterTimeout, IntakeQueueStatus.failed); // transient: retried with backoff
+    expect(repo.serverProducts, hasLength(1)); // the product is live on the server...
+    expect(it.status, IntakeQueueStatus.completed); // ...and the device now agrees
+    expect(it.serverProductId, repo.serverProducts.values.single.id);
+    expect(q.failedCount, 0);
+    expect(q.needsAttentionCount, 0);
+    expect(repo.createCalls, 2); // one replay, then recognised — no retry loop
   });
 
-  test('SA-AUD-T17: a code typed without "#" is queued and fails only in the background', () async {
+  test('SA-AUD-T17 (fixed): a code typed without "#" is normalised before it is queued and syncs; an invalid '
+      'code is refused at entry, and one queued by an older build is held as "needs attention" (no retry loop)',
+      () async {
     final repo = ServerLikeRepo();
     final q = OfflineIntakeQueue(storageDir: dir);
     await q.initialize();
-    await q.enqueue(dropId: 'd1', code: 'A05', title: 't', pricePaisa: 1000, size: 'M', imageBytes: _jpeg());
+    final item = await q.enqueue(dropId: 'd1', code: 'a05', title: 't', pricePaisa: 1000, size: 'M', imageBytes: _jpeg());
     await q.processQueue(repo);
+    final synced = q.items.single;
+
+    Object? entryError;
+    try {
+      await q.enqueue(dropId: 'd1', code: 'SAREE01', title: 't', pricePaisa: 1000, size: 'M', imageBytes: _jpeg());
+    } catch (e) {
+      entryError = e;
+    }
+    q.dispose();
+
+    // A manifest written by the old app (no validation at entry) with an invalid code:
+    final legacyDir = await Directory.systemTemp.createTemp('audit_queue_legacy_');
+    File('${legacyDir.path}/queue.json').writeAsStringSync(jsonEncode([
+      {
+        'id': 'queue_legacy', 'drop_id': 'd1', 'code': '#SAREE01', 'title': 't', 'price_paisa': 1000,
+        'size': 'M', 'local_image_paths': <String>[], 'remote_image_urls': ['https://x/legacy.jpg'],
+        'status': 'failed', 'retry_count': 7, 'last_error': '23514 products_code_check',
+        'created_at': '2026-10-01T10:00:00.000', 'updated_at': '2026-10-01T10:00:00.000',
+      }
+    ]));
+    final legacy = OfflineIntakeQueue(storageDir: legacyDir);
+    await legacy.initialize();
+    final legacyRepo = ServerLikeRepo();
+    await legacy.processQueue(legacyRepo);
+    final held = legacy.items.single;
     // ignore: avoid_print
-    print('AUDIT T17 lastError=${q.items.single.lastError}');
-    expect(q.items.single.status, IntakeQueueStatus.failed);
-    expect(q.items.single.lastError, contains('23514'));
+    print('AUDIT T17 enqueued code=${item.code} status=${synced.status} | entry refusal=$entryError | '
+        'legacy status=${held.status} reason="${held.attentionReason}" createCalls=${legacyRepo.createCalls} '
+        'retryScheduled=${legacy.hasScheduledRetry}');
+    final legacyRetryScheduled = legacy.hasScheduledRetry;
+    legacy.dispose();
+    await legacyDir.delete(recursive: true);
+
+    expect(item.code, '#A05');
+    expect(synced.status, IntakeQueueStatus.completed);
+    expect(entryError, isA<LiveDropException>().having((e) => e.code, 'code', 'INVALID_PRODUCT_INPUT'));
+    expect(held.status, IntakeQueueStatus.needsAttention);
+    expect(held.attentionReason, contains('at most 6'));
+    expect(legacyRepo.createCalls, 0); // never sent to the server again
+    expect(legacyRetryScheduled, isFalse); // no background retry loop
   });
 
-  test('SA-AUD-T18: an item enqueued while a sync is running is not picked up by that run', () async {
+  test('SA-AUD-T18 (fixed): an item enqueued while a sync is running is picked up by that same run', () async {
     final repo = ServerLikeRepo()..uploadGate = Completer<void>();
     final q = OfflineIntakeQueue(storageDir: dir);
     await q.initialize();
@@ -127,12 +187,14 @@ void main() {
     await run;
     final second = q.items.firstWhere((i) => i.code == '#A02');
     // ignore: avoid_print
-    print('AUDIT T18 second item status after the run finished: ${second.status}');
-    expect(second.status, IntakeQueueStatus.pending);
+    print('AUDIT T18 second item status after the run finished: ${second.status} createCalls=${repo.createCalls}');
+    q.dispose();
+    expect(second.status, IntakeQueueStatus.completed);
+    expect(repo.serverProducts, hasLength(2));
   });
 
-  test('SA-AUD-T25: re-initialising the shared queue during a sync (camera_intake_screen.dart:76) '
-      'discards the run\'s progress and ends in a permanent DUPLICATE failure', () async {
+  test('SA-AUD-T25 (fixed): re-initialising the shared queue during a sync (camera_intake_screen.dart) is a no-op, '
+      'so the run keeps its progress and the garment is created exactly once', () async {
     final repo = ServerLikeRepo()..uploadGate = Completer<void>();
     final q = OfflineIntakeQueue(storageDir: dir);
     await q.initialize();
@@ -141,19 +203,19 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     await q.initialize(); // seller taps "Add Product" again: CameraIntakeScreen._initialize() on the shared queue
     repo.uploadGate!.complete();
-    await run; // the old run finishes on objects that are no longer in the queue
+    await run;
     final statusAfterRun = q.items.single.status;
     repo.uploadGate = null;
-    await q.processQueue(repo); // next trigger re-sends the same garment
+    await q.processQueue(repo); // next trigger has nothing left to send
     final it = q.items.single;
     // ignore: avoid_print
     print('AUDIT T25 statusAfterFirstRun=$statusAfterRun final=${it.status} lastError=${it.lastError} '
         'serverProducts=${repo.serverProducts.length} createCalls=${repo.createCalls}');
     q.dispose();
-    expect(repo.serverProducts, hasLength(1)); // the garment is live on the server...
-    expect(statusAfterRun, isNot(IntakeQueueStatus.completed)); // ...the device lost that fact...
-    expect(it.status, IntakeQueueStatus.failed); // ...and now shows a failed upload forever
-    expect(it.lastError, contains('DUPLICATE_PRODUCT_CODE'));
+    expect(repo.serverProducts, hasLength(1));
+    expect(statusAfterRun, IntakeQueueStatus.completed);
+    expect(it.status, IntakeQueueStatus.completed);
+    expect(repo.createCalls, 1);
   });
 
   test('SA-AUD-T19: a corrupt manifest silently drops every queued garment', () async {

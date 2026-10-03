@@ -2,62 +2,130 @@
    We strongly recommend running the flutter tool without superuser privileges.
   /
 📎
-00:00 +0: loading /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/realtime_test.dart
-00:00 +0: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/realtime_test.dart: TASK-1.4: Seller Realtime Event Deserialization Tests SellerOrder parses incoming realtime record accurately
-00:00 +1: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/realtime_test.dart: TASK-1.4: Seller Realtime Event Deserialization Tests SellerOrder parses status transition from pending to paid
-00:06 +2: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: Image Processing Service Tests ImageService crops non-square image to 1:1 square and compresses to <= 1200px
-00:07 +3: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: Image Processing Service Tests ImageService scales down small square image without upscaling beyond bounds
-00:07 +4: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: 4×6 Thermal PDF Shipping Label Generator Tests PdfLabelService generates standard 4×6" vector PDF with Code-128 barcode and prepaid badge
+00:00 +0: loading /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart
+00:00 +0: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed the section lists amount, buyer, order code and reason at the top
+00:01 +1: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed the section lists amount, buyer, order code and reason at the top
+00:01 +2: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed the section lists amount, buyer, order code and reason at the top
+00:01 +3: /home/user/LiveDrop/seller-app/test/order_card_release_test.dart: the release dialog says the piece returns to sale; PAYMENT_CLAIM_PENDING becomes a friendly message
+00:01 +4: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
+00:01 +5: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
+00:01 +6: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
+00:02 +7: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed a record_refund error is shown as a friendly message
+00:02 +8: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed refund reference rule matches the record_refund RPC (4–64 chars, [A-Za-z0-9_./ -])
+00:02 +9: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed OwedRefund parses the contract §11 projection and tolerates missing fields
+00:02 +10: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
+00:02 +11: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
+00:02 +12: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
+00:02 +13: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify an on-time verify shows the usual success snackbar
+00:02 +14: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify errors are mapped to friendly text
+00:02 +15: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) an overdue claim is labelled "Overdue — verify or reject" and sorted first
+00:02 +16: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) PaymentAttempt.isOverdue uses verification_expires_at and never applies to settled attempts
+00:02 +17: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a fresh late claim (verification_expires_at NULL, expires_at past) is not overdue
+00:03 +18: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) an older claim row without verification_expires_at is never overdue via expires_at
+00:03 +19: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim keeping a window from an earlier claim (ended before this claim) is not overdue
+00:03 +20: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim whose own verification window has passed is overdue
+00:03 +21: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim submitted a minute ago is not labelled overdue nor sorted first
+00:03 +22: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: Image Processing Service Tests ImageService crops non-square image to 1:1 square and compresses to <= 1200px
+00:04 +23: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:04 +24: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:04 +24: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: 4×6 Thermal PDF Shipping Label Generator Tests PdfLabelService generates standard 4×6" vector PDF with Code-128 barcode and prepaid badge
 Helvetica-Bold has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
 Helvetica has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
 Courier has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
-00:07 +5: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: OrderCard & Kanban UI Widget Tests OrderCard renders Pending countdown and WhatsApp button for unpaid order
-00:08 +6: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
-00:08 +7: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
-00:08 +8: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders real activity items when present
-00:09 +9: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:09 +10: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:09 +11: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:09 +12: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:09 +13: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:09 +14: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles multiple leading and trailing slashes correctly
-00:09 +15: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests ProductDetailsScreen renders authentic garment attributes and no mock Banarasi copy
-00:09 +16: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests ProductDetailsScreen renders authentic garment attributes and no mock Banarasi copy
-00:10 +17: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue persists raw image bytes to disk and writes manifest
-00:10 +18: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests reloading queue from disk recovers persisted state after simulated restart
-00:10 +19: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue successfully uploads image and creates product in database
-00:10 +20: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue handles network failure gracefully and survives retry
-00:10 +21: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue with multiple angles persists all images and uploads them in sequence
-00:11 +22: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +23: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +24: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +25: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +26: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +27: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +28: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +29: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +30: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +31: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +32: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +33: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +34: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +35: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +36: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:12 +37: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp renders controlled ConfigurationErrorScreen when initializationError is present
-00:13 +38: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_auth_registration_test.dart: Seller Auth & Registration Flow Tests SellerLoginScreen renders Create Account and Contact Admin WhatsApp buttons
-00:14 +39: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:14 +40: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:15 +41: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:15 +42: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:16 +43: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS AppColors token invariants adhere to Luxury Boutique Noir palette
-00:16 +44: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS BrandEmblem renders procedural coat hanger monogram and brand text
-00:16 +45: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS BounceableButton handles spring scale and loading spinner states
-00:16 +46: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS Skeleton Loaders render structured placeholder geometries
-00:17 +47: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS AnimatedSplashScreen renders brand monogram and launches countdown
-00:17 +48: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS SellerDashboardScreen renders Live Drop Card, 4 Metrics, and 6 Quick Actions
-00:17 +49: All tests passed!
-
-real	0m28.672s
-user	0m40.174s
-sys	0m11.318s
-test exit: 0
+00:04 +25: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:04 +26: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: OrderCard & Kanban UI Widget Tests OrderCard renders Pending countdown and WhatsApp button for unpaid order
+00:05 +27: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: OrderCard & Kanban UI Widget Tests OrderCard renders Pending countdown and WhatsApp button for unpaid order
+00:05 +28: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:05 +29: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:05 +30: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests ProductDetailsScreen renders authentic garment attributes and no mock Banarasi copy
+00:06 +31: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: SellerLiveStore a payment_attempts event bumps the revision and the payment counts without a manual refresh
+00:06 +32: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +33: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +34: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +35: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +36: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +37: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +38: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +39: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +40: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:06 +41: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:07 +42: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:07 +43: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:07 +44: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:07 +45: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:08 +46: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +47: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +48: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +49: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +50: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +51: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +52: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
+00:08 +53: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store verifying a payment invalidates every tab immediately (no waiting for realtime)
+00:09 +54: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store a stand-alone Payments screen reloads when the revision changes
+00:09 +55: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 23514 check violation from the server
+00:09 +56: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:09 +57: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
+00:09 +58: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer a 23505 for a product that is NOT ours is a real duplicate → needs attention
+00:09 +59: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer a missing local photo is held for the seller instead of looping
+00:09 +60: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: transient failures → backoff retries a network error keeps the piece retrying with a scheduled retry
+00:09 +61: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: transient failures → backoff retries timeouts, 5xx and expired sessions are transient
+00:09 +62: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: 23505 idempotency (lost response) 23505 for an existing identical product (same uploaded photo) → completed
+00:09 +63: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: 23505 idempotency (lost response) a raw PostgrestException 23505 is handled the same way
+00:09 +64: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.normalizeCode (trim, drop spaces, uppercase, add #) '101' becomes '#101'
+00:09 +65: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.normalizeCode (trim, drop spaces, uppercase, add #) '101' becomes '#101'
+00:09 +66: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +67: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +68: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +69: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +70: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +71: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +72: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +73: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:09 +74: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.validateCode mirrors CHECK (code ~ ^#[A-Z0-9]{1,6}$) duplicate codes inside the drop are reported (RULE-PRD-02)
+00:09 +75: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules title / size / price title longer than 100 characters is rejected; 100 is accepted; empty is optional
+00:09 +76: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
+00:09 +77: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
+00:09 +78: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
+00:09 +79: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
+00:09 +80: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
+00:09 +81: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can discard a piece; its photos are deleted
+00:09 +82: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard concurrent edits and discards leave a complete, parseable manifest
+00:09 +83: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard initialize is idempotent (a second call never reloads over in-memory progress)
+00:10 +84: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue persists raw image bytes to disk and writes manifest
+00:10 +85: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests reloading queue from disk recovers persisted state after simulated restart
+00:10 +86: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue successfully uploads image and creates product in database
+00:10 +87: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue handles network failure gracefully and survives retry
+00:10 +88: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue with multiple angles persists all images and uploads them in sequence
+00:10 +89: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +90: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +91: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +92: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +93: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +94: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +95: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +96: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +97: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +98: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +99: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +100: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +101: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +102: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +103: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +104: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp renders controlled ConfigurationErrorScreen when initializationError is present
+00:12 +105: /home/user/LiveDrop/seller-app/test/seller_auth_registration_test.dart: Seller Auth & Registration Flow Tests SellerLoginScreen renders Create Account and Contact Admin WhatsApp buttons
+00:13 +106: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
+00:13 +107: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
+00:13 +108: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
+00:13 +109: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
+00:14 +110: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:15 +111: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:15 +112: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:16 +113: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:16 +114: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:17 +115: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:17 +116: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:17 +117: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS Skeleton Loaders render structured placeholder geometries
+00:17 +118: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: a title over 100 characters and a zero price are refused
+00:17 +119: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS AnimatedSplashScreen renders brand monogram and launches countdown
+00:17 +120: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS SellerDashboardScreen renders Live Drop Card, 4 Metrics, and 6 Quick Actions
+00:18 +121: All tests passed!

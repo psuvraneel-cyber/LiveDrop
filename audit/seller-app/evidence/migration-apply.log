@@ -31,4 +31,7 @@ PASS  030_fix_advance_paid_balance_payment_resolution.sql
 PASS  031_seller_storefronts_and_catalog_showcase.sql
 PASS  032_add_stream_url_to_drops.sql
 PASS  033_hide_seller_upi_from_public_storefronts.sql
+PASS  034_lock_down_public_view_privileges.sql
+PASS  035_payment_claim_safety_and_refunds.sql
+PASS  036_schedule_reaper_in_database.sql
 Migration apply exit status: 0

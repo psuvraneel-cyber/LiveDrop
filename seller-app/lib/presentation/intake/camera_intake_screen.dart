@@ -9,8 +9,10 @@ import '../../core/services/image_service.dart';
 import '../../core/services/offline_intake_queue.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/validation/product_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import 'intake_draft_fields.dart';
 
 /// Screen 4: Luxury Boutique Camera Intake Screen
 /// Features 1:1 viewfinder bracket guides, zoom pill, gold shutter ring, and rapid intake bottom sheet.
@@ -133,10 +135,32 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
     _nextCodeNumber = maxNum + 1;
   }
 
+  /// Next suggested code. Always satisfies RULE-PRD-01 (`#` + 1–6 letters or
+  /// digits): a long prefix drops the zero padding, then falls back to `#A…`.
   String get _currentFlashCode {
     final cleanPrefix = _codePrefix.replaceAll('#', '').toUpperCase();
-    return '#$cleanPrefix${_nextCodeNumber.toString().padLeft(2, '0')}';
+    final candidates = [
+      '#$cleanPrefix${_nextCodeNumber.toString().padLeft(2, '0')}',
+      '#$cleanPrefix$_nextCodeNumber',
+      '#A${_nextCodeNumber.toString().padLeft(2, '0')}',
+    ];
+    return candidates.firstWhere(ProductRules.isValidCode, orElse: () => '#$_nextCodeNumber');
   }
+
+  /// Codes already used in this drop: products loaded from the server plus
+  /// pieces of this drop still waiting in the intake queue (RULE-PRD-02).
+  Iterable<String> get _knownCodesInDrop sync* {
+    final dropId = _resolvedDrop?.id ?? widget.dropId;
+    for (final product in _recentProducts) {
+      if (dropId == null || product.dropId == dropId) yield product.code;
+    }
+    for (final item in _queue.items) {
+      if (item.dropId == dropId && item.status != IntakeQueueStatus.completed) {
+        yield item.code;
+      }
+    }
+  }
+
 
   Future<void> _initCamera() async {
     try {
@@ -318,6 +342,7 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
 
     bool isSaving = false;
     final sizes = ['Free Size', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    final formKey = GlobalKey<FormState>();
 
     await showModalBottomSheet<void>(
       context: context,
@@ -330,19 +355,23 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
         return StatefulBuilder(
           builder: (context, setSheetState) {
             Future<void> handleSave({required bool finish}) async {
-              final title = _draftTitleCtrl.text.trim().isEmpty
-                  ? 'Item ${_draftCodeCtrl.text.trim()}'
-                  : _draftTitleCtrl.text.trim();
-              final priceNum = int.tryParse(_draftPriceCtrl.text.trim()) ?? 0;
-              if (priceNum <= 0) {
+              // SA-INT-001: block invalid pieces here, with the reason next to
+              // the field, instead of failing later in the background upload.
+              final formValid = formKey.currentState?.validate() ?? false;
+              final code = ProductRules.normalizeCode(_draftCodeCtrl.text);
+              final pricePaisa = ProductRules.parseRupeesToPaisa(_draftPriceCtrl.text);
+              if (!formValid || pricePaisa == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Please enter a valid price in ₹'),
+                    content: Text('Fix the highlighted fields before saving this piece.'),
                     backgroundColor: AppColors.crimson,
                   ),
                 );
                 return;
               }
+              final title = _draftTitleCtrl.text.trim().isEmpty
+                  ? 'Item $code'
+                  : _draftTitleCtrl.text.trim();
 
               final dropId = _resolvedDrop?.id ?? widget.dropId;
               if (dropId == null) {
@@ -362,9 +391,9 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                     _capturedAngles.map((p) => p.bytes).toList();
                 final queuedItem = await _queue.enqueue(
                   dropId: dropId,
-                  code: _draftCodeCtrl.text.trim(),
+                  code: code,
                   title: title,
-                  pricePaisa: priceNum * 100,
+                  pricePaisa: pricePaisa,
                   size: _draftSelectedSize,
                   imageBytesList: imageBytesList,
                 );
@@ -402,7 +431,7 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Piece #${queuedItem.code} (${imageBytesList.length} angle${imageBytesList.length > 1 ? "s" : ""}) saved! Syncing to cloud...',
+                        'Piece ${queuedItem.code} (${imageBytesList.length} angle${imageBytesList.length > 1 ? "s" : ""}) saved! Syncing to cloud...',
                       ),
                       backgroundColor: AppColors.emerald,
                       duration: const Duration(seconds: 3),
@@ -413,7 +442,7 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Piece #${queuedItem.code} saved! (#$_currentFlashCode ready)',
+                        'Piece ${queuedItem.code} saved! ($_currentFlashCode ready)',
                       ),
                       backgroundColor: AppColors.emerald,
                       duration: const Duration(seconds: 2),
@@ -466,7 +495,7 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                           ),
                         ),
                         Text(
-                          '#${_draftCodeCtrl.text}',
+                          ProductRules.normalizeCode(_draftCodeCtrl.text),
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
@@ -591,57 +620,16 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                     const Divider(color: AppColors.cardBorder),
                     const SizedBox(height: 10),
 
-                    // Flash Code & Title Fields
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 96,
-                          child: TextField(
-                            controller: _draftCodeCtrl,
-                            textCapitalization: TextCapitalization.characters,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            decoration: const InputDecoration(
-                              labelText: 'Code',
-                            ),
-                            onChanged: (val) => setSheetState(() {}),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _draftTitleCtrl,
-                            style:
-                                const TextStyle(color: AppColors.textPrimary),
-                            decoration: const InputDecoration(
-                              labelText: 'Item Title',
-                              hintText: 'e.g. Banarasi Silk Saree',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Price Field
-                    TextField(
-                      controller: _draftPriceCtrl,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      decoration: const InputDecoration(
-                        prefixText: '₹ ',
-                        prefixStyle: TextStyle(
-                          color: AppColors.emerald,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        labelText: 'Price (₹ INR)',
+                    // Flash Code, Title & Price Fields (validated inline)
+                    Form(
+                      key: formKey,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      child: IntakeDraftFields(
+                        codeController: _draftCodeCtrl,
+                        titleController: _draftTitleCtrl,
+                        priceController: _draftPriceCtrl,
+                        existingCodes: () => _knownCodesInDrop.toSet(),
+                        onCodeChanged: (val) => setSheetState(() {}),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -906,8 +894,8 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                                   ),
                                   child: Text(
                                     _capturedAngles.isNotEmpty
-                                        ? '#${_draftCodeCtrl.text.isNotEmpty ? _draftCodeCtrl.text : _currentFlashCode} (Angle ${_capturedAngles.length + 1}/4)'
-                                        : 'Next: #$_currentFlashCode',
+                                        ? '${_draftCodeCtrl.text.isNotEmpty ? ProductRules.normalizeCode(_draftCodeCtrl.text) : _currentFlashCode} (Angle ${_capturedAngles.length + 1}/4)'
+                                        : 'Next: $_currentFlashCode',
                                     style: const TextStyle(
                                       color: AppColors.goldPrimary,
                                       fontWeight: FontWeight.bold,

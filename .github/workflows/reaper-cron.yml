@@ -1,8 +1,16 @@
 name: LiveDrop Hold Reaper Cron
 
 on:
+  # BACKUP TRIGGER ONLY. The database schedules public.release_expired_holds()
+  # every minute itself via pg_cron when the extension is available
+  # (supabase/migrations/036_schedule_reaper_in_database.sql), and checkout
+  # also releases stale unclaimed holds lazily (migration 035). GitHub runs
+  # scheduled workflows on a best-effort basis (often far less often than
+  # requested), so this job is a redundant safety net: harmless where pg_cron
+  # runs (the reaper is idempotent and skips locked rows) and the only automatic
+  # trigger where pg_cron is unavailable. The reaper never expires holds whose
+  # buyer has submitted a payment claim.
   schedule:
-    # Runs every 5 minutes to release expired 15-minute reservations and 24-hour unverified claims
     - cron: '*/5 * * * *'
   workflow_dispatch:
 

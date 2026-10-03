@@ -5,8 +5,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/boutique_haptics.dart';
 import '../../core/utils/url_launcher_helper.dart';
+import '../../data/realtime/seller_live_store.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
 
 /// Screen 2: Luxury Boutique Live Dashboard Screen
@@ -19,6 +21,10 @@ class SellerDashboardScreen extends StatefulWidget {
   final VoidCallback onNavigateToShipping;
   final VoidCallback onManageDrop;
 
+  /// App-level live store (SA-RT-001); the dashboard reloads when its
+  /// revision changes and shows its live counts.
+  final SellerLiveStore? liveStore;
+
   const SellerDashboardScreen({
     super.key,
     required this.repository,
@@ -28,20 +34,40 @@ class SellerDashboardScreen extends StatefulWidget {
     required this.onNavigateToAnalytics,
     required this.onNavigateToShipping,
     required this.onManageDrop,
+    this.liveStore,
   });
 
   @override
   State<SellerDashboardScreen> createState() => _SellerDashboardScreenState();
 }
 
-class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
+class _SellerDashboardScreenState extends State<SellerDashboardScreen>
+    with SellerLiveRefreshMixin<SellerDashboardScreen> {
   bool _isLoading = true;
   SellerProfile? _profile;
   SellerDrop? _activeDrop;
   List<SellerProduct> _activeDropProducts = [];
   int _pendingVerificationCount = 0;
+  int _overdueClaimsCount = 0;
+  int _refundsOwedCount = 0;
+  int _refundsOwedPaisa = 0;
   int _totalOrdersCount = 0;
   List<SellerActivityItem> _recentActivities = [];
+  int _loadSequence = 0;
+
+  @override
+  SellerLiveStore? get liveStore => widget.liveStore;
+
+  @override
+  void onLiveRevision() {
+    _loadDashboardData(silent: true);
+  }
+
+  @override
+  void onLiveStoreNotified() {
+    // Live counts (pending claims, refunds owed) changed.
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -49,8 +75,9 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     _loadDashboardData();
   }
 
-  Future<void> _loadDashboardData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadDashboardData({bool silent = false}) async {
+    final sequence = ++_loadSequence;
+    if (!silent) setState(() => _isLoading = true);
     try {
       final profile = await widget.repository.getProfile();
       final drops = await widget.repository.getDrops();
@@ -76,27 +103,62 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
       } catch (_) {}
 
       int pendingCount = 0;
+      int overdueCount = 0;
       try {
         final verifications = await widget.repository.getPendingVerifications();
+        final now = DateTime.now();
         pendingCount = verifications.length;
+        overdueCount = verifications.where((v) => v.isOverdue(now)).length;
       } catch (_) {}
 
-      if (mounted) {
+      int refundsCount = 0;
+      int refundsPaisa = 0;
+      try {
+        final refunds = await widget.repository.getRefundsOwed();
+        refundsCount = refunds.length;
+        refundsPaisa = refunds.fold<int>(0, (sum, r) => sum + r.refundAmountPaisa);
+      } catch (_) {}
+
+      if (mounted && sequence == _loadSequence) {
         setState(() {
           _profile = profile;
           _activeDrop = active;
           _activeDropProducts = products;
           _pendingVerificationCount = pendingCount;
+          _overdueClaimsCount = overdueCount;
+          _refundsOwedCount = refundsCount;
+          _refundsOwedPaisa = refundsPaisa;
           _totalOrdersCount = orders.length;
           _recentActivities = activities;
           _isLoading = false;
         });
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted && sequence == _loadSequence) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Live counts from the store once loaded, else this screen's own fetch.
+  int get _livePendingCount {
+    final store = widget.liveStore;
+    return store != null && store.countsLoaded ? store.pendingVerifications : _pendingVerificationCount;
+  }
+
+  int get _liveOverdueCount {
+    final store = widget.liveStore;
+    return store != null && store.countsLoaded ? store.overdueClaims : _overdueClaimsCount;
+  }
+
+  int get _liveRefundsCount {
+    final store = widget.liveStore;
+    return store != null && store.countsLoaded ? store.refundsOwed : _refundsOwedCount;
+  }
+
+  int get _liveRefundsPaisa {
+    final store = widget.liveStore;
+    return store != null && store.countsLoaded ? store.refundsOwedPaisa : _refundsOwedPaisa;
   }
 
   String _formatDropSubtitle(SellerDrop? drop) {
@@ -240,6 +302,10 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
       );
     }
 
+    final pendingVerificationCount = _livePendingCount;
+    final overdueClaimsCount = _liveOverdueCount;
+    final refundsOwedCount = _liveRefundsCount;
+    final refundsOwedPaisa = _liveRefundsPaisa;
     final storeName = _profile?.storeName ?? 'Seller Boutique';
     final dropTitle = _activeDrop?.title ?? 'No Active Drop';
     final totalItems = _activeDropProducts.length;
@@ -303,7 +369,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                           child: Icon(Icons.person, color: AppColors.goldPrimary, size: 24),
                         ),
                       ),
-                      if (_pendingVerificationCount > 0)
+                      if (pendingVerificationCount > 0)
                         Positioned(
                           right: 0,
                           top: 0,
@@ -314,7 +380,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                               shape: BoxShape.circle,
                             ),
                             child: Text(
-                              '$_pendingVerificationCount',
+                              '$pendingVerificationCount',
                               style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -434,6 +500,31 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
               ),
               const SizedBox(height: 22),
 
+              // Money that needs the seller's action (SA-PAY-003 / SA-PAY-004)
+              if (refundsOwedCount > 0) ...[
+                _buildAlertTile(
+                  key: const ValueKey('home-refunds-owed'),
+                  icon: Icons.currency_rupee_rounded,
+                  title: 'Refunds owed: $refundsOwedCount',
+                  subtitle: '${_formatRupees(refundsOwedPaisa)} to send back to buyers — tap to settle',
+                  onTap: widget.onNavigateToPayments,
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (overdueClaimsCount > 0) ...[
+                _buildAlertTile(
+                  key: const ValueKey('home-overdue-claims'),
+                  icon: Icons.schedule_rounded,
+                  title: overdueClaimsCount == 1
+                      ? '1 payment claim is overdue'
+                      : '$overdueClaimsCount payment claims are overdue',
+                  subtitle: 'Buyers are waiting — verify or reject in Payments',
+                  onTap: widget.onNavigateToPayments,
+                ),
+                const SizedBox(height: 10),
+              ],
+              if (refundsOwedCount > 0 || overdueClaimsCount > 0) const SizedBox(height: 12),
+
               // 6 Quick Action Grid
               GridView.count(
                 crossAxisCount: 3,
@@ -457,7 +548,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
                   _buildQuickActionTile(
                     title: 'Verify Payments',
                     icon: Icons.verified_outlined,
-                    badgeCount: _pendingVerificationCount > 0 ? _pendingVerificationCount : null,
+                    badgeCount: pendingVerificationCount > 0 ? pendingVerificationCount : null,
                     badgeColor: AppColors.crimson,
                     onTap: widget.onNavigateToPayments,
                   ),
@@ -557,6 +648,72 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
               const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  String _formatRupees(int paisa) {
+    final rupees = (paisa / 100).toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d+?)(?=(\d\d)+(\d)(?!\d))'),
+          (m) => '${m[1]},',
+        );
+    return '₹$rupees';
+  }
+
+  Widget _buildAlertTile({
+    required Key key,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: () {
+        BoutiqueHaptics.light();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: AppTheme.cardDecoration(
+          backgroundColor: AppColors.crimsonTint,
+          borderColor: AppColors.crimson.withValues(alpha: 0.7),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: AppColors.crimsonTint,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.crimson, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.crimson),
+          ],
         ),
       ),
     );

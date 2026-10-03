@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/errors/exceptions.dart';
+import '../../core/errors/seller_error_messages.dart';
 import '../../core/services/pdf_label_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -110,6 +110,8 @@ class _OrderCardState extends State<OrderCard> {
   }
 
   Future<void> _forceReleaseHold() async {
+    final pieceCount = widget.order.items.length;
+    final pieces = pieceCount == 1 ? 'its piece' : 'its $pieceCount pieces';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -120,7 +122,9 @@ class _OrderCardState extends State<OrderCard> {
         ),
         title: const Text('Force Release Hold?', style: TextStyle(color: Colors.white)),
         content: Text(
-          'This will cancel Order #${widget.order.orderCode} and immediately release all reserved items back to the live catalog for other buyers.',
+          'This cancels Order #${widget.order.orderCode} and returns $pieces to sale right away — '
+          'any other buyer can then reserve and buy them.\n\n'
+          'Only release if this buyer has not paid and is not going to pay.',
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
@@ -157,10 +161,15 @@ class _OrderCardState extends State<OrderCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e is LiveDropException ? e.message : 'Release failed: $e'),
+            content: Text(SellerErrorMessages.releaseHold(e)),
             backgroundColor: AppColors.crimson,
+            duration: const Duration(seconds: 6),
           ),
         );
+        if (SellerErrorMessages.codeOf(e) == 'PAYMENT_CLAIM_PENDING') {
+          // Refresh so the card shows the buyer's claim and hides Release.
+          widget.onOrderUpdated();
+        }
       }
     }
   }
@@ -216,10 +225,13 @@ class _OrderCardState extends State<OrderCard> {
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
+    final pendingClaim = order.pendingPaymentClaim;
     final totalRupees = (order.totalPaisa / 100).toStringAsFixed(0);
     final dateStr = DateFormat('hh:mm a').format(order.createdAt);
 
-    final isUrgent = _remainingTime.inMinutes < 3 && _remainingTime > Duration.zero;
+    final isUrgent = pendingClaim == null &&
+        _remainingTime.inMinutes < 3 &&
+        _remainingTime > Duration.zero;
     final isExpired = _remainingTime == Duration.zero && order.status == OrderStatus.pending;
 
     // Status pill determination
@@ -308,8 +320,40 @@ class _OrderCardState extends State<OrderCard> {
               ),
               const SizedBox(height: 10),
 
-              // Pending Timer Banner (if pending)
-              if (order.status == OrderStatus.pending)
+              // Payment claim banner: the buyer says they paid (SA-PAY-005)
+              if (order.status == OrderStatus.pending && pendingClaim != null)
+                Container(
+                  key: const ValueKey('payment-claim-banner'),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.emeraldTint,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.emerald, width: 0.8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.verified_outlined, size: 16, color: AppColors.emerald),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          pendingClaim.buyerSubmittedUtr != null
+                              ? 'Payment claim pending (UTR ${pendingClaim.buyerSubmittedUtr}) — verify or reject it in Payments.'
+                              : 'Payment claim pending — verify or reject it in Payments.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.emerald,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Pending Timer Banner (if pending and no claim yet)
+              if (order.status == OrderStatus.pending && pendingClaim == null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   margin: const EdgeInsets.only(bottom: 10),
@@ -414,17 +458,21 @@ class _OrderCardState extends State<OrderCard> {
                         text: 'WhatsApp',
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.crimson,
-                        side: const BorderSide(color: AppColors.crimson),
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    // Release is hidden while the buyer has a payment claim:
+                    // the server refuses it (PAYMENT_CLAIM_PENDING) anyway.
+                    if (pendingClaim == null) ...[
+                      const SizedBox(width: 10),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.crimson,
+                          side: const BorderSide(color: AppColors.crimson),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: _forceReleaseHold,
+                        child: const Text('Release', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                      onPressed: _forceReleaseHold,
-                      child: const Text('Release', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
+                    ],
                   ],
 
                   // Paid / Ready Actions: 4x6 Label & Dispatch

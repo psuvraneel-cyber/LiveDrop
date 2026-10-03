@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/validation/product_rules.dart';
 import '../../domain/models/models.dart';
 
 /// LiveDrop Seller Mobile App — Application Data Access Repository
@@ -33,6 +34,42 @@ class SellerRepository {
       );
     }
     return uid;
+  }
+
+  /// Normalises an RPC `jsonb` response (map or JSON string) to a map.
+  static Map<String, dynamic> _rpcMap(dynamic response) {
+    if (response is String) {
+      return (jsonDecode(response) as Map).cast<String, dynamic>();
+    }
+    if (response is Map) {
+      return response.cast<String, dynamic>();
+    }
+    throw const LiveDropException(
+      'Unexpected response from the server.',
+      code: 'INVALID_RESPONSE',
+    );
+  }
+
+  /// Columns for the "Refunds owed" list (contract §11).
+  static const String refundsOwedColumns =
+      'id, drop_id, order_code, buyer_name, buyer_phone, status, total_paisa, '
+      'total_paid_paisa, payment_status, refund_status, refund_amount_paisa, '
+      'refund_reason, refund_required_at, refund_reference, refunded_at, created_at';
+
+  /// Same rule as `record_refund`: trimmed, 4–64 characters of
+  /// letters, digits, space, `_`, `.`, `/` or `-`.
+  static final RegExp refundReferencePattern = RegExp(r'^[A-Za-z0-9_./ -]+$');
+
+  /// Returns `null` when [raw] is an acceptable refund reference.
+  static String? validateRefundReference(String raw) {
+    final reference = raw.trim();
+    if (reference.length < 4 || reference.length > 64) {
+      return 'Enter 4–64 characters (the UPI reference / UTR of your refund).';
+    }
+    if (!refundReferencePattern.hasMatch(reference)) {
+      return 'Use only letters, digits, spaces and . _ / -';
+    }
+    return null;
   }
 
   /// Fetches the profile for the currently authenticated seller.
@@ -132,6 +169,11 @@ class SellerRepository {
                 title,
                 image_url
               )
+            ),
+            payment_attempts (
+              id,
+              status,
+              buyer_submitted_utr
             )
           ''')
           .eq('drop_id', dropId)
@@ -165,6 +207,10 @@ class SellerRepository {
   }
 
   /// Forces manual release of a reserved hold via the `force_release_hold` RPC.
+  ///
+  /// The server refuses with `PAYMENT_CLAIM_PENDING` while the buyer has a
+  /// payment claim on the order (SA-PAY-005); the error code is preserved on
+  /// the thrown [LiveDropException] so the UI can show a friendly message.
   Future<bool> forceReleaseHold(String orderId) async {
     _requireSellerId();
 
@@ -174,7 +220,7 @@ class SellerRepository {
         params: {'p_order_id': orderId},
       );
 
-      final map = response as Map<String, dynamic>;
+      final map = _rpcMap(response);
       if (map['success'] != true) {
         final error = map['error'] as String? ?? 'UNKNOWN_ERROR';
         throw LiveDropException(
@@ -323,6 +369,7 @@ class SellerRepository {
             seller_verified_at,
             verified_by,
             rejection_reason,
+            verification_expires_at,
             expires_at,
             created_at,
             orders!inner (
@@ -365,6 +412,7 @@ class SellerRepository {
             seller_verified_at,
             verified_by,
             rejection_reason,
+            verification_expires_at,
             expires_at,
             created_at
           ''')
@@ -380,6 +428,11 @@ class SellerRepository {
   }
 
   /// Verifies a manual direct UPI payment attempt via `verify_manual_upi_payment` RPC.
+  ///
+  /// The returned map carries `refund_required`, `refund_amount_paisa`,
+  /// `is_late_claim` and `inventory_available` (contract §5): when
+  /// `refund_required` is true the money was recorded but the piece had been
+  /// resold, and the seller owes the buyer a refund (SA-PAY-004).
   Future<Map<String, dynamic>> verifyManualUpiPayment(
     String paymentAttemptId, [
     String? overrideReference,
@@ -391,11 +444,11 @@ class SellerRepository {
         'verify_manual_upi_payment',
         params: {
           'p_payment_attempt_id': paymentAttemptId,
-          'p_override_reference': ?overrideReference,
+          'p_utr': ?overrideReference,
         },
       );
 
-      final map = response as Map<String, dynamic>;
+      final map = _rpcMap(response);
       if (map['success'] != true) {
         final error = map['error'] as String? ?? 'VERIFICATION_FAILED';
         throw LiveDropException(
@@ -502,6 +555,90 @@ class SellerRepository {
       }
 
       return map;
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Orders on which this seller owes the buyer a refund (`refund_status =
+  /// 'required'`), oldest obligation first. RLS scopes the rows to the seller.
+  Future<List<OwedRefund>> getRefundsOwed() async {
+    _requireSellerId();
+
+    try {
+      final response = await _client
+          .from('orders')
+          .select(refundsOwedColumns)
+          .eq('refund_status', 'required')
+          .order('refund_required_at', ascending: true);
+
+      return (response as List<dynamic>)
+          .map((e) => OwedRefund.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Records that the seller has refunded the buyer via the `record_refund`
+  /// RPC (contract §10). The reference is validated locally with the same
+  /// rule as the server, which stays authoritative.
+  Future<Map<String, dynamic>> recordRefund(
+    String orderId,
+    String refundReference, {
+    String? note,
+  }) async {
+    _requireSellerId();
+
+    final reference = refundReference.trim();
+    final referenceError = validateRefundReference(reference);
+    if (referenceError != null) {
+      throw LiveDropException(referenceError, code: 'INVALID_REFUND_REFERENCE');
+    }
+    final cleanNote = note?.trim();
+
+    try {
+      final response = await _client.rpc<dynamic>(
+        'record_refund',
+        params: {
+          'p_order_id': orderId,
+          'p_refund_reference': reference,
+          if (cleanNote != null && cleanNote.isNotEmpty) 'p_note': cleanNote,
+        },
+      );
+
+      final map = _rpcMap(response);
+      if (map['success'] != true) {
+        final error = map['error'] as String? ?? 'REFUND_FAILED';
+        throw LiveDropException(
+          map['message'] as String? ?? error,
+          code: error,
+        );
+      }
+
+      return map;
+    } on PostgrestException catch (e) {
+      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+    }
+  }
+
+  /// Looks up the product with [code] in [dropId] (UNIQUE(drop_id, code)).
+  /// Used by the intake queue to recognise a create whose response was lost.
+  Future<SellerProduct?> findProductByCode({
+    required String dropId,
+    required String code,
+  }) async {
+    _requireSellerId();
+
+    try {
+      final response = await _client
+          .from('products')
+          .select()
+          .eq('drop_id', dropId)
+          .eq('code', code)
+          .maybeSingle();
+
+      return response == null ? null : SellerProduct.fromJson(response);
     } on PostgrestException catch (e) {
       throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
     }
@@ -663,7 +800,7 @@ class SellerRepository {
           .from('products')
           .insert({
             'drop_id': dropId,
-            'code': code.trim().toUpperCase(),
+            'code': ProductRules.normalizeCode(code),
             'title': title.trim(),
             'price_paisa': pricePaisa,
             'size': size.trim(),
@@ -678,7 +815,7 @@ class SellerRepository {
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
         throw LiveDropException(
-          'Product flash code "$code" is already taken in this drop. Codes must be unique within a drop.',
+          'Product flash code "${ProductRules.normalizeCode(code)}" is already taken in this drop. Codes must be unique within a drop.',
           code: 'DUPLICATE_PRODUCT_CODE',
         );
       }
@@ -800,6 +937,11 @@ class SellerRepository {
             title,
             image_url
           )
+        ),
+        payment_attempts (
+          id,
+          status,
+          buyer_submitted_utr
         )
       ''');
 
