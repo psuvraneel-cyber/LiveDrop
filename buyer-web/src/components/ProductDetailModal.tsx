@@ -471,7 +471,7 @@ export function ProductDetailModal({
 
               <button
                 type="button"
-                className="ld-sheet-buy-btn"
+                className="ld-sheet-buy-btn ld-shimmer-btn"
                 onClick={handleBuyNow}
                 data-testid={`sheet-buy-now-${product.id}`}
               >

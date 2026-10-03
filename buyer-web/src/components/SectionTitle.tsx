@@ -19,7 +19,7 @@ export function SectionTitle({
   actionTestId,
 }: SectionTitleProps) {
   return (
-    <div className="flex items-center justify-between border-b border-white/10 pb-3">
+    <div className="ld-section-title-row flex items-center justify-between pb-3">
       <div>
         <h2 className="text-xl sm:text-2xl font-serif text-[#F4F1EA] tracking-wide">
           {title}

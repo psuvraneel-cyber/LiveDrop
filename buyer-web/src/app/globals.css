@@ -6229,3 +6229,417 @@ a:visited {
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   Premium Experience Layer
+   Additive polish only: depth, motion and typography. No layout contracts,
+   data hooks or copy change here. All motion is disabled for
+   prefers-reduced-motion and hover effects only apply on hover-capable
+   pointers.
+   ========================================================================== */
+
+/* Cormorant Garamond defaults to old-style figures: the "1" in prices and
+   counts rendered like a dotless "i" (e.g. "Your Cart (1)"). */
+html {
+  font-variant-numeric: lining-nums;
+}
+
+@property --ld-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes ldShimmerSweep {
+  0% { transform: translateX(-160%) skewX(-20deg); }
+  55%, 100% { transform: translateX(360%) skewX(-20deg); }
+}
+
+@keyframes ldAuroraDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(5%, -7%, 0) scale(1.18); }
+}
+
+@keyframes ldFloatY {
+  0%, 100% { transform: translateY(0) rotate(var(--ld-tilt, 0deg)); }
+  50% { transform: translateY(-9px) rotate(var(--ld-tilt, 0deg)); }
+}
+
+@keyframes ldKenBurns {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.12) translate3d(-2%, -1.5%, 0); }
+}
+
+@keyframes ldBlurFadeUp {
+  from { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes ldBorderSpin {
+  to { --ld-angle: 360deg; }
+}
+
+@keyframes ldLivePing {
+  0% { transform: scale(1); opacity: 0.75; }
+  80%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* --- Hero: aurora glow, product mosaic, ken-burns backdrop --------------- */
+
+.ld-hero-aurora {
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
+  filter: blur(64px);
+  opacity: 0.6;
+}
+
+.ld-hero-aurora::before,
+.ld-hero-aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  animation: ldAuroraDrift 16s ease-in-out infinite;
+}
+
+.ld-hero-aurora::before {
+  width: 42%;
+  height: 70%;
+  right: 10%;
+  top: 8%;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.38), transparent 65%);
+}
+
+.ld-hero-aurora::after {
+  width: 38%;
+  height: 62%;
+  right: 34%;
+  bottom: -6%;
+  background: radial-gradient(circle, rgba(140, 26, 56, 0.5), transparent 65%);
+  animation-duration: 21s;
+  animation-direction: reverse;
+}
+
+.ld-hero-backdrop-img {
+  animation: ldKenBurns 20s ease-in-out infinite alternate;
+  transform-origin: 70% 30%;
+}
+
+.ld-hero-mosaic {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .ld-hero-mosaic {
+    position: absolute;
+    right: 4%;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    pointer-events: none;
+  }
+
+  .ld-hero-mosaic-card {
+    position: relative;
+    height: 74%;
+    aspect-ratio: 3 / 4;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    background: #121211;
+    box-shadow:
+      0 30px 60px -18px rgba(0, 0, 0, 0.85),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    animation: ldFloatY 8s ease-in-out infinite;
+  }
+
+  .ld-hero-mosaic-card:nth-child(1) { --ld-tilt: -3deg; animation-delay: -2s; }
+  .ld-hero-mosaic-card:nth-child(2) { --ld-tilt: 0deg; height: 88%; z-index: 1; }
+  .ld-hero-mosaic-card:nth-child(3) { --ld-tilt: 3deg; animation-delay: -5s; display: none; }
+
+  .ld-hero-mosaic-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+
+  .ld-hero-mosaic-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 55%, rgba(8, 8, 10, 0.55));
+  }
+}
+
+@media (min-width: 1280px) {
+  .ld-hero-mosaic-card:nth-child(3) { display: block; }
+}
+
+/* --- Shimmer CTA (gold pill buttons) ------------------------------------- */
+
+.ld-shimmer-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 10px 30px -10px rgba(212, 175, 55, 0.55);
+}
+
+.ld-shimmer-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: translateX(-160%) skewX(-20deg);
+  animation: ldShimmerSweep 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* --- Live ping ring -------------------------------------------------------- */
+
+.ld-live-ping {
+  position: relative;
+}
+
+.ld-live-ping::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: ldLivePing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* --- Product cards: entrance, lift, gold glow, sheen ---------------------- */
+
+.ld-product-grid > article.ld-product-card,
+.ld-products-grid > article.ld-product-card {
+  animation: ldBlurFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ld-product-grid > article:nth-of-type(2),
+.ld-products-grid > article:nth-of-type(2) { animation-delay: 60ms; }
+.ld-product-grid > article:nth-of-type(3),
+.ld-products-grid > article:nth-of-type(3) { animation-delay: 120ms; }
+.ld-product-grid > article:nth-of-type(4),
+.ld-products-grid > article:nth-of-type(4) { animation-delay: 180ms; }
+.ld-product-grid > article:nth-of-type(5),
+.ld-products-grid > article:nth-of-type(5) { animation-delay: 240ms; }
+.ld-product-grid > article:nth-of-type(n + 6),
+.ld-products-grid > article:nth-of-type(n + 6) { animation-delay: 300ms; }
+
+.ld-product-card {
+  background: linear-gradient(180deg, #141413 0%, #0f0f0e 100%);
+}
+
+.ld-card-media::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 38%;
+  background: linear-gradient(180deg, transparent, rgba(8, 8, 10, 0.45));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ld-card-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.12) 50%, transparent 65%);
+  transform: translateX(-110%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ld-product-price {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ld-product-card {
+    transition:
+      transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.35s ease,
+      box-shadow 0.5s ease;
+  }
+
+  .ld-product-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(212, 175, 55, 0.45);
+    box-shadow:
+      0 22px 44px -18px rgba(0, 0, 0, 0.9),
+      0 0 0 1px rgba(212, 175, 55, 0.14),
+      0 14px 44px -14px rgba(212, 175, 55, 0.22);
+  }
+
+  .ld-product-image {
+    transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .ld-product-card:hover .ld-product-image {
+    transform: scale(1.07);
+  }
+
+  .ld-product-card:hover .ld-card-media::after {
+    transform: translateX(110%);
+    transition: transform 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .ld-product-card.unavailable:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* --- Section titles: gold hairline ---------------------------------------- */
+
+.ld-section-title-row {
+  position: relative;
+}
+
+.ld-section-title-row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.6), rgba(212, 175, 55, 0.14) 38%, rgba(255, 255, 255, 0.06) 70%, transparent);
+}
+
+/* --- Boutique cards: animated gold border (Magic UI "border beam" style) --- */
+
+.ld-boutique-rail > .ld-boutique-card:only-child {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .ld-boutique-rail > .ld-boutique-card:only-child {
+    width: auto;
+  }
+}
+
+.ld-boutique-card {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(160deg, #161513 0%, #0f0f0e 100%);
+}
+
+.ld-boutique-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--ld-angle), transparent 0deg, rgba(212, 175, 55, 0.7) 60deg, transparent 140deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.ld-boutique-card.is-live::before,
+.ld-boutique-card:hover::before {
+  opacity: 1;
+  animation: ldBorderSpin 4.5s linear infinite;
+}
+
+.ld-boutique-monogram {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(212, 175, 55, 0.28), transparent 60%),
+    #181715;
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35), 0 6px 18px -6px rgba(212, 175, 55, 0.35);
+}
+
+/* --- Trust tiles ------------------------------------------------------------ */
+
+.ld-trust-tile {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #151413 0%, #0e0e0d 100%);
+  transition: border-color 0.3s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ld-trust-tile::after {
+  content: '';
+  position: absolute;
+  inset: -40% -40% auto auto;
+  width: 70%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ld-trust-tile:hover {
+    border-color: rgba(212, 175, 55, 0.3);
+    transform: translateY(-2px);
+  }
+}
+
+/* --- Layout fixes found in the UI audit ----------------------------------- */
+
+/* Live room: "LIVE NOW" wrapped onto two lines on phones. */
+.ld-live-badge {
+  white-space: nowrap;
+}
+
+/* Live room: filter chips slid underneath the item count on narrow screens. */
+.ld-filter-pills {
+  min-width: 0;
+  flex: 1 1 auto;
+  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, #000 85%, transparent);
+}
+
+.ld-item-count {
+  flex-shrink: 0;
+}
+
+/* Boutique page: the store-name pill pushed "Share" off-screen on phones. */
+.ld-navbar-center {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.ld-storefront-nav-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+@media (max-width: 479px) {
+  .ld-storefront-nav-name {
+    display: none;
+  }
+}
+
+/* --- Reduced motion -------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-hero-aurora::before,
+  .ld-hero-aurora::after,
+  .ld-hero-backdrop-img,
+  .ld-hero-mosaic-card,
+  .ld-shimmer-btn::after,
+  .ld-live-ping::before,
+  .ld-boutique-card.is-live::before,
+  .ld-boutique-card:hover::before,
+  .ld-product-grid > article.ld-product-card,
+  .ld-products-grid > article.ld-product-card {
+    animation: none !important;
+  }
+}

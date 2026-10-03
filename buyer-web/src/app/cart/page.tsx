@@ -302,7 +302,7 @@ function CartPageContent() {
                   className={`w-full py-4 rounded-full font-serif font-bold text-sm tracking-wider uppercase transition-all shadow-xl ${
                     hasUnavailableItems
                       ? 'bg-white/10 text-white/30 cursor-not-allowed border border-white/5'
-                      : 'bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
+                      : 'ld-shimmer-btn bg-gradient-to-r from-[#F5D78E] via-[#D4AF37] to-[#C88A24] text-[#08080A] hover:scale-[1.01] shadow-[rgba(212,175,55,0.25)]'
                   }`}
                   data-testid="cart-page-checkout-btn"
                 >

@@ -213,16 +213,25 @@ const server = http.createServer((req, res) => {
   if (pathname === '/rest/v1/public_seller_storefronts') {
     const idParam = parsedUrl.searchParams.get('id');
     const storeSlugParam = parsedUrl.searchParams.get('store_slug');
-    const cleanId = idParam ? idParam.replace(/^eq\./, '') : null;
+    // Supports PostgREST `eq.<id>` and `in.(<id>,<id>)` filters.
+    const idList = idParam
+      ? (idParam.startsWith('in.')
+          ? idParam.replace(/^in\.\(/, '').replace(/\)$/, '').split(',').map((s) => s.replace(/"/g, '').trim())
+          : [idParam.replace(/^eq\./, '')])
+      : null;
     const cleanStoreSlug = storeSlugParam ? storeSlugParam.replace(/^eq\./, '') : null;
 
+    // Mirror migration 033: the public storefront view never exposes the seller UPI ID or QR image.
+    // eslint-disable-next-line no-unused-vars
+    const { upi_id: _upiId, upi_vpa: _upiVpa, upi_qr_url: _upiQr, ...publicProfile } = mockProfile;
+
     let matched = null;
-    if (cleanId && mockProfile.id === cleanId) {
-      matched = mockProfile;
+    if (idList && idList.includes(mockProfile.id)) {
+      matched = publicProfile;
     } else if (cleanStoreSlug && mockProfile.store_slug === cleanStoreSlug) {
-      matched = mockProfile;
-    } else if (!cleanId && !cleanStoreSlug) {
-      matched = mockProfile;
+      matched = publicProfile;
+    } else if (!idList && !cleanStoreSlug) {
+      matched = publicProfile;
     }
 
     const acceptHeader = req.headers['accept'] || '';

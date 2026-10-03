@@ -176,7 +176,7 @@ export function BoutiqueStorefrontView({
             {hasLiveDrop && (
               <Link
                 href={`/drop/${activeLiveDrop?.slug}`}
-                className="ld-btn-gold-cta"
+                className="ld-btn-gold-cta ld-shimmer-btn"
                 data-testid="enter-live-room-btn"
               >
                 <span>Enter Live Flash Sale</span>

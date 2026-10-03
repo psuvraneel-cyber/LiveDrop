@@ -31,12 +31,12 @@ export function BoutiqueCard({
 
   return (
     <div
-      className="flex-shrink-0 w-[270px] sm:w-auto p-4 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex flex-col justify-between gap-3.5 shadow-sm snap-start"
+      className={`ld-boutique-card ${isLive ? 'is-live' : ''} flex-shrink-0 w-[270px] sm:w-auto p-4 rounded-xl bg-[#121211] border border-white/5 hover:border-[rgba(199,154,69,0.3)] transition-all flex flex-col justify-between gap-3.5 shadow-sm snap-start`}
       data-testid={`boutique-card-${storeSlug}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
+          <div className="ld-boutique-monogram w-10 h-10 rounded-full bg-[#181715] border border-[#C79A45]/30 flex items-center justify-center text-[#C79A45] font-serif font-bold text-sm flex-shrink-0">
             {boutique.store_name[0]?.toUpperCase() || 'B'}
           </div>
           <div className="min-w-0">
