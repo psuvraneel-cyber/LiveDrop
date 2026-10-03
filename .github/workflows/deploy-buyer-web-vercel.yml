@@ -66,6 +66,9 @@ jobs:
     name: Deploy to Vercel
     needs: quality-gate
     runs-on: ubuntu-latest
+    # Production runs bind to the "production" GitHub Environment so required
+    # reviewers / branch rules configured in repo settings gate the deploy.
+    environment: ${{ ((github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'production')) && 'production' || 'preview' }}
     outputs:
       preview_url: ${{ steps.deploy-preview.outputs.preview_url }}
       prod_url: ${{ steps.deploy-prod.outputs.prod_url }}
@@ -103,7 +106,7 @@ jobs:
           echo "Preview deployment successful: $PREVIEW_URL"
 
       - name: Deploy Production (Main Branch / LiveDrop.in)
-        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'production')
+        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'production' && github.ref == 'refs/heads/main')
         id: deploy-prod
         run: |
           echo "Deploying production build for LiveDrop.in..."
@@ -130,5 +133,6 @@ jobs:
           if [ "$STATUS" -ge 200 ] 2>/dev/null && [ "$STATUS" -lt 400 ] 2>/dev/null; then
             echo "Verification PASSED: Storefront is responding normally."
           else
-            echo "Warning: Direct domain returned status $STATUS."
+            echo "::error::Production health check failed with status $STATUS."
+            exit 1
           fi
