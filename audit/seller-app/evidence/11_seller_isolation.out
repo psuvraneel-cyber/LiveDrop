@@ -1,0 +1,25 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+CREATE TABLE
+GRANT
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:38: NOTICE:  PASS 11.1 seller B reads of seller A: orders=0 items=0 attempts=0 ledger=0 products=0 draft_drop=0
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:48: NOTICE:  INFO 11.1b seller B can read seller A live drop row (drops_public_read): 1
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:61: NOTICE:  PASS 11.2 seller B direct writes on A: drops=0 orders=0 products_deleted=0
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:76: NOTICE:  PASS 11.3 seller B product insert into A drop rejected: new row violates row-level security policy for table "products"
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:95: NOTICE:  PASS 11.4 seller B RPCs against seller A objects: verify=UNAUTHORIZED reject=UNAUTHORIZED force_release=ORDER_NOT_FOUND_OR_UNAUTHORIZED sold_offline=PRODUCT_NOT_FOUND_OR_UNAUTHORIZED update_product=UNAUTHORIZED close_drop=FORBIDDEN ready=FORBIDDEN ship=FORBIDDEN
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:114: NOTICE:  PASS 11.5a seller B storage write into A folder rejected
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:114: NOTICE:  FINDING 11.5b unapproved seller C can upload objects to the public product-images bucket (no approval gate on storage)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/11_seller_isolation.sql:124: NOTICE:  INFO 11.6 seller A reads own buyer PII: name=Riya Sen phone=9830012345 pincode=700019
+DO
+ROLLBACK

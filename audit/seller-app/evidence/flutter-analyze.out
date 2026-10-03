@@ -1,0 +1,11 @@
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+Analyzing seller-app-run...                                     
+No issues found! (ran in 32.7s)
+
+real	0m33.277s
+user	0m0.661s
+sys	0m0.179s
+analyze exit: 0

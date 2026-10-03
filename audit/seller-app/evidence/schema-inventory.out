@@ -1,0 +1,86 @@
+Pager usage is off.
+== Tables: RLS enabled / forced
+     relname      | rls | forced 
+------------------+-----+--------
+ drops            | t   | f
+ order_items      | t   | f
+ order_payments   | t   | f
+ orders           | t   | f
+ payment_attempts | t   | f
+ products         | t   | f
+ profiles         | t   | f
+(7 rows)
+
+== Views and auto-updatability (information_schema)
+        table_name         | is_updatable | is_insertable_into 
+---------------------------+--------------+--------------------
+ public_products_catalog   | NO           | NO
+ public_seller_storefronts | YES          | YES
+(2 rows)
+
+== Column updatability of public_seller_storefronts
+          column_name          | is_updatable 
+-------------------------------+--------------
+ id                            | YES
+ store_name                    | YES
+ store_slug                    | YES
+ phone_number                  | YES
+ upi_display_name              | YES
+ upi_enabled                   | YES
+ default_shipping_fee_paisa    | YES
+ free_shipping_threshold_paisa | YES
+ advance_confirmation_enabled  | YES
+ advance_amount_paisa          | YES
+ hold_duration_days            | YES
+ created_at                    | YES
+(12 rows)
+
+== Table/view privileges for anon & authenticated (Supabase default privileges emulated)
+        table_name         |    grantee    |                          privs                          
+---------------------------+---------------+---------------------------------------------------------
+ drops                     | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ drops                     | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ order_items               | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ order_items               | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ order_payments            | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ order_payments            | authenticated | REFERENCES,SELECT,TRIGGER,TRUNCATE
+ orders                    | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ orders                    | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ payment_attempts          | anon          | SELECT
+ payment_attempts          | authenticated | SELECT
+ products                  | anon          | DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE
+ products                  | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ profiles                  | anon          | DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE
+ profiles                  | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ public_products_catalog   | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ public_products_catalog   | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ public_seller_storefronts | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ public_seller_storefronts | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+(18 rows)
+
+== Policies
+    tablename     |                policyname                |  cmd   |        roles         | permissive 
+------------------+------------------------------------------+--------+----------------------+------------
+ drops            | drops_public_read                        | SELECT | {anon,authenticated} | PERMISSIVE
+ drops            | drops_seller_manage                      | ALL    | {authenticated}      | PERMISSIVE
+ objects          | product_images_public_read               | SELECT | {public}             | PERMISSIVE
+ objects          | product_images_seller_delete             | DELETE | {authenticated}      | PERMISSIVE
+ objects          | product_images_seller_insert             | INSERT | {authenticated}      | PERMISSIVE
+ objects          | product_images_seller_update             | UPDATE | {authenticated}      | PERMISSIVE
+ order_items      | order_items_buyer_read_with_token        | SELECT | {anon}               | PERMISSIVE
+ order_items      | order_items_seller_select                | SELECT | {authenticated}      | PERMISSIVE
+ order_payments   | order_payments_buyer_read_with_token     | SELECT | {anon}               | PERMISSIVE
+ order_payments   | order_payments_seller_select             | SELECT | {authenticated}      | PERMISSIVE
+ orders           | orders_buyer_read_with_token             | SELECT | {anon}               | PERMISSIVE
+ orders           | orders_seller_delete                     | DELETE | {authenticated}      | PERMISSIVE
+ orders           | orders_seller_select                     | SELECT | {authenticated}      | PERMISSIVE
+ orders           | orders_seller_update                     | UPDATE | {authenticated}      | PERMISSIVE
+ payment_attempts | payment_attempts_buyer_select_with_token | SELECT | {anon}               | PERMISSIVE
+ payment_attempts | payment_attempts_seller_select           | SELECT | {authenticated}      | PERMISSIVE
+ products         | products_public_read_live                | SELECT | {anon}               | PERMISSIVE
+ products         | products_seller_manage                   | ALL    | {authenticated}      | PERMISSIVE
+ profiles         | profiles_seller_insert                   | INSERT | {authenticated}      | PERMISSIVE
+ profiles         | profiles_seller_select                   | SELECT | {authenticated}      | PERMISSIVE
+ profiles         | profiles_seller_update                   | UPDATE | {authenticated}      | PERMISSIVE
+(21 rows)
+

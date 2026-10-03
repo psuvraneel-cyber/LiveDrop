@@ -1,0 +1,63 @@
+   Woah! You appear to be trying to run flutter as root.
+   We strongly recommend running the flutter tool without superuser privileges.
+  /
+📎
+00:00 +0: loading /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/realtime_test.dart
+00:00 +0: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/realtime_test.dart: TASK-1.4: Seller Realtime Event Deserialization Tests SellerOrder parses incoming realtime record accurately
+00:00 +1: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/realtime_test.dart: TASK-1.4: Seller Realtime Event Deserialization Tests SellerOrder parses status transition from pending to paid
+00:06 +2: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: Image Processing Service Tests ImageService crops non-square image to 1:1 square and compresses to <= 1200px
+00:07 +3: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: Image Processing Service Tests ImageService scales down small square image without upscaling beyond bounds
+00:07 +4: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: 4×6 Thermal PDF Shipping Label Generator Tests PdfLabelService generates standard 4×6" vector PDF with Code-128 barcode and prepaid badge
+Helvetica-Bold has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
+Helvetica has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
+Courier has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
+00:07 +5: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/sprint2_seller_operations_test.dart: SPRINT 2: OrderCard & Kanban UI Widget Tests OrderCard renders Pending countdown and WhatsApp button for unpaid order
+00:08 +6: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:08 +7: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:08 +8: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders real activity items when present
+00:09 +9: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:09 +10: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:09 +11: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:09 +12: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:09 +13: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
+00:09 +14: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles multiple leading and trailing slashes correctly
+00:09 +15: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests ProductDetailsScreen renders authentic garment attributes and no mock Banarasi copy
+00:09 +16: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests ProductDetailsScreen renders authentic garment attributes and no mock Banarasi copy
+00:10 +17: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue persists raw image bytes to disk and writes manifest
+00:10 +18: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests reloading queue from disk recovers persisted state after simulated restart
+00:10 +19: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue successfully uploads image and creates product in database
+00:10 +20: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue handles network failure gracefully and survives retry
+00:10 +21: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue with multiple angles persists all images and uploads them in sequence
+00:11 +22: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +23: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +24: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +25: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +26: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +27: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +28: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +29: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +30: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +31: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +32: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +33: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +34: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +35: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +36: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +37: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/widget_test.dart: LiveDropSellerApp renders controlled ConfigurationErrorScreen when initializationError is present
+00:13 +38: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_auth_registration_test.dart: Seller Auth & Registration Flow Tests SellerLoginScreen renders Create Account and Contact Admin WhatsApp buttons
+00:14 +39: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:14 +40: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:15 +41: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:15 +42: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:16 +43: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS AppColors token invariants adhere to Luxury Boutique Noir palette
+00:16 +44: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS BrandEmblem renders procedural coat hanger monogram and brand text
+00:16 +45: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS BounceableButton handles spring scale and loading spinner states
+00:16 +46: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS Skeleton Loaders render structured placeholder geometries
+00:17 +47: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS AnimatedSplashScreen renders brand monogram and launches countdown
+00:17 +48: /tmp/claude-0/-home-user-LiveDrop/6a00c67f-9ef4-5713-a93b-746d513c6856/scratchpad/seller-app-run/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS SellerDashboardScreen renders Live Drop Card, 4 Metrics, and 6 Quick Actions
+00:17 +49: All tests passed!
+
+real	0m28.672s
+user	0m40.174s
+sys	0m11.318s
+test exit: 0

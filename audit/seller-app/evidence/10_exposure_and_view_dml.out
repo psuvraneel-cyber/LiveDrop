@@ -1,0 +1,35 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:23: NOTICE:  PASS 10.1 anon SELECT on profiles denied: permission denied for table profiles
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2 anon sees 3 storefront rows (approved sellers only; expected 3)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   aarohi-boutique exposes phone_number=9876500001
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   bela-weaves exposes phone_number=9876500002
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   damini-no-drops exposes phone_number=9876500004
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:67: NOTICE:  FINDING 10.3 anon updated seller A profile via public_seller_storefronts: rows=1 store_name=PWNED BY ANON phone=9000000000 upi_enabled=f shipping_fee=999900 advance=100
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:92: NOTICE:  FINDING 10.4 anon deleted seller D profile through public_seller_storefronts (rows=1)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:113: NOTICE:  FINDING 10.5 seller B changed seller A store_slug via view (rows=1, slug=hijacked-slug) — storefront URL hijack
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:124: NOTICE:  PASS 10.6 control: base-table UPDATE of another seller affected 0 rows (RLS)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:140: NOTICE:  INFO 10.7 anon reads 4 product rows (live drops of any seller) via column grant
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:140: NOTICE:  PASS 10.7 anon cannot read products.reserved_by_order_id
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:150: NOTICE:  PASS 10.8 anon without x-order-token sees 0 orders
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds DELETE on public_seller_storefronts
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds INSERT on public_seller_storefronts
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds REFERENCES on public_seller_storefronts
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds SELECT on public_seller_storefronts
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds TRIGGER on public_seller_storefronts
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds TRUNCATE on public_seller_storefronts
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:164: NOTICE:  INFO 10.9 anon holds UPDATE on public_seller_storefronts
+DO
+ROLLBACK

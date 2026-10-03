@@ -1,0 +1,236 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.0 /opt/ld-work/buyer-web
+
+ ✓ src/test/storefront-and-state-machine.test.ts (69 tests) 7443ms
+ ✓ src/test/rpcs.test.ts (46 tests) 7820ms
+ ✓ src/test/direct-upi-payments.test.ts (73 tests) 9014ms
+stderr | src/test/phase2-checkout-payment-behavior.test.tsx > LiveDrop Phase 2: Checkout & Direct UPI Payment Presentation Gate > 14. Seller verification state: shows pending verification banner with safe-to-close advice
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/test/phase2-checkout-payment-behavior.test.tsx > LiveDrop Phase 2: Checkout & Direct UPI Payment Presentation Gate > 16. Payment expiry: renders terminal expired banner when 24h verification window has elapsed
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/test/phase2-checkout-payment-behavior.test.tsx > LiveDrop Phase 2: Checkout & Direct UPI Payment Presentation Gate > 24. No false-positive payment success: opening UPI link does NOT show payment verified banner
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+Not implemented: navigation to another Document
+ ✓ src/test/phase2-checkout-payment-behavior.test.tsx (24 tests) 1655ms
+ ✓ src/test/schema.test.ts (36 tests) 3992ms
+ ✓ src/test/rls.test.ts (35 tests) 3711ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ✓ src/test/phase1c-cart-detail-behavior.test.tsx (21 tests) 763ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ✓ src/test/phase3-order-tracking-behavior.test.tsx (24 tests) 1574ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ✓ src/test/checkout.test.tsx (11 tests) 1007ms
+ ✓ src/test/catalog-feed.test.tsx (20 tests) 1309ms
+ ✓ src/test/data-layer.test.ts (22 tests) 29ms
+ ✓ src/test/storefront-route.test.tsx (17 tests) 4093ms
+ ✓ src/test/cart.test.tsx (16 tests) 525ms
+stderr | src/test/persistent-payment-claims-ui.test.tsx > TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX > UI-04: buyer receives realtime verified update -> transitions to advance verified banner without page refresh
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/test/persistent-payment-claims-ui.test.tsx > TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX > UI-09: adaptive bounded polling refreshes order while awaiting_seller_verification
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/test/persistent-payment-claims-ui.test.tsx > TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX > UI-09: adaptive bounded polling refreshes order while awaiting_seller_verification
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DirectUpiPaymentView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/test/persistent-payment-claims-ui.test.tsx (10 tests) 427ms
+ ✓ src/test/home-behavior-preservation.test.tsx (17 tests) 1069ms
+ ✓ src/test/public-drop-behavior.test.tsx (8 tests) 641ms
+ ✓ src/test/home-storefront.test.tsx (10 tests) 909ms
+ ✓ src/test/cart-storage.test.ts (12 tests) 10ms
+ ✓ src/test/boutique-storefront-behavior.test.tsx (8 tests) 783ms
+ ✓ src/test/e2e/screen-05-filter-sheet.test.tsx (8 tests) 375ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ✓ src/test/e2e/screen-08-checkout.test.tsx (6 tests) 545ms
+ ✓ src/test/shop-category-directory.test.tsx (7 tests) 662ms
+   ✓ ShopCategoryDirectory Phase 4 Tests (7)
+     ✓ renders boutique collections header, breadcrumb, and category tabs 314ms
+ ✓ src/test/e2e/screen-02-shop.test.tsx (7 tests) 887ms
+   ✓ Tier 1: Screen 02 — Shop Catalog Directory (7)
+     ✓ renders boutique collections header, breadcrumbs, and catalog piece count 395ms
+ ✓ src/test/cart-ui.test.tsx (4 tests) 397ms
+ ✓ src/test/e2e/screen-01-home.test.tsx (6 tests) 811ms
+ ✓ src/test/home-accessibility.test.tsx (6 tests) 558ms
+ ✓ src/test/e2e/screen-04-product-detail.test.tsx (7 tests) 485ms
+ ✓ src/test/in-app-browser.test.tsx (12 tests) 199ms
+ ✓ src/test/realtime.test.ts (3 tests) 7ms
+ ✓ src/test/realtime-polling-fallback.test.ts (2 tests) 12ms
+ ✓ src/test/e2e/screen-06-cart.test.tsx (7 tests) 602ms
+ ✓ src/test/buyer-profile.test.tsx (6 tests) 187ms
+ ✓ src/test/cinematic-live-room.test.tsx (5 tests) 424ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ✓ src/test/e2e/screen-11-order-tracking.test.tsx (6 tests) 577ms
+ ✓ src/test/e2e/screen-09-payment.test.tsx (5 tests) 415ms
+ ✓ src/test/checkout-validator.test.ts (13 tests) 9ms
+ ✓ src/test/e2e/screen-03-live-drop.test.tsx (6 tests) 442ms
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ ✓ src/test/order-route.test.tsx (4 tests) 295ms
+ ✓ src/test/global-buyer-header.test.tsx (6 tests) 121ms
+ ✓ src/test/product-quick-view-drawer.test.tsx (5 tests) 159ms
+ ✓ src/test/mobile-bottom-dock.test.tsx (7 tests) 122ms
+ ✓ src/test/order-lookup.test.tsx (6 tests) 504ms
+ ✓ src/test/e2e/screen-10-orders.test.tsx (6 tests) 500ms
+ ✓ src/test/e2e/screen-07-empty-cart.test.tsx (6 tests) 226ms
+ ✓ src/test/facebook-live-player.test.tsx (5 tests) 156ms
+ ✓ src/test/whatsapp-chat.test.ts (6 tests) 21ms
+ ✓ src/test/checkout-idempotency.test.ts (5 tests) 7ms
+ ✓ src/test/smoke.test.tsx (2 tests) 6ms
+stderr | src/test/error-boundaries.test.tsx > Buyer Web Error Boundaries & 404 > renders ErrorBoundary with error message and triggers reset on Try Again
+Unhandled route error in buyer-web: Error: Test catalog crash
+    at /opt/ld-work/buyer-web/src/test/error-boundaries.test.tsx:10:23
+    at file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:1628:35
+    at file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:2783:26
+    at file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:3319:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:3314:10)
+    at file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:3299:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:3257:10)
+    at file:///opt/ld-work/buyer-web/node_modules/vitest/dist/chunks/run.CQOUYP-x.js:3876:64
+
+ ✓ src/test/error-boundaries.test.tsx (2 tests) 101ms
+
+ Test Files  49 passed (49)
+      Tests  655 passed (655)
+   Start at  10:37:37
+   Duration  40.41s (tests 51%, environment 35%, setup 7%, import 4%, transform 3%)
+
+Environment  jsdom was created 49 times · 38.76s total, 35% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+
+real	0m41.398s
+user	1m53.699s
+sys	0m23.698s
