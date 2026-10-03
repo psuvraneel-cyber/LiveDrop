@@ -1,0 +1,81 @@
+%% LiveDrop seller app — architecture as implemented at 94ccfc9 (audit 2026-10-03)
+%% Dashed red edges = defects found by the audit (see FINDINGS.json ids)
+flowchart TB
+  subgraph Device["Android phone (seller)"]
+    direction TB
+    subgraph UI["UI — StatefulWidgets, no shared store"]
+      Shell["SellerHomeScreen<br/>IndexedStack: Home · Products · Orders · Payments · More"]
+      Intake["CameraIntakeScreen"]
+      Kanban["KanbanBoardScreen"]
+      PayQ["PendingVerificationsScreen"]
+      Ship["ShippingDialog / ShippingLabelScreen"]
+      Auth["Login · Registration · PendingApproval"]
+    end
+    subgraph Services["Services"]
+      Img["ImageService<br/>(isolate, JPEG q85, ≤1200px, EXIF kept)"]
+      Queue["OfflineIntakeQueue<br/>queue.json + JPEGs in systemTemp<br/>Timer retries ≤64s"]
+      Pdf["PdfLabelService<br/>4×6 PDF → system print/share"]
+      Url["UrlLauncherHelper<br/>whatsapp:// · wa.me · tel: · https"]
+    end
+    Repo["SellerRepository<br/>(all PostgREST / RPC / Storage calls)"]
+    RT["SellerOrderRealtimeSubscription<br/>seller-orders-&lt;dropId&gt;"]
+    SB["supabase_flutter 2.17.2<br/>PKCE · session in SharedPreferences"]
+  end
+
+  subgraph Supabase["Supabase project"]
+    direction TB
+    GoTrue["Auth (GoTrue)"]
+    PostgREST["PostgREST"]
+    Realtime["Realtime<br/>publication: products, orders, payment_attempts"]
+    Storage["Storage: product-images (public, 5 MB)"]
+    subgraph PG["PostgreSQL (RLS on all business tables)"]
+      Tables["profiles · drops · products · orders · order_items<br/>payment_attempts · order_payments"]
+      RPCs["SECURITY DEFINER RPCs (search_path pinned)<br/>update_product · mark_product_sold_offline · force_release_hold<br/>verify/reject_manual_upi_payment · mark_order_ready_to_ship · mark_order_shipped · close_drop"]
+      BuyerRPC["Buyer RPCs: create_order_with_reservation · initiate_payment_attempt<br/>submit_buyer_payment_claim · get_order_by_token"]
+      Reaper["release_expired_holds()"]
+      View["VIEW public_seller_storefronts<br/>(simple, auto-updatable, ALL granted to anon)"]
+      Triggers["Triggers: products/orders immutability · safe drop closure<br/>seller approval for go-live · profile approval immutability"]
+    end
+  end
+
+  subgraph Web["buyer-web (Next.js, Vercel)"]
+    Buyer["/drop/[slug] · checkout · /order/[id]<br/>catalog realtime + 3 s polling fallback"]
+  end
+
+  GH["GitHub Actions cron */5<br/>observed ≈5 runs/day"]
+
+  Shell --> Repo
+  Intake --> Img --> Queue --> Repo
+  Kanban --> Repo
+  Kanban --> RT
+  PayQ --> Repo
+  Ship --> Pdf
+  Ship --> Repo
+  Auth --> SB
+  Shell --> Url
+  Repo --> SB
+  RT --> SB
+  SB --> GoTrue
+  SB --> PostgREST
+  SB --> Realtime
+  SB --> Storage
+  PostgREST --> Tables
+  PostgREST --> RPCs
+  PostgREST --> View
+  RPCs --> Tables
+  Triggers --- Tables
+  Realtime --- Tables
+  Buyer --> PostgREST
+  Buyer --> Realtime
+  BuyerRPC --> Tables
+  GH -->|service role| Reaper --> Tables
+
+  Anon(("Anyone with the<br/>public anon key"))
+  Anon -.->|"SA-SEC-001: UPDATE/DELETE seller rows"| View
+  GH -.->|"SA-OPS-001: holds live for hours"| Reaper
+  RPCs -.->|"SA-PAY-001/002/004/005/006"| Tables
+  RT -.->|"SA-RT-001: only Kanban, only one drop"| Kanban
+  Queue -.->|"SA-OFF-001/003, SA-INT-001"| Repo
+
+  classDef defect stroke:#EF4444,stroke-width:2px;
+  class View,Reaper,Queue,RT defect;

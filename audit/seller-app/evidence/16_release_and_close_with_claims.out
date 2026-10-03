@@ -1,0 +1,13 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+CREATE FUNCTION
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:60: NOTICE:  INFO 16.1a buyer claimed payment: attempt=awaiting_seller_verification (order still pending, shown with a Release button)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:60: NOTICE:  FINDING 16.1b force_release_hold with a claim in flight -> release=true | order=cancelled piece=available attempt=awaiting_seller_verification still in seller queue=1 | verify afterwards -> INVALID_ORDER_STATE
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:76: NOTICE:  PASS 16.2 close_drop with a claim in flight -> close=true order=pending piece=reserved attempt=awaiting_seller_verification
+DO
+ROLLBACK

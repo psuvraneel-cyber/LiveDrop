@@ -1,0 +1,51 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  INFO 13.1a after claim: order status=pending payment=unpaid hold_expires_in=1 day
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  PASS 13.1b verify -> success=true order=paid/paid/not_ready total_paid=58000 ledger_rows=1 product=sold
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  PASS 13.1c second verify -> idempotent=true ledger_rows=1
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:85: NOTICE:  FINDING 13.2 fabricated UTR "NOTAREALUTR" moved hold from 00:15:00 to 1 day (piece unavailable to other buyers until seller acts)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:106: NOTICE:  INFO 13.3a second order accepted the same UTR at claim time: true
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:106: NOTICE:  PASS 13.3b verify first=true second=REFERENCE_USED_ON_ANOTHER_ORDER
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:106: NOTICE:  FINDING 13.3c lower-case variant of an already verified UTR verified on a different order: true
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:122: NOTICE:  INFO 13.4 reject(payment_not_found) -> hold_released=true order=cancelled piece=available (UI offers no "keep hold" choice)
+DO
+UPDATE 1
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:145: NOTICE:  INFO 13.5a advance order total=250000 advance_required=25000 attempt_amount=25000
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:145: NOTICE:  INFO 13.5b after reaper + late UTR: order=cancelled attempt=late_claim_pending_review
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:145: NOTICE:  FINDING 13.5c late advance verified -> order paid/paid total=250000 total_paid=250000 balance_due=0 | ledger records advance=25000 paisa
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:166: NOTICE:  FINDING 13.6 late full payment, piece gone -> rpc success=true refund_required=true | order status=cancelled payment=paid notes=LATE_CLAIM_PAYMENT_VERIFIED: Inventory was already reallocat
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:185: NOTICE:  FINDING 13.7 late advance, piece gone -> EXCEPTION 23514 new row for relation "orders" violates check constraint "chk_orders_balance_formula"
+DO
+UPDATE 3
+UPDATE 1
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:208: NOTICE:  FINDING 13.8 buyer-claimed payment after 24h without seller action -> order=cancelled attempt=expired piece=available still in seller queue=0
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:216: NOTICE:  FINDING 13.9 generate_upi_payment_uri -> upi://pay?pa=aarohi@okaxis&pn=Aarohi%20#1%20Boutique%20%26%20Co%20100%&am=1500.00&cu=INR&tr=LD-ABC123-FUL-1A2B&tn=LiveDrop%20LD-ABC123
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:232: NOTICE:  FINDING 13.10a drop threshold=299900 profile threshold=200000 subtotal=250000 -> shipping charged=0 (drop banner promises shipping until 299900)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:232: NOTICE:  FINDING 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=8000 (drop banner promised free shipping)
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:244: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-VSF2UP-FUL-2678 (internal reference, not a bank UTR)
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:258: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:272: NOTICE:  INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
+DO
+ROLLBACK
