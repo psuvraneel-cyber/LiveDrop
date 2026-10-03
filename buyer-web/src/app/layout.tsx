@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { AppProviders } from "../components/providers/AppProviders";
 import "./globals.css";
 
@@ -57,6 +58,7 @@ export default function RootLayout({
     <html lang="en" className={`${cormorant.variable} ${plusJakarta.variable}`}>
       <body className="ld-body-root">
         <AppProviders>{children}</AppProviders>
+        <Analytics />
       </body>
     </html>
   );
