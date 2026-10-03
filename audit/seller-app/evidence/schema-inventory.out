@@ -36,26 +36,26 @@ Pager usage is off.
 (12 rows)
 
 == Table/view privileges for anon & authenticated (Supabase default privileges emulated)
-        table_name         |    grantee    |                          privs                          
----------------------------+---------------+---------------------------------------------------------
- drops                     | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- drops                     | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- order_items               | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- order_items               | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- order_payments            | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- order_payments            | authenticated | REFERENCES,SELECT,TRIGGER,TRUNCATE
- orders                    | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- orders                    | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+        table_name         |    grantee    |            privs            
+---------------------------+---------------+-----------------------------
+ drops                     | anon          | DELETE,INSERT,SELECT,UPDATE
+ drops                     | authenticated | DELETE,INSERT,SELECT,UPDATE
+ order_items               | anon          | DELETE,INSERT,SELECT,UPDATE
+ order_items               | authenticated | DELETE,INSERT,SELECT,UPDATE
+ order_payments            | anon          | DELETE,INSERT,SELECT,UPDATE
+ order_payments            | authenticated | SELECT
+ orders                    | anon          | DELETE,INSERT,SELECT,UPDATE
+ orders                    | authenticated | DELETE,INSERT,SELECT,UPDATE
  payment_attempts          | anon          | SELECT
  payment_attempts          | authenticated | SELECT
- products                  | anon          | DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE
- products                  | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- profiles                  | anon          | DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE
- profiles                  | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- public_products_catalog   | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- public_products_catalog   | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- public_seller_storefronts | anon          | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
- public_seller_storefronts | authenticated | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+ products                  | anon          | DELETE,INSERT,UPDATE
+ products                  | authenticated | DELETE,INSERT,SELECT,UPDATE
+ profiles                  | anon          | DELETE,INSERT,UPDATE
+ profiles                  | authenticated | DELETE,INSERT,SELECT,UPDATE
+ public_products_catalog   | anon          | SELECT
+ public_products_catalog   | authenticated | SELECT
+ public_seller_storefronts | anon          | SELECT
+ public_seller_storefronts | authenticated | SELECT
 (18 rows)
 
 == Policies

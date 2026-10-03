@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/config/env_config.dart';
+import '../../core/errors/exceptions.dart';
+import '../../core/validation/product_rules.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
@@ -76,6 +78,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       text: (_product.pricePaisa / 100).toStringAsFixed(0),
     );
     final sizeController = TextEditingController(text: _product.size);
+    final formKey = GlobalKey<FormState>();
 
     final updated = await showDialog<bool>(
       context: context,
@@ -92,47 +95,60 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: titleController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Product Title',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
+        content: Form(
+          key: formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  key: const ValueKey('edit-product-title'),
+                  controller: titleController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Product Title',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    errorMaxLines: 2,
+                  ),
+                  validator: (value) => ProductRules.validateTitle(value ?? '', required: true),
                 ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-                decoration: const InputDecoration(
-                  prefixText: '₹ ',
-                  prefixStyle: TextStyle(
-                    color: AppColors.emerald,
+                const SizedBox(height: 14),
+                TextFormField(
+                  key: const ValueKey('edit-product-price'),
+                  controller: priceController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
-                  labelText: 'Price (₹ INR)',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                  decoration: const InputDecoration(
+                    prefixText: '₹ ',
+                    prefixStyle: TextStyle(
+                      color: AppColors.emerald,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    labelText: 'Price (₹ INR)',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  validator: (value) => ProductRules.validatePriceRupees(value ?? ''),
                 ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: sizeController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Size (e.g. Free Size, S, M, L)',
-                  labelStyle: TextStyle(color: AppColors.textSecondary),
+                const SizedBox(height: 14),
+                TextFormField(
+                  key: const ValueKey('edit-product-size'),
+                  controller: sizeController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Size (e.g. Free Size, S, M, L)',
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    errorMaxLines: 2,
+                  ),
+                  validator: (value) => ProductRules.validateSize(value ?? '', required: true),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -141,7 +157,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              // Invalid input stays in the dialog with the reason inline.
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx, true);
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.goldPrimary,
               foregroundColor: Colors.black,
@@ -156,7 +177,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     final newTitle = titleController.text.trim();
     final newSize = sizeController.text.trim();
-    final priceVal = int.tryParse(priceController.text.trim());
+    final pricePaisa = ProductRules.parseRupeesToPaisa(priceController.text);
 
     if (newTitle.isEmpty) {
       if (!mounted) return;
@@ -169,7 +190,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       return;
     }
 
-    if (priceVal == null || priceVal <= 0) {
+    if (pricePaisa == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -196,7 +217,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       final updatedProduct = await widget.repository.updateProduct(
         productId: _product.id,
         title: newTitle,
-        pricePaisa: priceVal * 100,
+        pricePaisa: pricePaisa,
         size: newSize,
       );
 
@@ -217,7 +238,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       setState(() => _isEditing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Update failed: $e'),
+          content: Text(
+            e is LiveDropException
+                ? 'Update failed: ${e.message}'
+                : 'Update failed. Check your connection and try again.',
+          ),
           backgroundColor: AppColors.crimson,
         ),
       );

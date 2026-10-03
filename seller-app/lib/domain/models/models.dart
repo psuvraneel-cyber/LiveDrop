@@ -144,6 +144,27 @@ enum OrderFulfilmentStatus {
   }
 }
 
+/// Refund obligation on an order (orders.refund_status, migration 035).
+enum RefundStatus {
+  none,
+  required,
+  refunded;
+
+  static RefundStatus fromString(String? value) {
+    switch (value) {
+      case 'required':
+        return RefundStatus.required;
+      case 'refunded':
+        return RefundStatus.refunded;
+      case 'none':
+      default:
+        return RefundStatus.none;
+    }
+  }
+
+  String toDbValue() => name;
+}
+
 enum DropStatus {
   draft,
   live,
@@ -383,6 +404,48 @@ class SellerOrderItem {
   }
 }
 
+/// Minimal view of a payment attempt embedded in an order list
+/// (`payment_attempts(id, status, buyer_submitted_utr)`), used to know
+/// whether the buyer has already claimed a payment (SA-PAY-005).
+class OrderPaymentAttemptSummary {
+  final String id;
+  final PaymentAttemptStatus status;
+  final String? buyerSubmittedUtr;
+
+  const OrderPaymentAttemptSummary({
+    required this.id,
+    required this.status,
+    this.buyerSubmittedUtr,
+  });
+
+  bool get isClaim => status.isClaim;
+
+  static OrderPaymentAttemptSummary? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final id = raw['id'];
+    final status = raw['status'];
+    if (id is! String || status is! String) return null;
+    final utr = raw['buyer_submitted_utr'];
+    return OrderPaymentAttemptSummary(
+      id: id,
+      status: PaymentAttemptStatus.fromString(status),
+      buyerSubmittedUtr: utr is String ? utr : null,
+    );
+  }
+}
+
+DateTime? _parseOptionalDate(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value);
+}
+
+int _parseOptionalInt(Object? value, {int fallback = 0}) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
 class SellerOrder {
   final String id;
   final String dropId;
@@ -412,6 +475,17 @@ class SellerOrder {
   final DateTime createdAt;
   final List<SellerOrderItem> items;
 
+  /// Refund obligation (migration 035). Defaults keep older rows parseable.
+  final RefundStatus refundStatus;
+  final int refundAmountPaisa;
+  final String? refundReason;
+  final DateTime? refundRequiredAt;
+  final String? refundReference;
+  final DateTime? refundedAt;
+
+  /// Payment attempts embedded in order lists (empty when not selected).
+  final List<OrderPaymentAttemptSummary> paymentAttempts;
+
   const SellerOrder({
     required this.id,
     required this.dropId,
@@ -440,13 +514,42 @@ class SellerOrder {
     this.courierPartner,
     required this.createdAt,
     required this.items,
+    this.refundStatus = RefundStatus.none,
+    this.refundAmountPaisa = 0,
+    this.refundReason,
+    this.refundRequiredAt,
+    this.refundReference,
+    this.refundedAt,
+    this.paymentAttempts = const [],
   });
+
+  /// The buyer-claimed attempt awaiting the seller (if any). While it exists
+  /// the hold must not be released (force_release_hold → PAYMENT_CLAIM_PENDING).
+  OrderPaymentAttemptSummary? get pendingPaymentClaim {
+    for (final attempt in paymentAttempts) {
+      if (attempt.isClaim) return attempt;
+    }
+    return null;
+  }
+
+  bool get hasPendingPaymentClaim => pendingPaymentClaim != null;
+
+  bool get isRefundOwed => refundStatus == RefundStatus.required;
 
   factory SellerOrder.fromJson(Map<String, dynamic> json) {
     final itemsList = (json['order_items'] as List<dynamic>?)
             ?.map((e) => SellerOrderItem.fromJson(e as Map<String, dynamic>))
             .toList() ??
         const [];
+
+    final rawAttempts = json['payment_attempts'];
+    final attempts = <OrderPaymentAttemptSummary>[];
+    if (rawAttempts is List) {
+      for (final raw in rawAttempts) {
+        final parsed = OrderPaymentAttemptSummary.tryParse(raw);
+        if (parsed != null) attempts.add(parsed);
+      }
+    }
 
     final total = json['total_paisa'] as int;
     final totalPaid = json['total_paid_paisa'] as int? ?? 0;
@@ -493,7 +596,91 @@ class SellerOrder {
       courierPartner: json['courier_partner'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       items: itemsList,
+      refundStatus: RefundStatus.fromString(json['refund_status'] as String?),
+      refundAmountPaisa: _parseOptionalInt(json['refund_amount_paisa']),
+      refundReason: json['refund_reason'] as String?,
+      refundRequiredAt: _parseOptionalDate(json['refund_required_at']),
+      refundReference: json['refund_reference'] as String?,
+      refundedAt: _parseOptionalDate(json['refunded_at']),
+      paymentAttempts: List.unmodifiable(attempts),
     );
+  }
+}
+
+/// An order on which the seller owes the buyer a refund (refund_status =
+/// 'required'), e.g. a late payment verified after the piece was resold
+/// (SA-PAY-004). Parsed from the contract §11 projection; every field that may
+/// be missing on older rows has a safe default.
+class OwedRefund {
+  final String orderId;
+  final String? dropId;
+  final String orderCode;
+  final String buyerName;
+  final String buyerPhone;
+  final OrderStatus orderStatus;
+  final int totalPaisa;
+  final int totalPaidPaisa;
+  final OrderPaymentStatus paymentStatus;
+  final RefundStatus refundStatus;
+  final int refundAmountPaisa;
+  final String? refundReason;
+  final DateTime? refundRequiredAt;
+  final String? refundReference;
+  final DateTime? refundedAt;
+  final DateTime? createdAt;
+
+  const OwedRefund({
+    required this.orderId,
+    this.dropId,
+    required this.orderCode,
+    required this.buyerName,
+    required this.buyerPhone,
+    this.orderStatus = OrderStatus.cancelled,
+    this.totalPaisa = 0,
+    this.totalPaidPaisa = 0,
+    this.paymentStatus = OrderPaymentStatus.paid,
+    this.refundStatus = RefundStatus.required,
+    required this.refundAmountPaisa,
+    this.refundReason,
+    this.refundRequiredAt,
+    this.refundReference,
+    this.refundedAt,
+    this.createdAt,
+  });
+
+  factory OwedRefund.fromJson(Map<String, dynamic> json) {
+    return OwedRefund(
+      orderId: json['id'] as String,
+      dropId: json['drop_id'] as String?,
+      orderCode: json['order_code'] as String? ?? '',
+      buyerName: json['buyer_name'] as String? ?? 'Buyer',
+      buyerPhone: json['buyer_phone'] as String? ?? '',
+      orderStatus: OrderStatus.fromString(json['status'] as String? ?? 'cancelled'),
+      totalPaisa: _parseOptionalInt(json['total_paisa']),
+      totalPaidPaisa: _parseOptionalInt(json['total_paid_paisa']),
+      paymentStatus: OrderPaymentStatus.fromString(json['payment_status'] as String? ?? 'paid'),
+      refundStatus: RefundStatus.fromString(json['refund_status'] as String?),
+      refundAmountPaisa: _parseOptionalInt(json['refund_amount_paisa']),
+      refundReason: json['refund_reason'] as String?,
+      refundRequiredAt: _parseOptionalDate(json['refund_required_at']),
+      refundReference: json['refund_reference'] as String?,
+      refundedAt: _parseOptionalDate(json['refunded_at']),
+      createdAt: _parseOptionalDate(json['created_at']),
+    );
+  }
+
+  /// Seller-facing explanation of why the refund is owed.
+  String get reasonLabel => describeRefundReason(refundReason);
+
+  static String describeRefundReason(String? reason) {
+    if (reason == 'LATE_PAYMENT_INVENTORY_UNAVAILABLE') {
+      return 'Late payment — the piece was no longer available when you verified it.';
+    }
+    if (reason == null || reason.trim().isEmpty) {
+      return 'Payment received for an order that cannot be fulfilled.';
+    }
+    final readable = reason.replaceAll('_', ' ').toLowerCase();
+    return '${readable[0].toUpperCase()}${readable.substring(1)}.';
   }
 }
 
@@ -528,6 +715,16 @@ enum PaymentAttemptStatus {
         return PaymentAttemptStatus.created;
     }
   }
+
+  /// Statuses meaning "the buyer says they paid and the seller must decide".
+  /// These stay in the seller's queue until verified or rejected (SA-PAY-003).
+  static const Set<PaymentAttemptStatus> claimStatuses = {
+    PaymentAttemptStatus.buyerClaimed,
+    PaymentAttemptStatus.awaitingSellerVerification,
+    PaymentAttemptStatus.lateClaimPendingReview,
+  };
+
+  bool get isClaim => claimStatuses.contains(this);
 
   String toDbValue() {
     switch (this) {
@@ -593,6 +790,37 @@ class PaymentAttempt {
     this.orderCode,
     this.buyerName,
   });
+
+  bool get isLateClaim => status == PaymentAttemptStatus.lateClaimPendingReview;
+
+  /// When the seller was expected to have verified this claim: its
+  /// `verification_expires_at` only (contract §11 — overdue means
+  /// `verification_expires_at < now()`). Null means the claim has no
+  /// verification deadline, so it is listed but never "overdue":
+  /// - `expires_at` is the buyer's payment window, never a verification
+  ///   window, so it is never used as a fallback. A late claim is submitted
+  ///   after `expires_at` by definition, and the late path of
+  ///   `submit_buyer_payment_claim` (023) leaves `verification_expires_at`
+  ///   untouched (NULL for an attempt never claimed before).
+  /// - A window that ended at or before the current `buyer_claimed_at`
+  ///   belongs to an earlier claim on the same attempt (the late path keeps
+  ///   the old value), not to this claim.
+  DateTime? get verificationDeadline {
+    if (!status.isClaim) return null;
+    final deadline = verificationExpiresAt;
+    if (deadline == null) return null;
+    final claimedAt = buyerClaimedAt;
+    if (claimedAt != null && !deadline.isAfter(claimedAt)) return null;
+    return deadline;
+  }
+
+  /// A claim whose verification window has passed. The server keeps it
+  /// verifiable (money in flight never auto-expires), so the seller must
+  /// still verify or reject it — it is shown first and labelled "Overdue".
+  bool isOverdue(DateTime now) {
+    final deadline = verificationDeadline;
+    return deadline != null && deadline.isBefore(now);
+  }
 
   factory PaymentAttempt.fromJson(Map<String, dynamic> json) {
     final orderMap = json['orders'] as Map<String, dynamic>?;

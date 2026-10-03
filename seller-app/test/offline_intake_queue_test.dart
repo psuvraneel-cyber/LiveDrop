@@ -90,7 +90,8 @@ void main() {
         imageBytes: dummyBytes,
       );
 
-      expect(item.code, 'A01');
+      // SA-INT-001: codes are normalised to the database format at enqueue.
+      expect(item.code, '#A01');
       expect(item.status, IntakeQueueStatus.pending);
       expect(queue.pendingCount, 1);
       expect(queue.pendingCountNotifier.value, 1);
@@ -128,7 +129,7 @@ void main() {
 
       expect(queue2.items.length, 1);
       expect(queue2.pendingCount, 1);
-      expect(queue2.items.first.code, 'B01');
+      expect(queue2.items.first.code, '#B01');
       expect(queue2.items.first.title, 'Chanderi Kurti');
       expect(queue2.items.first.pricePaisa, 95000);
 
@@ -154,7 +155,7 @@ void main() {
       expect(fakeRepo.uploadedImages.length, 1);
       expect(fakeRepo.uploadedImages.first['dropId'], 'drop-456');
       expect(fakeRepo.createdProducts.length, 1);
-      expect(fakeRepo.createdProducts.first.code, 'C01');
+      expect(fakeRepo.createdProducts.first.code, '#C01');
       expect(fakeRepo.createdProducts.first.pricePaisa, 250000);
 
       expect(queue.pendingCount, 0);

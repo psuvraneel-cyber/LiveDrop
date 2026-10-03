@@ -28,7 +28,7 @@ WHERE d.slug LIKE 'season-drop-%';
 INSERT INTO orders (id, drop_id, order_code, buyer_name, buyer_phone, shipping_address, pincode,
                     subtotal_paisa, shipping_paisa, total_paisa, status, confirmation_mode,
                     total_paid_paisa, balance_due_paisa, payment_status, fulfilment_status, hold_expires_at, created_at)
-SELECT id, drop_id, 'LD-' || upper(substr(md5(id::text), 1, 6)), 'Buyer ' || n, '98300' || lpad((n % 100000)::text, 5, '0'),
+SELECT id, drop_id, 'LD-' || lpad(upper(to_hex(n)), 6, '0'), 'Buyer ' || n, '98300' || lpad((n % 100000)::text, 5, '0'),
        n || ' Park Street, Kolkata', '700016', price_paisa, 8000, price_paisa + 8000,
        CASE WHEN n % 10 = 0 THEN 'cancelled' ELSE 'shipped' END, 'full_payment',
        CASE WHEN n % 10 = 0 THEN 0 ELSE price_paisa + 8000 END,

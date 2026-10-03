@@ -1,0 +1,57 @@
+# LiveDrop gitleaks configuration (SA-SEC-002).
+#
+# Used by .github/workflows/secret-scan.yml, which scans only the commits a push
+# or pull request introduces. Run locally with:
+#   gitleaks git --redact --log-opts="origin/main..HEAD" .
+#   gitleaks dir --redact .
+#
+# The default gitleaks rule set is kept; the rules below add the credential
+# shapes that the default set missed in this repository (a hard-coded seller
+# password in a seed script, commit 0abdaeb) and Android signing material.
+
+title = "LiveDrop gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "livedrop-hardcoded-password"
+description = "Password literal assigned to a password/passwd/pwd identifier (JS/TS/Dart/PowerShell/shell/YAML/properties)"
+regex = '''(?i)\b[a-z0-9_.-]*(?:password|passwd|pwd)[a-z0-9_]*["']?\s*(?:=|:=|:)\s*["'`]([^"'`\s$]{6,})["'`]'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+  [[rules.allowlists]]
+  description = "Obvious placeholders and examples"
+  regexTarget = "secret"
+  regexes = [
+    '''(?i)^(?:<[^>]*>|\{\{.*\}\}|\$\{.*\}|x{6,}|\*{6,}|\.{6,})$''',
+    '''(?i)^(?:change[-_]?me|placeholder|example|your[-_a-z]*|password|redacted|dummy|not[-_]?set)$''',
+  ]
+
+[[rules]]
+id = "livedrop-properties-password"
+description = "Unquoted password value in a .properties/.env style file"
+path = '''(?i)(?:\.properties|\.env(?:\.[a-z0-9]+)?)$'''
+regex = '''(?im)^\s*[a-z0-9_.-]*(?:password|passwd|pwd)[a-z0-9_.-]*\s*[=:]\s*([^\s#'"$<{][^\s#]{5,})\s*$'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+  [[rules.allowlists]]
+  description = "Template files with placeholder values"
+  regexTarget = "secret"
+  regexes = [
+    '''(?i)^(?:change[-_]?me|placeholder|example|your[-_a-z]*|x{6,}|\*{6,})$''',
+  ]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret API key (sb_secret_...)"
+regex = '''\b(sb_secret_[A-Za-z0-9_-]{20,})\b'''
+secretGroup = 1
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "android-signing-material"
+description = "Android keystore or signing properties committed to the repository"
+path = '''(?i)(?:\.jks|\.keystore|(?:^|/)key\.properties)$'''

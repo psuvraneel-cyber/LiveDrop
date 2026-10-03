@@ -94,6 +94,28 @@ PaymentAttempt auditAttempt({
   );
 }
 
+OwedRefund auditRefund({
+  String orderId = 'o-refund',
+  String code = 'LD-REFUND',
+  int amountPaisa = 158000,
+}) {
+  return OwedRefund(
+    orderId: orderId,
+    dropId: 'drop-1',
+    orderCode: code,
+    buyerName: 'Riya Sen',
+    buyerPhone: '9830012345',
+    orderStatus: OrderStatus.cancelled,
+    totalPaisa: 158000,
+    totalPaidPaisa: amountPaisa,
+    paymentStatus: OrderPaymentStatus.paid,
+    refundStatus: RefundStatus.required,
+    refundAmountPaisa: amountPaisa,
+    refundReason: 'LATE_PAYMENT_INVENTORY_UNAVAILABLE',
+    refundRequiredAt: DateTime.utc(2026, 10, 3, 9, 30),
+  );
+}
+
 /// Records every mutating call so tests can assert what the UI actually sends.
 class AuditRepo extends Fake implements SellerRepository {
   AuditRepo({
@@ -103,6 +125,7 @@ class AuditRepo extends Fake implements SellerRepository {
     this.products = const [],
     this.orders = const [],
     this.attempts = const [],
+    this.refunds = const [],
   });
 
   final SellerProfile profile;
@@ -111,11 +134,22 @@ class AuditRepo extends Fake implements SellerRepository {
   final List<SellerProduct> products;
   final List<SellerOrder> orders;
   final List<PaymentAttempt> attempts;
+  final List<OwedRefund> refunds;
 
   final List<String> calls = [];
   final List<Map<String, Object?>> shipCalls = [];
   final List<Map<String, Object?>> rejectCalls = [];
   final List<List<Object?>> verifyCalls = [];
+  final List<List<Object?>> refundCalls = [];
+
+  @override
+  Future<List<OwedRefund>> getRefundsOwed() async => refunds;
+
+  @override
+  Future<Map<String, dynamic>> recordRefund(String orderId, String refundReference, {String? note}) async {
+    refundCalls.add([orderId, refundReference, note]);
+    return {'success': true, 'idempotent': false, 'order_id': orderId, 'refund_status': 'refunded'};
+  }
 
   @override
   Future<SellerProfile> getProfile() async {

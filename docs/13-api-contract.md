@@ -304,7 +304,18 @@ LiveDrop isolates API interactions into two strict surfaces:
     "p_order_id": "4b724590-7811-419b-a311-6b2a091df012"
   }
   ```
-* **Success Response (200 OK):** `{"success": true}`
+* **Success Response (200 OK):** `{"success": true}`. On release, the order is cancelled, its pieces return to `available` and its unclaimed attempts (`created`, `awaiting_payment`) are set to `expired`.
+* **Errors:** `UNAUTHORIZED`, `ORDER_NOT_FOUND_OR_UNAUTHORIZED`, `ONLY_PENDING_CAN_BE_RELEASED`, and (since migration 035, SA-PAY-005) `PAYMENT_CLAIM_PENDING`:
+  ```json
+  {
+    "success": false,
+    "error": "PAYMENT_CLAIM_PENDING",
+    "message": "The buyer has already submitted a payment for this order. Verify or reject it in Payments before releasing the piece.",
+    "payment_attempt_id": "…",
+    "buyer_submitted_utr": "819000000010"
+  }
+  ```
+  Returned whenever any attempt of the order is `buyer_claimed`, `awaiting_seller_verification` or `late_claim_pending_review`. Nothing is changed. The seller app hides Release while a claim exists.
 
 ---
 
@@ -376,3 +387,53 @@ LiveDrop isolates API interactions into two strict surfaces:
   }
   ```
 * **Success Response (200 OK):** `{"success": true}`
+
+
+---
+
+### 3.13 Verify Manual UPI Payment (RPC) — response contract since migration 035
+* **Endpoint:** `POST /rest/v1/rpc/verify_manual_upi_payment`
+* **Actor:** Owning Seller. **Authentication:** Bearer JWT.
+* **Request Body:** `{"p_payment_attempt_id": "uuid", "p_utr": "optional text"}` (signature unchanged).
+* **Behaviour:**
+  * Claimed attempts (`buyer_claimed`, `awaiting_seller_verification`, `late_claim_pending_review`) stay verifiable after `verification_expires_at` / `expires_at`. Unclaimed attempts past expiry still return `PAYMENT_ATTEMPT_EXPIRED`.
+  * Late claim, pieces still free (or reserved by this order): advance → order `confirmed/advance_paid` with a new hold; full/balance → `paid`.
+  * Late claim, pieces sold to someone else: the payment is recorded in the ledger, the order stays cancelled/expired, and a refund obligation is set (`refund_required = true`). Another buyer's piece is never taken (ADR-010).
+* **Success Response (200 OK)** — every key is always present:
+  ```json
+  {
+    "success": true, "idempotent": false, "is_late_claim": true,
+    "inventory_available": false, "refund_required": true, "refund_amount_paisa": 158000,
+    "order_id": "…", "order_code": "LD-7K92MF", "order_status": "cancelled", "status": "cancelled",
+    "payment_status": "paid", "fulfilment_status": "…",
+    "total_paid_paisa": 158000, "balance_due_paisa": 0, "advance_paid_paisa": 0,
+    "payment_type": "full", "amount_paisa": 158000,
+    "payment_attempt_id": "…", "attempt_id": "…", "payment_id": "…", "message": "…"
+  }
+  ```
+  `inventory_available` is `null` when not evaluated. `status` equals `order_status`. A replay returns `idempotent: true` with the same keys and adds no ledger row.
+* **Errors (new in 035):** `INVENTORY_CONFLICT` (an on-time order no longer holds all its pieces, no writes), `PAYMENT_AMOUNT_MISMATCH`, `LEDGER_INCONSISTENT` (stored paid amount differs from the verified ledger, no writes). Existing errors such as `PAYMENT_ATTEMPT_EXPIRED`, `INVALID_ORDER_STATE`, `REFERENCE_USED_ON_ANOTHER_ORDER` and `ORDER_NOT_FOUND_OR_UNAUTHORIZED` are unchanged.
+
+### 3.14 Record Refund (RPC) — new in migration 035
+* **Endpoint:** `POST /rest/v1/rpc/record_refund`
+* **Actor:** Owning Seller (drop's `seller_id = auth.uid()`) or `service_role`. Not executable by `anon`.
+* **Request Body:**
+  ```json
+  { "p_order_id": "uuid", "p_refund_reference": "UPI-REF 9876/01", "p_note": "optional" }
+  ```
+  `p_refund_reference` is trimmed, 4–64 characters, `^[A-Za-z0-9_./ -]+$`. `p_note` is appended to `orders.notes`.
+* **Precondition:** `refund_status = 'required'`. Sets `refund_status = 'refunded'`, `refund_reference`, `refunded_at = now()`, `refund_recorded_by = auth.uid()`.
+* **Success Response (200 OK):**
+  ```json
+  { "success": true, "idempotent": false, "order_id": "…", "order_code": "LD-…",
+    "refund_status": "refunded", "refund_amount_paisa": 128000,
+    "refund_reference": "UPI-REF 9876/01", "refunded_at": "…" }
+  ```
+  Already refunded with the same reference → `idempotent: true`. With a different reference → `NO_REFUND_DUE`.
+* **Errors:** `UNAUTHORIZED`, `ORDER_NOT_FOUND_OR_UNAUTHORIZED`, `NO_REFUND_DUE`, `INVALID_REFUND_REFERENCE`.
+
+### 3.15 Reject Manual UPI Payment (RPC) — change in migration 035
+`reject_manual_upi_payment(p_payment_attempt_id, p_rejection_reason, p_release_hold)` keeps the hold and returns `hold_released: false` while another claim on the same order is still in flight, even if `p_release_hold` is true.
+
+### 3.16 Internal Functions (not part of the client API)
+`release_stale_hold(p_order_id uuid) RETURNS boolean`, `apply_upi_payment_transition(...)` and `upi_verification_response(...)` are `SECURITY DEFINER` helpers with EXECUTE revoked from `PUBLIC`, `anon`, `authenticated` and `service_role`; a client call returns `permission denied`. `release_expired_holds()` is called by pg_cron (migration 036) and by the backup GitHub Actions reaper (`scripts/run-reaper.mjs`, service role).

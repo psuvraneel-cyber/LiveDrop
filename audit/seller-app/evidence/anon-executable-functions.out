@@ -12,12 +12,11 @@
  initiate_payment_attempt                | p_order_id uuid, p_order_token text, p_payment_type text                                                                                                               | t      | search_path=public, pg_temp
  is_seller_approved                      | p_seller_id uuid                                                                                                                                                       | t      | search_path=public, pg_temp
  mark_order_ready_to_ship                | p_order_id uuid                                                                                                                                                        | t      | search_path=public, pg_temp
- prevent_finalized_order_deletion        |                                                                                                                                                                        | f      | 
  set_updated_at                          |                                                                                                                                                                        | f      | 
  submit_buyer_payment_claim              | p_order_id uuid, p_order_token text, p_payment_attempt_id uuid, p_utr text                                                                                             | t      | search_path=public, pg_temp
  submit_buyer_payment_claim              | p_payment_attempt_id uuid, p_order_token text, p_utr text                                                                                                              | t      | search_path=public, pg_temp
  sync_profiles_upi_fields                |                                                                                                                                                                        | f      | search_path=public, pg_temp
  trg_enforce_safe_drop_closure           |                                                                                                                                                                        | f      | search_path=public, pg_temp
  update_product                          | p_product_id uuid, p_title text, p_price_paisa integer, p_size text                                                                                                    | t      | search_path=public, pg_temp
-(19 rows)
+(18 rows)
 

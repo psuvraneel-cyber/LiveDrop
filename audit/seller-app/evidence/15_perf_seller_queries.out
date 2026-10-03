@@ -12,7 +12,7 @@ INSERT 0 2000
 INSERT 0 2000
 INSERT 0 2000
 ANALYZE
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.1 getAllOrders(): 2000 orders, ~2473 KB JSON, 144 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 155 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
 psql:/home/user/LiveDrop/audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.2 getPendingVerifications(): 0 rows, 2.0 ms
 psql:/home/user/LiveDrop/audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.3 getProducts(liveDrop): 3 rows, 0.5 ms
 DO
@@ -26,17 +26,17 @@ DO
  Sort (actual rows=2000 loops=1)
    Sort Key: o.created_at DESC
    Sort Method: quicksort  Memory: 189kB
-   Buffers: shared hit=64
+   Buffers: shared hit=66
    ->  Seq Scan on orders o (actual rows=2000 loops=1)
          Filter: (hashed SubPlan 2)
-         Buffers: shared hit=64
+         Buffers: shared hit=66
          SubPlan 2
            ->  Seq Scan on drops (actual rows=22 loops=1)
                  Filter: (((seller_id = (COALESCE(NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text), ((NULLIF(current_setting('request.jwt.claims'::text, true), ''::text))::jsonb ->> 'sub'::text)))::uuid) OR ((status = ANY ('{live,closed}'::text[])) AND is_seller_approved(seller_id))) AND (seller_id = (COALESCE(NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text), ((NULLIF(current_setting('request.jwt.claims'::text, true), ''::text))::jsonb ->> 'sub'::text)))::uuid))
                  Rows Removed by Filter: 1
                  Buffers: shared hit=2
- Planning Time: 0.201 ms
- Execution Time: 1.164 ms
+ Planning Time: 0.202 ms
+ Execution Time: 1.222 ms
 (14 rows)
 
  as_postgres 

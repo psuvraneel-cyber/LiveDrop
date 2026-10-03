@@ -149,18 +149,37 @@ BEGIN
   PERFORM audit.as_postgres();
 END $$;
 
--- 10.9 privileges that exist only because of platform default grants
+-- 10.9 privileges of the client roles on every view in public. Supabase default privileges grant
+--      ALL on new objects; an owner-rights view that keeps INSERT/UPDATE/DELETE/TRUNCATE for
+--      anon/authenticated bypasses the base table's RLS (10.3-10.5). Expected: SELECT only.
 DO $$
-DECLARE r record;
+DECLARE r record; n_bad int := 0; n_views int := 0; bad text := '';
 BEGIN
   FOR r IN
-    SELECT p.privilege_type
-      FROM information_schema.role_table_grants p
-     WHERE p.table_schema = 'public' AND p.table_name = 'public_seller_storefronts' AND p.grantee = 'anon'
-     ORDER BY 1
+    SELECT c.oid, c.relname, g.rolname
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     CROSS JOIN (VALUES ('anon'), ('authenticated')) AS g(rolname)
+     WHERE n.nspname = 'public' AND c.relkind = 'v'
+     ORDER BY c.relname, g.rolname
   LOOP
-    RAISE NOTICE 'INFO 10.9 anon holds % on public_seller_storefronts', r.privilege_type;
+    n_views := n_views + 1;
+    RAISE NOTICE 'INFO 10.9 % holds % on %', r.rolname,
+      coalesce((SELECT string_agg(p, ', ' ORDER BY p)
+                  FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS p
+                 WHERE has_table_privilege(r.rolname, r.oid, p)), 'nothing'),
+      r.relname;
+    IF EXISTS (SELECT 1 FROM unnest(ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS p
+                WHERE has_table_privilege(r.rolname, r.oid, p)) THEN
+      n_bad := n_bad + 1;
+      bad := bad || ' ' || r.rolname || '@' || r.relname;
+    END IF;
   END LOOP;
+  IF n_bad = 0 THEN
+    RAISE NOTICE 'PASS 10.9 anon/authenticated hold SELECT only on every view in public (% role/view pairs checked)', n_views;
+  ELSE
+    RAISE NOTICE 'FINDING 10.9 non-SELECT privileges on public views for:% (writes through owner-rights views bypass RLS)', bad;
+  END IF;
 END $$;
 
 ROLLBACK;
