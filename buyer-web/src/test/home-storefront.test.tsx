@@ -183,7 +183,7 @@ describe('HomeStorefront Phase 3 Acceptance Tests', () => {
       />
     );
 
-    expect(screen.getByText('1 pieces available')).toBeInTheDocument();
+    expect(screen.getByText('1 piece available')).toBeInTheDocument();
     expect(screen.getByText('Kanjeevaram Silk Saree')).toBeInTheDocument();
     expect(screen.queryByText('Zardozi Velvet Lehenga')).toBeNull();
   });

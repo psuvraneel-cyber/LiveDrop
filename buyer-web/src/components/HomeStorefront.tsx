@@ -151,6 +151,25 @@ export function HomeStorefront({
   const hasActiveLiveDrop = filteredActiveDrops.length > 0;
   const primaryLiveDrop = hasActiveLiveDrop ? filteredActiveDrops[0] : null;
 
+  // Hero photography: the live drop's own pieces first, then the wider catalogue.
+  // Uses the unfiltered feed so typing in search doesn't make the hero jump.
+  const spotlightImages = useMemo(() => {
+    const firstImage = (p: PublicProductView) => p.image_urls?.[0] || p.image_url || null;
+    const ordered = primaryLiveDrop
+      ? [
+          ...allAvailableProducts.filter((p) => p.drop_id === primaryLiveDrop.id),
+          ...allAvailableProducts.filter((p) => p.drop_id !== primaryLiveDrop.id),
+        ]
+      : allAvailableProducts;
+    const urls: string[] = [];
+    for (const p of ordered) {
+      const url = firstImage(p);
+      if (url && !urls.includes(url)) urls.push(url);
+      if (urls.length === 3) break;
+    }
+    return urls;
+  }, [allAvailableProducts, primaryLiveDrop]);
+
   return (
     <div
       className="ld-home-storefront ld-has-bottom-dock min-h-screen bg-[#090909] text-[#F4F1EA] font-sans"
@@ -166,6 +185,7 @@ export function HomeStorefront({
       <Hero
         activeDrop={primaryLiveDrop}
         hasActiveLiveDrop={hasActiveLiveDrop}
+        spotlightImages={spotlightImages}
       />
 
       {/* 3. Category Discovery Rail */}
@@ -189,7 +209,7 @@ export function HomeStorefront({
                 ? 'Featured Pieces'
                 : `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}`
             }
-            subtitle={`${displayedProducts.length} pieces available`}
+            subtitle={`${displayedProducts.length} ${displayedProducts.length === 1 ? 'piece' : 'pieces'} available`}
             actionHref="/shop"
             actionLabel="View All →"
             actionTestId="featured-view-all-btn"
@@ -231,14 +251,14 @@ export function HomeStorefront({
         >
           <SectionTitle
             title="Live Boutiques"
-            subtitle={`${filteredStorefronts.length} independent ateliers`}
+            subtitle={`${filteredStorefronts.length} independent ${filteredStorefronts.length === 1 ? 'atelier' : 'ateliers'}`}
             actionHref="/shop"
             actionLabel="View All →"
             actionTestId="boutiques-view-all-btn"
           />
 
           {filteredStorefronts.length > 0 ? (
-            <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-none snap-x snap-mandatory">
+            <div className="ld-boutique-rail flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 lg:gap-5 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 scrollbar-none snap-x snap-mandatory">
               {filteredStorefronts.map((boutique) => {
                 const isLive = resolvedActiveDrops.some(
                   (d) =>

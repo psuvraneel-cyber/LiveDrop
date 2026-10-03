@@ -7,9 +7,11 @@ import { PublicDropCatalog } from '../types/domain';
 export interface HeroProps {
   activeDrop?: PublicDropCatalog | null;
   hasActiveLiveDrop?: boolean;
+  /** Real product photos (live drop first) used when the drop has no hero image. */
+  spotlightImages?: string[];
 }
 
-export function Hero({ activeDrop, hasActiveLiveDrop }: HeroProps) {
+export function Hero({ activeDrop, hasActiveLiveDrop, spotlightImages = [] }: HeroProps) {
   const isLive = Boolean(
     hasActiveLiveDrop !== undefined ? hasActiveLiveDrop : activeDrop && activeDrop.status === 'live'
   );
@@ -19,12 +21,15 @@ export function Hero({ activeDrop, hasActiveLiveDrop }: HeroProps) {
   const dropSlug = primaryDrop?.slug;
 
   const heroBackground = isLive && primaryDrop?.hero_image_url ? primaryDrop.hero_image_url : null;
+  // Without a curated hero image, feature real catalogue photography instead of an empty panel.
+  const mosaicImages = heroBackground ? [] : spotlightImages.slice(0, 3);
+  const backdropImage = heroBackground ? null : mosaicImages[0] ?? null;
 
   return (
     <div className="ld-home-hero-wrap w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2">
       <section
         id="live-drops"
-        className="relative w-full h-[300px] sm:h-[320px] md:h-[350px] lg:h-[360px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#0e0e10] scroll-mt-16 shadow-2xl"
+        className="relative w-full h-[300px] sm:h-[320px] md:h-[350px] lg:h-[400px] flex items-end overflow-hidden rounded-2xl border border-white/10 bg-[#0e0e10] scroll-mt-16 shadow-2xl"
         aria-label="LiveDrop Spotlight Hero"
         data-testid={isLive ? 'live-drop-hero' : 'spotlight-hero'}
       >
@@ -40,6 +45,17 @@ export function Hero({ activeDrop, hasActiveLiveDrop }: HeroProps) {
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#1b1613] via-[#121211] to-[#090909]" />
           )}
+          {backdropImage && (
+            // Phones/tablets: full-bleed photo; desktop uses the floating mosaic below.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={backdropImage}
+              alt=""
+              aria-hidden="true"
+              className="ld-hero-backdrop-img absolute inset-0 w-full h-full object-cover object-[50%_18%] select-none lg:hidden"
+            />
+          )}
+          <div className="ld-hero-aurora" aria-hidden="true" />
           {/* Directional read gradient - deep dark coverage on the left for text contrast */}
           <div className="absolute inset-0 bg-gradient-to-r from-[#08080A] via-[#08080A]/85 via-48% to-transparent" />
           {/* Vertical bottom gradient - seamless melt into dark background without harsh border */}
@@ -48,13 +64,25 @@ export function Hero({ activeDrop, hasActiveLiveDrop }: HeroProps) {
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
         </div>
 
+        {/* Desktop: floating editorial mosaic of real catalogue photos, above the read gradients. */}
+        {mosaicImages.length > 0 && (
+          <div className="ld-hero-mosaic" aria-hidden="true">
+            {mosaicImages.map((src) => (
+              <div key={src} className="ld-hero-mosaic-card">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" loading="eager" decoding="async" />
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="ld-hero-inner-content relative z-10 w-full p-4 sm:p-6 pb-5 sm:pb-6 flex flex-col justify-end">
           <div className="w-[85%] sm:w-[65%] md:w-[48%] lg:w-[42%] max-w-lg space-y-2 sm:space-y-2.5">
             {/* Live Indicator or Eyebrow */}
             {isLive && primaryDrop ? (
               <div className="inline-flex items-center">
                 <span className="inline-flex items-center gap-2 h-7 sm:h-8 px-3 rounded-full bg-[#DC2626] text-white font-sans font-bold text-[11px] sm:text-xs tracking-wider uppercase shadow-lg shadow-red-950/40">
-                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white animate-pulse" />
+                  <span className="ld-live-ping w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white text-white" aria-hidden="true" />
                   LIVE NOW
                 </span>
               </div>
@@ -90,7 +118,7 @@ export function Hero({ activeDrop, hasActiveLiveDrop }: HeroProps) {
               {isLive && primaryDrop && dropSlug ? (
                 <Link
                   href={`/drop/${dropSlug}`}
-                  className="ld-gold-pill-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] min-h-[44px]"
+                  className="ld-gold-pill-btn ld-shimmer-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] min-h-[44px]"
                   data-testid="shop-live-hero-btn"
                 >
                   <span>Shop Live Drop</span>
@@ -99,7 +127,7 @@ export function Hero({ activeDrop, hasActiveLiveDrop }: HeroProps) {
               ) : (
                 <Link
                   href="/shop"
-                  className="ld-gold-pill-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] min-h-[44px]"
+                  className="ld-gold-pill-btn ld-shimmer-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D4AF37] hover:bg-[#E5C158] text-[#08080A] text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] min-h-[44px]"
                   data-testid="explore-live-shows-btn"
                 >
                   <span>Shop Collections</span>

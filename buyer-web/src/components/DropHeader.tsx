@@ -62,7 +62,7 @@ export function DropHeader({ drop, realtimeStatus, onOpenCart }: DropHeaderProps
                 {realtimeStatus === 'connected'
                   ? 'Live updates'
                   : realtimeStatus === 'polling'
-                  ? 'Backup Polling'
+                  ? 'Auto-refreshing'
                   : realtimeStatus === 'connecting'
                   ? 'Connecting...'
                   : 'Offline'}

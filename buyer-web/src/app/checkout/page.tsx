@@ -458,7 +458,7 @@ function CheckoutPageContent() {
 
         <div className="ld-checkout-title-row">
           <h1 className="ld-checkout-title">Checkout & Reserve</h1>
-          <span className="ld-checkout-step-badge">Step 1 of 2</span>
+          <span className="ld-checkout-step-badge">Step 1 of 3</span>
         </div>
 
         {/* Ambiguous Network Failure Alert */}

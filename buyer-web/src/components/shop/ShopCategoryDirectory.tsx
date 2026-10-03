@@ -145,7 +145,7 @@ export function ShopCategoryDirectory({
               Boutique Collections
             </h1>
             <p className="text-xs sm:text-sm text-[#AAA49A]" data-testid="shop-catalog-subtitle">
-              {filteredProducts.length} pieces available from verified boutiques
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'piece' : 'pieces'} available from verified boutiques
             </p>
           </div>
         </div>
