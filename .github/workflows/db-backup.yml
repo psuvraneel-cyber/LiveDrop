@@ -44,10 +44,11 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
-      OUT: ${{ runner.temp }}/backup
     steps:
       - name: Check secrets
         run: |
+          # runner.temp is only available inside steps, so OUT is set here.
+          echo "OUT=$RUNNER_TEMP/backup" >> "$GITHUB_ENV"
           missing=0
           [ -n "$DATABASE_URL" ] || { echo "::error::SUPABASE_DB_URL secret is not set"; missing=1; }
           [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error::BACKUP_PASSPHRASE secret is not set (Settings > Secrets and variables > Actions)"; missing=1; }
