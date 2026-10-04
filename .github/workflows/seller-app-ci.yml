@@ -152,6 +152,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         working-directory: .
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
@@ -165,6 +166,8 @@ jobs:
           [ -n "$ANDROID_KEY_PASSWORD" ] || missing="$missing ANDROID_KEY_PASSWORD"
           [ -n "$SUPABASE_URL" ] || missing="$missing SUPABASE_URL"
           [ -n "$SUPABASE_ANON_KEY" ] || missing="$missing SUPABASE_ANON_KEY"
+          # Without it a release has no push notifications or crash reporting (SA-NOT-001, SA-OBS-001).
+          [ -n "$GOOGLE_SERVICES_JSON" ] || missing="$missing GOOGLE_SERVICES_JSON"
           if [ -n "$missing" ]; then
             echo "::error title=Release secrets incomplete::ANDROID_KEYSTORE_BASE64 is set but these secrets are missing:$missing"
             exit 1
@@ -195,6 +198,12 @@ jobs:
       - name: Install dependencies
         if: steps.signing.outputs.configured == 'true'
         run: flutter pub get
+
+      - name: Write google-services.json
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Install release keystore
         if: steps.signing.outputs.configured == 'true'
@@ -284,6 +293,13 @@ jobs:
           fi
           flutter build appbundle --release --build-number="$BUILD_NUMBER" "${defines[@]}"
           flutter build apk --release --build-number="$BUILD_NUMBER" "${defines[@]}"
+          # The Firebase config must be compiled in, or push and crash reporting are silently off.
+          values=$(find build/app/generated/res -path '*Release*GoogleServices*' -name values.xml | head -1)
+          if [ -z "$values" ] || ! grep -q 'name="google_app_id"' "$values"; then
+            echo "::error::release build has no Firebase config (google_app_id missing)"
+            exit 1
+          fi
+          echo "Firebase config compiled in: $values"
 
       - name: Verify release signing certificate
         if: steps.signing.outputs.configured == 'true'

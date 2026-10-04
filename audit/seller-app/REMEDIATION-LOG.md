@@ -206,3 +206,10 @@ Totals:
 - buyer-web: `tsc` and `eslint` clean; vitest 52 files, 694 tests pass (plus the 6 new admin tests and the updated reset test).
 - Seller app: `flutter analyze` clean. `flutter test`: 220 pass, plus the same 2 inventory_queue_status tests that fail only on Windows.
 
+
+## Fix (2026-10-05): signed releases were built without Firebase
+- Release 39 on the owner's phone (Mi 10i) showed no notification permission prompt and registered no push token.
+- Cause: the `release-android` job never wrote `google-services.json`, so `AppLog.crashlyticsReady` was false and push and crash reporting stayed off. Only the debug job wrote it.
+- Fix:
+  - The release job now requires the `GOOGLE_SERVICES_JSON` secret and writes the file.
+  - The build fails if the compiled release resources lack `google_app_id`.
