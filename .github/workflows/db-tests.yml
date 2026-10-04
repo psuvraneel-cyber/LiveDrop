@@ -13,6 +13,7 @@ on:
       - "supabase/migrations/**"
       - "audit/seller-app/tests/sql/**"
       - "scripts/db-deploy/**"
+      - "scripts/db-backup/**"
       - "supabase/functions/**"
       - ".github/workflows/db-tests.yml"
   push:
@@ -21,6 +22,7 @@ on:
       - "supabase/migrations/**"
       - "audit/seller-app/tests/sql/**"
       - "scripts/db-deploy/**"
+      - "scripts/db-backup/**"
       - "supabase/functions/**"
       - ".github/workflows/db-tests.yml"
   workflow_dispatch:
@@ -99,6 +101,14 @@ jobs:
 
       - name: Post-deploy checks against the test database
         run: psql -X -v ON_ERROR_STOP=1 -v strict_cron=off -d livedrop_audit -f scripts/db-deploy/post_checks.sql
+
+      - name: Backup restore test (SA-OPS-004)
+        run: |
+          psql -X -q -d postgres -c "CREATE DATABASE bk_src TEMPLATE livedrop_audit;"
+          psql -X -q -v ON_ERROR_STOP=1 -d bk_src -c "SELECT audit.seed();" >/dev/null
+          pg_dump -Fc --no-owner --no-privileges --schema=public -d bk_src -f "$RUNNER_TEMP/public.dump"
+          psql -X -A -t -F $'	' -d bk_src -f scripts/db-backup/table_counts.sql > "$RUNNER_TEMP/counts.tsv"
+          bash scripts/db-backup/restore_test.sh "$RUNNER_TEMP/public.dump" "$RUNNER_TEMP/counts.tsv"
 
       - name: Upload evidence
         if: always()

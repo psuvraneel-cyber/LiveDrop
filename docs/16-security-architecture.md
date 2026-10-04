@@ -338,6 +338,14 @@ The checkout handshake relies on generating standard `https://wa.me/{seller_phon
 * **Git Secret Defense:** Pre-commit hooks (`git-secrets` / `trufflehog`) scan for Supabase service role tokens and private keys prior to any commit.
 * **CI Secret Scanning (SA-SEC-002, since 2026-10-03):** `.github/workflows/secret-scan.yml` runs gitleaks (config `.gitleaks.toml`) on every push and pull request over the new commits only; findings are redacted in the log. History is not rescanned, because it still contains a staging seller credential leaked in commit 0abdaeb (`scripts/seed-legitimate-staging-drop.mjs`). That credential must be rotated by the owner, and purging the history is a separate decision: see `docs/ops/credential-rotation-runbook.md`.
 
+### 6.0 Operator Console and Backups (SA-OPS-002, SA-OPS-004, ADR-016)
+* `/admin` uses the anon key and a normal user session kept in memory only. Authorisation is entirely server-side:
+  * `platform_admins` membership is checked by every `admin_*` RPC.
+  * Writes need a password sign-in within 10 minutes.
+  * Every write is logged in `admin_actions`.
+  * `platform_admins` and `admin_actions` have RLS on and no client privileges (post-check H27).
+* Nightly database backups are encrypted with `BACKUP_PASSPHRASE` before upload. The unencrypted dumps exist only on the CI runner and are shredded after encryption.
+
 ### 6.1 Android Release Signing (SA-AND-001, ADR-012)
 * Release builds of the seller app are signed only with the owner's upload/release key, from `seller-app/android/key.properties` (gitignored) or the env vars `LIVEDROP_KEYSTORE_PATH`, `LIVEDROP_KEYSTORE_PASSWORD`, `LIVEDROP_KEY_ALIAS`, `LIVEDROP_KEY_PASSWORD`. Without them a release task fails with a `GradleException`; there is no silent fallback to the debug key.
 * CI (`seller-app-ci.yml`): pull requests run analyze, test and a debug build. On push to main or manual dispatch a release job builds a signed AAB and APK from the secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, checks that the certificate is not the Android debug certificate (and matches `vars.ANDROID_RELEASE_CERT_SHA256` when set), and deletes the keystore afterwards. Without the secrets the job is skipped with a notice.

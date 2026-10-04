@@ -27,6 +27,7 @@ import 'presentation/products/products_inventory_screen.dart';
 import 'presentation/settings/seller_settings_screen.dart';
 import 'presentation/splash/animated_splash_screen.dart';
 import 'core/services/app_log.dart';
+import 'core/services/app_link_service.dart';
 import 'core/services/push_service.dart';
 
 export 'presentation/auth/seller_login_screen.dart' show SellerLoginScreen;
@@ -217,6 +218,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
   final OrdersTabRequest _ordersTabRequest = OrdersTabRequest();
   late final SellerLiveStore _liveStore;
   late final bool _ownsLiveStore;
+  final AppLinkService _appLinks = AppLinkService();
 
   @override
   void initState() {
@@ -241,6 +243,17 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
     await _loadProfile();
     await _syncIntakeQueue();
     await _startPush();
+    _startAppLinks();
+  }
+
+  /// `livedrop-seller://open/<section>` links (SA-AND-003) open that tab for
+  /// an approved seller; the approval gate still applies to everyone else.
+  void _startAppLinks() {
+    final profile = _profile;
+    if (profile == null || !profile.isApproved) return;
+    _appLinks.start((tab) {
+      if (mounted) _navigateToTab(tab);
+    });
   }
 
   /// Push notifications for an approved seller (SA-NOT-001). A tap opens
@@ -286,6 +299,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_appLinks.stop());
     if (_ownsLiveStore) {
       _liveStore.dispose();
     }

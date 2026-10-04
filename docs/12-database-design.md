@@ -429,3 +429,19 @@ It returns:
 * `daily`: the last 7 local days, by `COALESCE(paid_at, created_at)`.
 
 It replaces the app downloading every order to compute analytics. Order lists in the app are also capped at the newest 300 orders.
+
+## 9. Operator Console (migration 042, SA-OPS-002 / SA-ONB-001, ADR-016)
+
+* `platform_admins (user_id uuid PK → auth.users, note, added_at)`. These are the accounts allowed to use `/admin`.
+  * Rows are added by the owner in the SQL editor: `INSERT INTO public.platform_admins (user_id, note) VALUES ('<auth user id>', 'owner');`
+  * RLS is on with no policies; clients have no table privileges.
+* `admin_actions (id, admin_id, action, target_id, reason, detail jsonb, created_at)`. Append-only log of console writes:
+  * `action` is one of `approve_seller`, `suspend_seller`, `record_refund`.
+  * RLS is on with no policies; clients have no table privileges.
+  * A seller who is not approved and whose latest approve/suspend entry is `suspend_seller` is shown as *suspended*; otherwise *pending*.
+* Internal helpers (only the console RPCs call them):
+  * `admin_write_denied()`: the caller must be an admin who signed in with a password within the last 10 minutes.
+  * `admin_refund_in_progress()`
+  * `admin_seller_status(uuid, boolean)`
+  * `admin_order_json(orders)`
+* `record_refund` (from 035) also accepts an admin while `admin_record_refund` is running. It is otherwise unchanged.

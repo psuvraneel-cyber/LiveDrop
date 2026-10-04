@@ -37,6 +37,14 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- livedrop-seller://open/<section> opens the app (SA-AND-003), e.g. from the
+                 website after a password reset. Handled by AppLinkService. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="livedrop-seller" android:host="open"/>
+            </intent-filter>
         </activity>
         <!-- Channel for server push messages (push-dispatch Edge Function, SA-NOT-001) -->
         <meta-data

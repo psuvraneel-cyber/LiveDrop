@@ -1,0 +1,112 @@
+name: Database Backup
+
+# Nightly encrypted backup of the hosted database, with a restore test (SA-OPS-004, ADR-016).
+#
+#   1. pg_dump of schema public (schema + data) and of the auth accounts (auth.users,
+#      auth.identities; data only) from SUPABASE_DB_URL. Read-only on the hosted database.
+#   2. Restore test: rebuilds the schema from supabase/migrations in a throwaway Postgres, loads
+#      the public data and checks every table's row count against the backup.
+#   3. Encrypts both dumps with BACKUP_PASSPHRASE (AES-256, gpg) and keeps them as a private
+#      workflow artifact for 30 days. Nothing unencrypted is uploaded.
+#
+# Product images live in Supabase Storage, not in the database, and are not part of this backup.
+# Restoring: docs/40-backup-and-restore.md.
+
+on:
+  schedule:
+    - cron: "30 20 * * *"   # 02:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Backup and restore test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      OUT: ${{ runner.temp }}/backup
+    steps:
+      - name: Check secrets
+        run: |
+          missing=0
+          [ -n "$DATABASE_URL" ] || { echo "::error::SUPABASE_DB_URL secret is not set"; missing=1; }
+          [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error::BACKUP_PASSPHRASE secret is not set (Settings > Secrets and variables > Actions)"; missing=1; }
+          exit $missing
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Dump the hosted database (read-only)
+        run: |
+          mkdir -p "$OUT"
+          pg_dump --version
+          pg_dump "$DATABASE_URL" -Fc --no-owner --no-privileges --schema=public -f "$OUT/public.dump"
+          pg_dump "$DATABASE_URL" -Fc --no-owner --no-privileges --data-only \
+            --table=auth.users --table=auth.identities -f "$OUT/auth.dump"
+          psql "$DATABASE_URL" -X -A -t -F $'\t' -f scripts/db-backup/table_counts.sql > "$OUT/counts.tsv"
+          echo "tables=$(wc -l < "$OUT/counts.tsv") rows=$(awk -F'\t' '{s+=$2} END {print s+0}' "$OUT/counts.tsv")"
+
+      - name: Restore test (throwaway Postgres)
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: bash scripts/db-backup/restore_test.sh "$OUT/public.dump" "$OUT/counts.tsv" | tee "$OUT/restore-test.txt"
+
+      - name: Encrypt
+        run: |
+          stamp=$(date -u +%Y%m%dT%H%MZ)
+          for f in public auth; do
+            gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+                --passphrase-fd 3 -o "$OUT/livedrop-$f-$stamp.dump.gpg" "$OUT/$f.dump" 3<<<"$BACKUP_PASSPHRASE"
+            shred -u "$OUT/$f.dump"
+          done
+          ls -l "$OUT"
+          {
+            echo "### Database backup $stamp"
+            echo "$(wc -l < "$OUT/counts.tsv") tables, $(awk -F'\t' '{s+=$2} END {print s+0}' "$OUT/counts.tsv") rows"
+            tail -1 "$OUT/restore-test.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: livedrop-db-backup-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/backup/*.gpg
+            ${{ runner.temp }}/backup/counts.tsv
+            ${{ runner.temp }}/backup/restore-test.txt
+          if-no-files-found: error
+          retention-days: 30

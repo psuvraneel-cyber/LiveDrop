@@ -63,7 +63,7 @@ for suite in "$HERE"/1*.sql "$HERE"/2*.sql; do
   name="$(basename "$suite" .sql)"
   echo "== Running $name"
   psql -X -d "$DB" -f "$suite" > "$EVIDENCE/$name.out" 2>&1
-  sed -E 's/^psql:[^ ]+ (NOTICE|ERROR):  //' "$EVIDENCE/$name.out" | grep -E "^(PASS|FAIL|FINDING|INFO|ERROR)" | sed 's/^/   /'
+  sed -E 's/^psql:[^ ]+ NOTICE:  //; s/^psql:[^ ]+ ERROR:  /ERROR /' "$EVIDENCE/$name.out" | grep -E "^(PASS|FAIL|FINDING|INFO|ERROR)" | sed 's/^/   /'
 done
 
 echo "== Catalog inventory"

@@ -472,5 +472,21 @@ Since round 4b (SA-PAY-010) the seller app offers both choices:
 
 Late claims are only rejected, because their order is already cancelled.
 
+### 3.17 Operator Console (RPCs) — new in migration 042
+All of these are granted to `authenticated` only, and each checks `is_platform_admin()` itself. A non-admin gets `{success:false, error:'UNAUTHORIZED'}`.
+
+Writes also return `REAUTH_REQUIRED` unless the caller signed in with a password in the last 10 minutes. Buyer phone numbers and addresses are never returned.
+
+| RPC | Returns |
+|---|---|
+| `admin_whoami()` | `{success, is_admin}`: any signed-in user |
+| `admin_list_sellers(p_status text = 'pending')` | `{success, sellers:[{id, store_name, store_slug, phone_number, upi_id, email, email_confirmed, onboarding_fee_utr, status, last_suspension_reason, created_at, approved_at}]}`. `p_status` is one of pending, approved, suspended, all. Errors: `INVALID_FILTER` |
+| `admin_set_seller_approval(p_seller_id uuid, p_approved bool, p_reason text = null)` | `{success, seller_id, status, message}`. Errors: `REASON_REQUIRED` (suspending without a reason of at least 3 characters), `REASON_TOO_LONG`, `SELLER_NOT_FOUND`, `REAUTH_REQUIRED`. Suspension closes live drops |
+| `admin_refunds_due()` | `{success, orders:[order]}` where `refund_status = 'required'` |
+| `admin_find_order(p_order_code text)` | `{success, order}`. Errors: `ORDER_NOT_FOUND` |
+| `admin_record_refund(p_order_id uuid, p_refund_reference text, p_note text = null)` | The `record_refund` response (3.14). Errors as in 3.14, plus `REAUTH_REQUIRED` |
+
+`order` = `{id, order_code, status, store_name, total_paisa, total_paid_paisa, refund_status, refund_amount_paisa, refund_reason, refund_required_at, refund_reference, refunded_at, created_at}`.
+
 ### 3.16 Internal Functions (not part of the client API)
 `release_stale_hold(p_order_id uuid) RETURNS boolean`, `apply_upi_payment_transition(...)`, `upi_verification_response(...)` and (since 038) `close_drop_safely(p_drop_id uuid) RETURNS int` are `SECURITY DEFINER` helpers with EXECUTE revoked from `PUBLIC`, `anon`, `authenticated` and `service_role`; a client call returns `permission denied`. `release_expired_holds()` is called by pg_cron (migration 036) and by the backup GitHub Actions reaper (`scripts/run-reaper.mjs`, service role).

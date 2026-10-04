@@ -26,6 +26,10 @@ type ViewState =
 export const RESET_SUCCESS_MESSAGE =
   'Password updated. Open the LiveDrop Seller app and log in with your new password.';
 
+/** Opens the LiveDrop Seller app on Android (SA-AND-003): livedrop-seller://open/home. */
+export const OPEN_SELLER_APP_URL =
+  'intent://open/home#Intent;scheme=livedrop-seller;package=store.livedrop.seller_app;end';
+
 const REQUEST_NEW_LINK =
   'Request a new link from the LiveDrop Seller app (Login → Forgot password?).';
 
@@ -228,9 +232,15 @@ export function SellerPasswordResetView({ clientFactory = createSellerRecoveryCl
         )}
 
         {state.step === 'done' && (
+          <>
           <p className="ld-form-hint" role="status" data-testid="reset-success">
             {RESET_SUCCESS_MESSAGE}
           </p>
+          <a href={OPEN_SELLER_APP_URL} className="ld-btn-submit-order" data-testid="reset-open-app"
+            style={{ display: 'inline-flex', justifyContent: 'center', textDecoration: 'none' }}>
+            Open the LiveDrop Seller app
+          </a>
+          </>
         )}
 
         {state.step === 'ready' && (

@@ -1,4 +1,4 @@
-# Seller-app remediation — handoff (2026-10-04, updated after the 038–040 deploy)
+# Seller-app remediation — handoff (updated 2026-10-05, after the 041 deploy and round 6)
 
 Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and the proof) and
 `FINDINGS.json` (all 95 audit findings with remediation and regression tests).
@@ -32,6 +32,8 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
   - Proof is in `REMEDIATION-LOG.md` (P1 round 4a).
 - **P1 round 4b (app only):** SA-PAY-009/010/013, SA-ORD-004/005, SA-SHIP-002, SA-UX-002. Payment card facts, reject with keep-hold, reminders with the order link, Closed tab, server-matched order buttons, labels only when fully paid, and no placeholder controls. Proof is in `REMEDIATION-LOG.md` (P1 round 4b).
 - **P1 round 4c (migration 040):** SA-RT-002 (paused banner), SA-PERF-001 (300-order cap, `seller_sales_summary`), SA-CI-001 (`db-tests.yml`), SA-TEST-001 (audit suites in CI). This completes the owner's 21-item batch.
+- **P1 round 5 (PR #23, merged; migration 041 live):** SA-OBS-001 Crashlytics, SA-NOT-001 FCM push (ADR-015).
+- **P1 round 6 (migration 042, ADR-016):** SA-OPS-002 and SA-ONB-001 (website `/admin` console), SA-OPS-004 (nightly encrypted backup with restore test), SA-AND-003 (`livedrop-seller://` links), SA-DB-001 closed by the deploy post-checks.
 
 ## Owner decisions (binding)
 - An unverified UTR claim holds a piece **30 min while the drop is live**, 24 h otherwise. After that the piece returns to sale and the claim stays in the queue as a late claim. It is never expired.
@@ -40,6 +42,7 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - The project "LiveDrop Staging" is used as **production**. A separate free staging project is recommended but not yet created.
 - Distribution is through the **Google Play Store** with Play App Signing. CI signs with the upload key (secrets `ANDROID_*`, var `ANDROID_RELEASE_CERT_SHA256`).
 - Improvements and the redesign only start **after all P0/P1 blockers are fixed**.
+- Operations (ADR-016): a small **admin page** on the website (not SQL), and a **free nightly backup job** (not Supabase Pro).
 
 ## Live state (checked 2026-10-04)
 - All code from rounds 1–4c is on `main` (PRs #14–#18, #21; #19/#20 were merged into stacked branches and brought to `main` by #21).
@@ -66,13 +69,21 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
    - Check whose token is in commit `0dd7c3f` (`scratch/test-jwt.mjs`).
    - Enable GitHub Push protection.
 4. Review the shop and drop free-shipping thresholds in the app (old rows were silently 200000).
-5. Finish Firebase setup (SA-OBS-001 / SA-NOT-001). The project `livedrop-eaf3d` and Android app are created; round 5 code is in the repo. Remaining steps are in `REMEDIATION-LOG.md` (P1 round 5, owner actions): Database Deploy for 041, the `FCM_SERVICE_ACCOUNT` Supabase secret, GitHub secrets `GOOGLE_SERVICES_JSON` + `SUPABASE_ACCESS_TOKEN`, and deploying `push-dispatch`.
+5. Firebase (SA-OBS-001 / SA-NOT-001):
+   - Done: 041 is live (H26 passed), and the `FCM_SERVICE_ACCOUNT`, `GOOGLE_SERVICES_JSON` and `SUPABASE_ACCESS_TOKEN` secrets are set.
+   - Remaining: run **Deploy Edge Functions**, then do a test order with the new app build.
+   - `SUPABASE_ACCESS_TOKEN` expires 2026-10-12. Create a new one (Edge Functions read-write, Project Settings read) before redeploying after that date.
+6. Round 6:
+   - Run Database Deploy (apply) for 042 and check H27.
+   - Add yourself to `platform_admins` (SQL in `REMEDIATION-LOG.md`, round 6), then sign in at `/admin`.
+   - Add the GitHub secret `BACKUP_PASSPHRASE` and run **Database Backup** once.
 
-## Next blockers (P1), in agreed order
-- **Needs an owner account first:**
-  - SA-OBS-001 crash reporting (Sentry or Firebase Crashlytics).
-  - SA-NOT-001 push notifications (a Firebase project).
-- **Then the remaining MEDIUM P1 items**, listed in `REMEDIATION-LOG.md` and `FINDINGS.json` (priority P1, not yet fixed).
+## Next blockers (P1)
+- Remaining P1 items need a phone or a decision: SA-AND-005 (physical-device validation evidence) and SA-UX-001.
+- Follow-ups noted in ADR-016:
+  - reserve store slugs that clash with site routes (`admin`, `shop`, `cart`, `checkout`, `order`, `seller`);
+  - verified https App Links after the Play release;
+  - back up Storage images.
   - All SQL-proven P1 FINDINGs are now fixed. The harness still prints only the P2 items 12.3 (SA-INV-003) and 13.9 (SA-PAY-015).
   - Not yet done for SA-PAY-011: the seller card does not show "UTR already claimed on order X".
 

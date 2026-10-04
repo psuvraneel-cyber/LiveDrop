@@ -180,6 +180,24 @@ BEGIN
 END $$;
 SELECT count(*) FILTER (WHERE sent_at IS NULL) AS h26_push_pending, count(*) FILTER (WHERE sent_at IS NULL AND attempts >= 5) AS h26_push_failed FROM public.push_outbox;
 
+\echo '== H27: migration 042 (operator console)'
+DO $$
+BEGIN
+  IF to_regprocedure('public.admin_set_seller_approval(uuid,boolean,text)') IS NULL THEN
+    RAISE NOTICE 'migration 042 not applied yet';
+  ELSIF has_table_privilege('authenticated', 'public.platform_admins', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.admin_actions', 'SELECT')
+     OR has_function_privilege('anon', 'public.admin_list_sellers(text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.admin_write_denied()', 'EXECUTE')
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.platform_admins'::regclass)
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.admin_actions'::regclass) THEN
+    RAISE EXCEPTION 'CHECK FAILED (H27): operator console privileges are wrong';
+  ELSE
+    RAISE NOTICE 'PASS H27 admin console: tables private with RLS, RPCs signed-in only, helpers internal';
+  END IF;
+END $$;
+SELECT count(*) AS h27_platform_admins FROM public.platform_admins;
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 
