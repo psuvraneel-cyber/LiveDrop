@@ -58,7 +58,7 @@ fi
 echo "== Installing audit helpers (schema audit)"
 psql_db -q -f "$HERE/05_audit_helpers.sql" >/dev/null
 
-for suite in "$HERE"/1*.sql; do
+for suite in "$HERE"/1*.sql "$HERE"/2*.sql; do
   [ -f "$suite" ] || continue
   name="$(basename "$suite" .sql)"
   echo "== Running $name"

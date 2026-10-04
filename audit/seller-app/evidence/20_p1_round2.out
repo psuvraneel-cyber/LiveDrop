@@ -1,0 +1,46 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+UPDATE 2
+UPDATE 3
+CREATE TABLE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.1 — claim " abcd 1234 5678 " -> success=true stored=ABCD12345678
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.2 — verify first order -> true
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.3 — claim of a verified UTR (case variant) on another order -> REFERENCE_USED_ON_ANOTHER_ORDER
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.4 — verify of a legacy lower-case duplicate -> REFERENCE_USED_ON_ANOTHER_ORDER
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.5 — verify with seller-typed "abcd 12345678" -> REFERENCE_USED_ON_ANOTHER_ORDER
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.6 — re-verify first order with case variant -> true
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:129: NOTICE:  PASS 20.7 — ledger unique index on the normalised verified reference rejects the variant
+DO
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.10 — suspension closes the live drop -> closed
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.11 — unclaimed hold released -> order=cancelled piece=available
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.12 — claim in flight kept -> order=pending piece=reserved attempt=awaiting_seller_verification
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.13 — paid order untouched -> paid
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.14 — checkout after suspension -> DROP_NOT_LIVE
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.15 — initiate_payment_attempt after suspension -> SELLER_SUSPENDED
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.16 — UTR after suspension -> success=true late=true
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:189: NOTICE:  PASS 20.17 — verify claim in flight after suspension -> true
+DO
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:208: NOTICE:  PASS 20.18 — checkout on a still-live drop of an unapproved seller -> SELLER_SUSPENDED
+DO
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:224: NOTICE:  PASS 20.19 — admin_approve_seller(B,false) -> drop closed; re-approve -> drop closed
+DO
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:243: NOTICE:  PASS 20.20 — close_drop -> released=1 piece=available second call idempotent=true
+DO
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:269: NOTICE:  PASS 20.30 — close_drop_safely is not callable by anon/authenticated
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:269: NOTICE:  PASS 20.31 — no public read/list policy on product-images
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:269: NOTICE:  PASS 20.32 — upload and overwrite policies require an approved seller
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:269: NOTICE:  PASS 20.33 — unique index on the normalised verified reference exists
+psql:audit/seller-app/tests/sql/20_p1_round2.sql:269: NOTICE:  PASS 20.34 — suspension trigger installed on profiles
+DO
+ROLLBACK

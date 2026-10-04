@@ -132,6 +132,7 @@ LiveDrop isolates API interactions into two strict surfaces:
   * `DROP_NOT_ACTIVE`: Drop is concluded or still in draft.
   * `EMPTY_CART`: No valid product IDs provided.
   * `EXCEEDS_CART_LIMIT`: Cart contains more than 10 distinct items.
+  * `SELLER_SUSPENDED` (since migration 038, SA-ONB-002): the drop's seller is not approved. No order is created. `initiate_payment_attempt` returns the same code instead of payee details.
 
 ---
 
@@ -387,6 +388,7 @@ LiveDrop isolates API interactions into two strict surfaces:
   }
   ```
 * **Success Response (200 OK):** `{"success": true}`
+* **Suspension (since migration 038, SA-ONB-002):** `p_approved = false` (or any update that sets `profiles.is_approved` from true to false) closes every live drop of the seller through the `close_drop` safe-closure path. Unpaid, unclaimed holds are released; claims in flight and paid orders are kept. Re-approval does not reopen drops.
 
 
 ---
@@ -413,6 +415,7 @@ LiveDrop isolates API interactions into two strict surfaces:
   ```
   `inventory_available` is `null` when not evaluated. `status` equals `order_status`. A replay returns `idempotent: true` with the same keys and adds no ledger row.
 * **Errors (new in 035):** `INVENTORY_CONFLICT` (an on-time order no longer holds all its pieces, no writes), `PAYMENT_AMOUNT_MISMATCH`, `LEDGER_INCONSISTENT` (stored paid amount differs from the verified ledger, no writes). Existing errors such as `PAYMENT_ATTEMPT_EXPIRED`, `INVALID_ORDER_STATE`, `REFERENCE_USED_ON_ANOTHER_ORDER` and `ORDER_NOT_FOUND_OR_UNAUTHORIZED` are unchanged.
+* **UTR normalisation (since migration 038, SA-PAY-011):** `p_utr` and stored claims are compared after removing whitespace and upper-casing (`normalize_payment_reference`). `REFERENCE_USED_ON_ANOTHER_ORDER` therefore also covers case and spacing variants. `submit_buyer_payment_claim` stores the normalised UTR and returns `REFERENCE_USED_ON_ANOTHER_ORDER` when that UTR is already verified on a different order.
 
 ### 3.14 Record Refund (RPC) — new in migration 035
 * **Endpoint:** `POST /rest/v1/rpc/record_refund`
@@ -436,4 +439,4 @@ LiveDrop isolates API interactions into two strict surfaces:
 `reject_manual_upi_payment(p_payment_attempt_id, p_rejection_reason, p_release_hold)` keeps the hold and returns `hold_released: false` while another claim on the same order is still in flight, even if `p_release_hold` is true.
 
 ### 3.16 Internal Functions (not part of the client API)
-`release_stale_hold(p_order_id uuid) RETURNS boolean`, `apply_upi_payment_transition(...)` and `upi_verification_response(...)` are `SECURITY DEFINER` helpers with EXECUTE revoked from `PUBLIC`, `anon`, `authenticated` and `service_role`; a client call returns `permission denied`. `release_expired_holds()` is called by pg_cron (migration 036) and by the backup GitHub Actions reaper (`scripts/run-reaper.mjs`, service role).
+`release_stale_hold(p_order_id uuid) RETURNS boolean`, `apply_upi_payment_transition(...)`, `upi_verification_response(...)` and (since 038) `close_drop_safely(p_drop_id uuid) RETURNS int` are `SECURITY DEFINER` helpers with EXECUTE revoked from `PUBLIC`, `anon`, `authenticated` and `service_role`; a client call returns `permission denied`. `release_expired_holds()` is called by pg_cron (migration 036) and by the backup GitHub Actions reaper (`scripts/run-reaper.mjs`, service role).

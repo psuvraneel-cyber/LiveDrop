@@ -134,6 +134,27 @@ WHERE pa.status = 'expired' AND pa.buyer_submitted_utr IS NOT NULL AND pa.seller
                      AND op.metadata ->> 'payment_attempt_id' = pa.id::text)
 ORDER BY pa.buyer_claimed_at;
 
+-- H21 (038, SA-SEC-003 / SA-SEC-008): product-images policies. Expected: no product_images_public_read;
+--      product_images_seller_read for authenticated (own folder); insert/update mention is_seller_approved.
+SELECT policyname, cmd, roles::text AS roles, qual, with_check
+FROM pg_policies
+WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'product_images_%'
+ORDER BY policyname;
+
+-- H22 (038, SA-PAY-011): verified references that collide after normalisation (upper case, no spaces).
+--      Expected: no rows. Rows here are one bank transfer recorded for two orders — review with the seller.
+SELECT public.normalize_payment_reference(op.reference_id) AS normalised_reference,
+       array_agg(o.order_code ORDER BY op.verified_at) AS order_codes,
+       sum(op.amount_paisa) AS amount_paisa_total
+FROM public.order_payments op JOIN public.orders o ON o.id = op.order_id
+WHERE op.status = 'verified' AND public.normalize_payment_reference(op.reference_id) IS NOT NULL
+GROUP BY 1 HAVING count(*) > 1;
+
+-- H23 (038, SA-ONB-002): live drops of sellers who are not approved. Expected: no rows.
+SELECT d.id AS drop_id, d.slug, d.seller_id
+FROM public.drops d JOIN public.profiles p ON p.id = d.seller_id
+WHERE d.status = 'live' AND p.is_approved IS NOT TRUE;
+
 -- =============================================================================
 -- Optional non-destructive HTTP probe for storage listing (SA-SEC-008):
 --   curl -s -X POST '<URL>/storage/v1/object/list/product-images' \

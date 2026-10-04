@@ -377,6 +377,12 @@ describe('TASK-1.4: Error Model Classification', () => {
     expect(classifyRpcError({ error: 'INVALID_ORDER_TOKEN' })).toBeInstanceOf(InvalidOrderTokenError);
     expect(classifyRpcError({ error: 'UNAUTHORIZED' })).toBeInstanceOf(UnauthorizedError);
   });
+
+  it('keeps the server message for a suspended seller (migration 038)', () => {
+    const err = classifyRpcError({ error: 'SELLER_SUSPENDED', message: 'This boutique is not taking orders right now.' });
+    expect(err.code).toBe('SELLER_SUSPENDED');
+    expect(err.message).toBe('This boutique is not taking orders right now.');
+  });
 });
 
 describe('Production Storefront Deterministic Hygiene (filterProductionStorefronts)', () => {

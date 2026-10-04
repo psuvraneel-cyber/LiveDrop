@@ -107,10 +107,21 @@ BEGIN
     PERFORM audit.as_postgres();
     RAISE NOTICE 'PASS 11.5a seller B storage write into A folder rejected';
   END;
+  -- SA-SEC-003 (fixed in 038): uploads require an approved seller.
   PERFORM audit.as_seller(audit.seller_c());
-  INSERT INTO storage.objects (bucket_id, name) VALUES ('product-images', audit.seller_c()::text || '/anything/blob.jpg');
+  BEGIN
+    INSERT INTO storage.objects (bucket_id, name) VALUES ('product-images', audit.seller_c()::text || '/anything/blob.jpg');
+    PERFORM audit.as_postgres();
+    RAISE NOTICE 'FINDING 11.5b unapproved seller C can upload objects to the public product-images bucket (no approval gate on storage)';
+  EXCEPTION WHEN insufficient_privilege THEN
+    PERFORM audit.as_postgres();
+    RAISE NOTICE 'PASS 11.5b unapproved seller C upload to product-images rejected';
+  END;
+  -- control: approved seller A can still upload into their own folder
+  PERFORM audit.as_seller(audit.seller_a());
+  INSERT INTO storage.objects (bucket_id, name) VALUES ('product-images', audit.seller_a()::text || '/drop/ok.jpg');
   PERFORM audit.as_postgres();
-  RAISE NOTICE 'FINDING 11.5b unapproved seller C can upload objects to the public product-images bucket (no approval gate on storage)';
+  RAISE NOTICE 'PASS 11.5c approved seller A can upload into own folder';
 END $$;
 
 -- 11.6 A seller can read the full PII of every buyer of their own drops (expected) — record the fields

@@ -63,9 +63,9 @@ Pager usage is off.
 ------------------+------------------------------------------+--------+----------------------+------------
  drops            | drops_public_read                        | SELECT | {anon,authenticated} | PERMISSIVE
  drops            | drops_seller_manage                      | ALL    | {authenticated}      | PERMISSIVE
- objects          | product_images_public_read               | SELECT | {public}             | PERMISSIVE
  objects          | product_images_seller_delete             | DELETE | {authenticated}      | PERMISSIVE
  objects          | product_images_seller_insert             | INSERT | {authenticated}      | PERMISSIVE
+ objects          | product_images_seller_read               | SELECT | {authenticated}      | PERMISSIVE
  objects          | product_images_seller_update             | UPDATE | {authenticated}      | PERMISSIVE
  order_items      | order_items_buyer_read_with_token        | SELECT | {anon}               | PERMISSIVE
  order_items      | order_items_seller_select                | SELECT | {authenticated}      | PERMISSIVE

@@ -367,3 +367,30 @@ SELECT cron.schedule('livedrop-release-expired-holds', '* * * * *', 'SELECT publ
 ```
 
 Otherwise it raises a NOTICE and does nothing (exception-guarded DO block). The GitHub Actions workflow `reaper-cron.yml` is kept as a backup trigger only.
+
+---
+
+## 6. Storage, Suspension and UTR Guards (migration 038)
+
+Source: seller-app audit (`audit/seller-app/`), findings SA-SEC-003, SA-SEC-008, SA-ONB-002, SA-PAY-011. Regression suites: SQL 11.5b/11.5c, 12.7, 13.3c, 18.1–18.1c, 20.1–20.34.
+
+### 6.1 `product-images` storage policies
+| Policy | Command | Role | Rule |
+|---|---|---|---|
+| `product_images_seller_read` (replaces `product_images_public_read`) | SELECT | `authenticated` | own folder only (`(storage.foldername(name))[1] = auth.uid()::text`) |
+| `product_images_seller_insert` | INSERT | `authenticated` | own folder **and** `public.is_seller_approved(auth.uid())` |
+| `product_images_seller_update` | UPDATE | `authenticated` | own folder **and** approved (USING and WITH CHECK) |
+| `product_images_seller_delete` | DELETE | `authenticated` | own folder (unchanged from 027) |
+
+Public object URLs of the public bucket do not depend on any policy, so buyers still see product photos. Nobody can list the bucket except a seller listing their own folder (the app's `upsert: true` uploads need it).
+
+### 6.2 Seller suspension
+* `close_drop_safely(p_drop_id) RETURNS int` (internal, SECURITY DEFINER, EXECUTE revoked from all client roles and `service_role`): the safe-closure steps of `close_drop`. It releases unpaid, unclaimed holds and keeps claims, late claims and paid orders. Then it closes the drop and returns the number of released orders. `close_drop` keeps its authorization, idempotency and response contract and calls this helper.
+* Trigger `trg_close_live_drops_on_suspension` (AFTER UPDATE OF `is_approved` ON `profiles`, when approval goes from true to not true) calls `close_drop_safely` for every live drop of the seller. It fires for `admin_approve_seller(id, false)` and for a direct SQL update. Re-approval reopens nothing. A one-time, idempotent data repair in 038 closes live drops of sellers who were already unapproved.
+* `create_order_with_reservation` and `initiate_payment_attempt` return `SELLER_SUSPENDED` when the seller is not approved. `submit_buyer_payment_claim`, `verify_manual_upi_payment` and `record_refund` are not blocked: money already sent always gets a record.
+
+### 6.3 Payment reference normalisation
+* `normalize_payment_reference(text) RETURNS text` (IMMUTABLE): whitespace removed, upper case, NULL when empty.
+* Unique index `uq_order_payments_reference_verified_norm` on `order_payments (normalize_payment_reference(reference_id)) WHERE status = 'verified'`. If an existing ledger already contains a normalised duplicate, 038 skips the index and logs a WARNING (hosted check H22 lists the groups); the RPC checks below still apply.
+* `submit_buyer_payment_claim` stores the normalised UTR and refuses a UTR already verified on another order (`REFERENCE_USED_ON_ANOTHER_ORDER`). The same UTR claimed but not verified on two orders is still accepted; verification refuses the second.
+* `verify_manual_upi_payment` normalises the seller-typed or stored UTR and compares normalised references.

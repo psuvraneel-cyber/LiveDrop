@@ -113,8 +113,13 @@ BEGIN
   r := create_order_with_reservation(audit.drop_b_live(), ARRAY[audit.p_b1()], 'Suspension Test', '9830099999',
                                      '1 Test Lane, Kolkata', '700001', 'full_payment', NULL);
   PERFORM audit.as_postgres();
-  RAISE NOTICE '% 12.7 after admin_approve_seller(B,false)=%: catalog rows visible=% but checkout success=% (drop still live=%)',
-    CASE WHEN (r->>'success')::boolean THEN 'FINDING' ELSE 'PASS' END, adm->>'success', vis, r->>'success',
+  -- SA-ONB-002 (fixed in 038): suspension closes the live drop; checkout is refused.
+  RAISE NOTICE '% 12.7 after admin_approve_seller(B,false)=%: catalog rows visible=% checkout=% (drop status=%)',
+    CASE WHEN (r->>'success')::boolean THEN 'FINDING'
+         WHEN r->>'error' IN ('SELLER_SUSPENDED', 'DROP_NOT_LIVE')
+              AND (SELECT status FROM drops WHERE id = audit.drop_b_live()) = 'closed' THEN 'PASS'
+         ELSE 'FAIL' END,
+    adm->>'success', vis, COALESCE(r->>'error', r->>'success'),
     (SELECT status FROM drops WHERE id = audit.drop_b_live());
 END $$;
 

@@ -43,7 +43,7 @@ PGHOST=/var/run/postgresql PGPORT=55432 PGUSER=postgres \
   audit/seller-app/tests/sql/run_local_db_audit.sh
 ```
 
-It (1) recreates database `livedrop_audit`, (2) applies `00_supabase_shim.sql`, (3) applies `supabase/migrations/001…033` in order (log: `evidence/migration-apply.log`), (4) installs `05_audit_helpers.sql`, (5) runs every `1*.sql` suite inside a rolled-back transaction (outputs `evidence/<suite>.out`), (6) writes catalog evidence (`schema-inventory.out`, `anon-executable-functions.out`, `security-definer-search-path.out`), and (7) runs `14_concurrency.sh` against a copy database (`livedrop_conc`).
+It (1) recreates database `livedrop_audit`, (2) applies `00_supabase_shim.sql`, (3) applies every `supabase/migrations/*.sql` in order (log: `evidence/migration-apply.log`), (4) installs `05_audit_helpers.sql`, (5) runs every `1*.sql` and `2*.sql` suite inside a rolled-back transaction (outputs `evidence/<suite>.out`), (6) writes catalog evidence (`schema-inventory.out`, `anon-executable-functions.out`, `security-definer-search-path.out`), and (7) runs `14_concurrency.sh` against a copy database (`livedrop_conc`).
 
 Each line in the outputs is tagged:
 - `PASS` — the control behaves as intended,

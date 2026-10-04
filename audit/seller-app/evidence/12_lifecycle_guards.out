@@ -7,38 +7,38 @@ BEGIN
 CREATE TABLE
 GRANT
 CREATE FUNCTION
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#A04) after app uppercasing -> OK rows=1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=A05) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#SAREE01) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#a06) after app uppercasing -> OK rows=1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#A-07) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#A04) after app uppercasing -> OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=A05) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#SAREE01) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#a06) after app uppercasing -> OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#A-07) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:37: NOTICE:  INFO 12.1 createProduct(code=#) after app uppercasing -> ERR 23514 new row for relation "products" violates check constraint "products_code_check"
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:45: NOTICE:  INFO 12.2a direct UPDATE products price -> ERR 42501 Direct update of products is prohibited for authenticated users. Use authoritative update_product RPC.
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:45: NOTICE:  INFO 12.2b direct UPDATE products status sold -> ERR 42501 Direct update of products is prohibited for authenticated users. Use authoritative update_product RPC.
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:45: NOTICE:  INFO 12.2c direct DELETE available product -> OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:45: NOTICE:  INFO 12.2a direct UPDATE products price -> ERR 42501 Direct update of products is prohibited for authenticated users. Use authoritative update_product RPC.
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:45: NOTICE:  INFO 12.2b direct UPDATE products status sold -> ERR 42501 Direct update of products is prohibited for authenticated users. Use authoritative update_product RPC.
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:45: NOTICE:  INFO 12.2c direct DELETE available product -> OK rows=1
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:57: NOTICE:  FINDING 12.3 seller can INSERT product already sold (OK rows=1) / reserved with no order (OK rows=1)
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:57: NOTICE:  FINDING 12.3 seller can INSERT product already sold (OK rows=1) / reserved with no order (OK rows=1)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:65: NOTICE:  INFO 12.4a live -> closed direct UPDATE -> ERR 42501 Direct transition to closed is prohibited. Call close_drop(drop_id) RPC.
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:65: NOTICE:  INFO 12.4c slug change on LIVE drop -> OK rows=1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:65: NOTICE:  INFO 12.4d second live drop for same seller -> ERR 23505 duplicate key value violates unique constraint "idx_drops_one_live_per_seller"
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:65: NOTICE:  INFO 12.4a live -> closed direct UPDATE -> ERR 42501 Direct transition to closed is prohibited. Call close_drop(drop_id) RPC.
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:65: NOTICE:  INFO 12.4c slug change on LIVE drop -> OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:65: NOTICE:  INFO 12.4d second live drop for same seller -> ERR 23505 duplicate key value violates unique constraint "idx_drops_one_live_per_seller"
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:81: NOTICE:  INFO 12.5 close_drop=true then closed->draft=OK rows=1 then draft->live=OK rows=1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:81: NOTICE:  INFO 12.4b live -> draft direct UPDATE (unpublish without releasing holds) -> OK rows=1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:81: NOTICE:  INFO 12.4b   draft -> live again -> OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:81: NOTICE:  INFO 12.5 close_drop=true then closed->draft=OK rows=1 then draft->live=OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:81: NOTICE:  INFO 12.4b live -> draft direct UPDATE (unpublish without releasing holds) -> OK rows=1
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:81: NOTICE:  INFO 12.4b   draft -> live again -> OK rows=1
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:103: NOTICE:  PASS 12.6 unapproved seller: create draft=OK add product=OK go live=ERR 42501 Seller account is pending platform verification. Unapproved sellers cannot publish live drops.
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:103: NOTICE:  PASS 12.6 unapproved seller: create draft=OK add product=OK go live=ERR 42501 Seller account is pending platform verification. Unapproved sellers cannot publish live drops.
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:119: NOTICE:  FINDING 12.7 after admin_approve_seller(B,false)=true: catalog rows visible=0 but checkout success=true (drop still live=live)
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:124: NOTICE:  PASS 12.7 after admin_approve_seller(B,false)=true: catalog rows visible=0 checkout=DROP_NOT_LIVE (drop status=closed)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:152: NOTICE:  PASS 12.8a checkout on draft drop -> DROP_NOT_LIVE
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:152: NOTICE:  PASS 12.8b unpaid ready=ORDER_NOT_PAID unpaid ship=ORDER_NOT_PAID | paid-not-ready ship=ORDER_NOT_READY_TO_SHIP | ready=true ship=true | second ship=status=shipped fulfil=shipped
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:152: NOTICE:  PASS 12.8c double ship -> ALREADY_SHIPPED
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:157: NOTICE:  PASS 12.8a checkout on draft drop -> DROP_NOT_LIVE
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:157: NOTICE:  PASS 12.8b unpaid ready=ORDER_NOT_PAID unpaid ship=ORDER_NOT_PAID | paid-not-ready ship=ORDER_NOT_READY_TO_SHIP | ready=true ship=true | second ship=status=shipped fulfil=shipped
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:157: NOTICE:  PASS 12.8c double ship -> ALREADY_SHIPPED
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:164: NOTICE:  INFO 12.9 mark_product_sold_offline on a reserved piece -> PRODUCT_RESERVED (app offers "Mark Sold" on reserved items)
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:169: NOTICE:  INFO 12.9 mark_product_sold_offline on a reserved piece -> PRODUCT_RESERVED (app offers "Mark Sold" on reserved items)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:173: NOTICE:  INFO 12.10 seller direct UPDATE orders.shipping_address -> OK rows=2
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/12_lifecycle_guards.sql:173: NOTICE:  INFO 12.10b seller direct UPDATE orders.status -> ERR 42501 Direct mutation of payment or order lifecycle fields is prohibited for authenticated sellers. Use trusted RPCs
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:178: NOTICE:  INFO 12.10 seller direct UPDATE orders.shipping_address -> OK rows=2
+psql:audit/seller-app/tests/sql/12_lifecycle_guards.sql:178: NOTICE:  INFO 12.10b seller direct UPDATE orders.status -> ERR 42501 Direct mutation of payment or order lifecycle fields is prohibited for authenticated sellers. Use trusted RPCs
 DO
 ROLLBACK

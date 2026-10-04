@@ -4,30 +4,30 @@ BEGIN
  
 (1 row)
 
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:23: NOTICE:  PASS 10.1 anon SELECT on profiles denied: permission denied for table profiles
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:23: NOTICE:  PASS 10.1 anon SELECT on profiles denied: permission denied for table profiles
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2 anon sees 3 storefront rows (approved sellers only; expected 3)
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   aarohi-boutique exposes phone_number=9876500001
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   bela-weaves exposes phone_number=9876500002
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   damini-no-drops exposes phone_number=9876500004
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2 anon sees 3 storefront rows (approved sellers only; expected 3)
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   aarohi-boutique exposes phone_number=9876500001
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   bela-weaves exposes phone_number=9876500002
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:36: NOTICE:  INFO 10.2   damini-no-drops exposes phone_number=9876500004
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:67: NOTICE:  PASS 10.3 anon UPDATE through view denied: permission denied for view public_seller_storefronts
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:67: NOTICE:  PASS 10.3 anon UPDATE through view denied: permission denied for view public_seller_storefronts
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:92: NOTICE:  PASS 10.4 anon DELETE through view denied: permission denied for view public_seller_storefronts
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:92: NOTICE:  PASS 10.4 anon DELETE through view denied: permission denied for view public_seller_storefronts
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:113: NOTICE:  PASS 10.5 denied: permission denied for view public_seller_storefronts
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:113: NOTICE:  PASS 10.5 denied: permission denied for view public_seller_storefronts
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:124: NOTICE:  PASS 10.6 control: base-table UPDATE of another seller affected 0 rows (RLS)
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:124: NOTICE:  PASS 10.6 control: base-table UPDATE of another seller affected 0 rows (RLS)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:140: NOTICE:  INFO 10.7 anon reads 4 product rows (live drops of any seller) via column grant
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:140: NOTICE:  PASS 10.7 anon cannot read products.reserved_by_order_id
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:140: NOTICE:  INFO 10.7 anon reads 4 product rows (live drops of any seller) via column grant
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:140: NOTICE:  PASS 10.7 anon cannot read products.reserved_by_order_id
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:150: NOTICE:  PASS 10.8 anon without x-order-token sees 0 orders
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:150: NOTICE:  PASS 10.8 anon without x-order-token sees 0 orders
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 anon holds SELECT on public_products_catalog
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 authenticated holds SELECT on public_products_catalog
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 anon holds SELECT on public_seller_storefronts
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 authenticated holds SELECT on public_seller_storefronts
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  PASS 10.9 anon/authenticated hold SELECT only on every view in public (4 role/view pairs checked)
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 anon holds SELECT on public_products_catalog
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 authenticated holds SELECT on public_products_catalog
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 anon holds SELECT on public_seller_storefronts
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  INFO 10.9 authenticated holds SELECT on public_seller_storefronts
+psql:audit/seller-app/tests/sql/10_exposure_and_view_dml.sql:183: NOTICE:  PASS 10.9 anon/authenticated hold SELECT only on every view in public (4 role/view pairs checked)
 DO
 ROLLBACK

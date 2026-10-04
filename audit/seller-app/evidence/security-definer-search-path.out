@@ -2,6 +2,8 @@
 ----------------------------------+--------+-----------------------------
  admin_approve_seller             | t      | search_path=public, pg_temp
  close_drop                       | t      | search_path=public, pg_temp
+ close_drop_safely                | t      | search_path=public, pg_temp
+ close_live_drops_on_suspension   | t      | search_path=public, pg_temp
  create_order_with_reservation    | t      | search_path=public, pg_temp
  force_release_hold               | t      | search_path=public, pg_temp
  get_order_by_token               | t      | search_path=public, pg_temp
@@ -24,5 +26,5 @@
  submit_buyer_payment_claim       | t      | search_path=public, pg_temp
  update_product                   | t      | search_path=public, pg_temp
  verify_manual_upi_payment        | t      | search_path=public, pg_temp
-(24 rows)
+(26 rows)
 

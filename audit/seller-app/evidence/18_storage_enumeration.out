@@ -4,8 +4,11 @@ BEGIN
  
 (1 row)
 
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/18_storage_enumeration.sql:39: NOTICE:  FINDING 18.1 anon can list 2 object(s) in product-images, incl. draft-drop and unapproved-seller paths: {11111111-1111-1111-1111-111111111111/aaaa0000-0000-0000-0000-000000000002/_D01_queue_1_0.jpg,33333333-3333-3333-3333-333333333333/whatever/not-a-product.jpg}
+psql:audit/seller-app/tests/sql/18_storage_enumeration.sql:45: NOTICE:  PASS 18.1 anon can list 0 object(s) in product-images, incl. draft-drop and unapproved-seller paths: <NULL>
+psql:audit/seller-app/tests/sql/18_storage_enumeration.sql:45: NOTICE:  PASS 18.1b seller B lists 0 object(s) in the bucket (own folder only)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/18_storage_enumeration.sql:50: NOTICE:  PASS 18.2 anon sees the draft drop row: 0 (images above leak what the catalogue hides)
+psql:audit/seller-app/tests/sql/18_storage_enumeration.sql:56: NOTICE:  PASS 18.1c seller A lists 1 object(s), 1 in own folder (own objects stay listable for upsert)
+DO
+psql:audit/seller-app/tests/sql/18_storage_enumeration.sql:67: NOTICE:  PASS 18.2 anon sees the draft drop row: 0 (images above leak what the catalogue hides)
 DO
 ROLLBACK
