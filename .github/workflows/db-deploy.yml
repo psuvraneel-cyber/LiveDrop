@@ -1,0 +1,102 @@
+name: Database Deploy
+
+# Applies the seller-app audit migrations (034–036) to the hosted Supabase database and
+# runs read-only post-deploy checks. Manual only, main branch only.
+#
+# Required secret : SUPABASE_DB_URL  (Supabase -> Connect -> "Session pooler" connection string)
+# Recommended     : protect the "supabase-production" environment (Settings -> Environments)
+#
+# The Actions log of a public repository is public: the SQL scripts used here print only
+# catalog facts and counts, never personal data.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check-only = read-only preflight + checks; apply = apply 034–036 then check"
+        type: choice
+        options: [check-only, apply]
+        default: check-only
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: ${{ inputs.mode }} migrations 034–036
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: supabase-production
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+      PGCONNECT_TIMEOUT: "15"
+      PGAPPNAME: livedrop-db-deploy
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Require the connection secret
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Secret SUPABASE_DB_URL is not set (Supabase -> Connect -> Session pooler)."
+            exit 1
+          fi
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          psql --version
+
+      - name: Preflight (read-only)
+        id: preflight
+        run: |
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db-deploy/preflight.sql
+          applied=$(psql "$DATABASE_URL" -X -At -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='orders' AND column_name='refund_status')")
+          echo "m035_applied=$applied" >> "$GITHUB_OUTPUT"
+
+      - name: Apply 034 (lock down public view privileges)
+        if: inputs.mode == 'apply'
+        run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/034_lock_down_public_view_privileges.sql
+
+      - name: Apply 035 (payment claim safety and refunds)
+        if: inputs.mode == 'apply' && steps.preflight.outputs.m035_applied != 't'
+        run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/035_payment_claim_safety_and_refunds.sql
+
+      - name: Skip 035 (already applied)
+        if: inputs.mode == 'apply' && steps.preflight.outputs.m035_applied == 't'
+        run: echo "::notice::orders.refund_status exists — migration 035 is already applied; skipped."
+
+      - name: Apply 036 (reaper schedule in the database)
+        if: inputs.mode == 'apply'
+        run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/036_schedule_reaper_in_database.sql
+
+      - name: Record migrations in Supabase history (if present)
+        if: inputs.mode == 'apply'
+        run: |
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
+              INSERT INTO supabase_migrations.schema_migrations (version, name)
+              VALUES ('034', 'lock_down_public_view_privileges'),
+                     ('035', 'payment_claim_safety_and_refunds'),
+                     ('036', 'schedule_reaper_in_database')
+              ON CONFLICT (version) DO NOTHING;
+              RAISE NOTICE 'recorded 034–036 in supabase_migrations.schema_migrations';
+            ELSE
+              RAISE NOTICE 'no supabase_migrations.schema_migrations table; nothing recorded';
+            END IF;
+          END $$;
+          NOTIFY pgrst, 'reload schema';
+          SQL
+
+      - name: Post-deploy checks (read-only)
+        # Before the first apply these checks are expected to fail; that must not mark a check-only run red.
+        continue-on-error: ${{ inputs.mode == 'check-only' }}
+        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db-deploy/post_checks.sql
