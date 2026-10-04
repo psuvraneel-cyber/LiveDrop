@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/errors/seller_error_messages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/utils/payment_reminder.dart';
 import '../../core/utils/phone_utils.dart';
 import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import 'order_actions.dart';
 import 'shipping_dialog.dart';
 
 /// Screen 8: Luxury Boutique Order Details Screen
@@ -78,6 +81,82 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       widget.onOrderUpdated();
       Navigator.pop(context);
     }
+  }
+
+  bool _busy = false;
+
+  Future<void> _markPacked() async {
+    setState(() => _busy = true);
+    try {
+      await widget.repository.markOrderReadyToShip(_order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('#${_order.orderCode} is packed and ready to dispatch.'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+      widget.onOrderUpdated();
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(SellerErrorMessages.fulfilment(e)), backgroundColor: AppColors.crimson),
+      );
+    }
+  }
+
+  Future<void> _sendPaymentReminder() async {
+    final text = PaymentReminder.message(_order, storeName: widget.profile.storeName);
+    if (text == null) return;
+    await UrlLauncherHelper.launchWhatsApp(
+      context: context,
+      phone: PhoneUtils.whatsAppDigits(_order.buyerPhone),
+      message: text,
+    );
+  }
+
+  /// The one next step the server allows for this order (SA-ORD-005):
+  /// packing and dispatch only for fully paid orders, a balance request for
+  /// advance-paid ones, a payment link for pending ones.
+  Widget _buildPrimaryAction() {
+    final actions = OrderActions.forOrder(_order);
+    String text;
+    IconData icon;
+    VoidCallback? onPressed;
+    if (actions.contains(OrderAction.markPacked)) {
+      text = 'Mark packed';
+      icon = Icons.inventory_2_outlined;
+      onPressed = _busy ? null : _markPacked;
+    } else if (actions.contains(OrderAction.dispatch)) {
+      text = 'Dispatch';
+      icon = Icons.local_shipping_outlined;
+      onPressed = _openDispatch;
+    } else if (actions.contains(OrderAction.collectBalance)) {
+      text = 'Ask for balance';
+      icon = Icons.request_quote_outlined;
+      onPressed = _sendPaymentReminder;
+    } else if (actions.contains(OrderAction.remindPayment)) {
+      text = 'Send pay link';
+      icon = Icons.link_rounded;
+      onPressed = _sendPaymentReminder;
+    } else if (_order.status == OrderStatus.shipped) {
+      text = 'Shipped';
+      icon = Icons.check_circle_outline;
+    } else {
+      text = _order.status == OrderStatus.expired ? 'Expired' : 'Cancelled';
+      icon = Icons.block_outlined;
+    }
+    return BounceableButton(
+      key: const Key('order-details-primary-action'),
+      onPressed: onPressed,
+      isLoading: _busy,
+      variant: ButtonVariant.goldGradient,
+      height: 48,
+      text: text,
+      icon: icon,
+    );
   }
 
   @override
@@ -295,15 +374,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: BounceableButton(
-                    onPressed: _openDispatch,
-                    variant: ButtonVariant.goldGradient,
-                    height: 48,
-                    text: _order.status == OrderStatus.shipped ? 'Shipped' : 'Mark as Ready',
-                    icon: Icons.local_shipping_outlined,
-                  ),
-                ),
+                Expanded(child: _buildPrimaryAction()),
               ],
             ),
             const SizedBox(height: 20),

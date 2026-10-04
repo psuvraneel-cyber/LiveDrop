@@ -161,6 +161,7 @@ class SellerRepository {
             id,
             drop_id,
             order_code,
+            order_token,
             buyer_name,
             buyer_phone,
             shipping_address,
@@ -460,7 +461,20 @@ class SellerRepository {
             created_at,
             orders!inner (
               order_code,
-              buyer_name
+              buyer_name,
+              buyer_phone,
+              order_token,
+              status,
+              total_paisa,
+              order_items (
+                products (
+                  code,
+                  title,
+                  image_url,
+                  status,
+                  reserved_by_order_id
+                )
+              )
             )
           ''')
           .inFilter('status', ['buyer_claimed', 'awaiting_seller_verification', 'late_claim_pending_review'])
@@ -991,6 +1005,7 @@ class SellerRepository {
         id,
         drop_id,
         order_code,
+        order_token,
         buyer_name,
         buyer_phone,
         shipping_address,

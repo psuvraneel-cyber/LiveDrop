@@ -35,7 +35,6 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _rememberMe = true;
   bool _obscurePassword = true;
   bool _isSendingReset = false;
   String? _errorMessage;
@@ -276,43 +275,11 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Remember Me & Forgot Password Row
+                        // Forgot Password. ("Remember me" was removed: it changed
+                        // nothing, the session is always kept on this phone, SA-UX-002.)
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Flexible(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: Checkbox(
-                                      value: _rememberMe,
-                                      activeColor: AppColors.goldPrimary,
-                                      checkColor: Colors.black,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _rememberMe = val ?? true;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Flexible(
-                                    child: Text(
-                                      'Remember me',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                             TextButton(
                               onPressed: _isSendingReset ? null : _handleForgotPassword,
                               child: const Text(

@@ -51,6 +51,15 @@ class EnvConfig {
     return '$base$sellerPasswordResetPath';
   }
 
+  /// The buyer's own order page (pay, submit the UTR, track the order). The
+  /// token is the buyer's capability for that one order (SA-PAY-013).
+  static String getOrderUrl(String orderId, String orderToken) {
+    final base = buyerBaseUrl.endsWith('/')
+        ? buyerBaseUrl.substring(0, buyerBaseUrl.length - 1)
+        : buyerBaseUrl;
+    return '$base/order/$orderId?token=${Uri.encodeQueryComponent(orderToken)}';
+  }
+
   /// Generates the direct product flash link for buyers.
   static String getProductUrl(String dropSlug, String productCode) {
     final cleanCode = productCode.replaceAll('#', '');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/errors/exceptions.dart';
 import '../../core/services/pdf_label_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -81,7 +82,7 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Share error: $e'),
+            content: Text(e is LiveDropException ? e.message : 'Could not share the label. Try again.'),
             backgroundColor: AppColors.crimson,
           ),
         );
@@ -106,7 +107,7 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Print error: $e'),
+            content: Text(e is LiveDropException ? e.message : 'Could not print the label. Try again.'),
             backgroundColor: AppColors.crimson,
           ),
         );
@@ -166,7 +167,7 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Dispatch failed: $e'),
+            content: Text(e is LiveDropException ? e.message : 'Dispatch failed. Try again.'),
             backgroundColor: AppColors.crimson,
           ),
         );
@@ -441,17 +442,9 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
                     variant: ButtonVariant.darkCard,
                     height: 44,
                     icon: Icons.share_outlined,
-                    text: 'Share',
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: BounceableButton(
-                    onPressed: _isGenerating ? null : _handleShare,
-                    variant: ButtonVariant.darkCard,
-                    height: 44,
-                    icon: Icons.download_outlined,
-                    text: 'Save PDF',
+                    // One button: the system share sheet also offers "Save to
+                    // Files" (SA-UX-002: no second button doing the same).
+                    text: 'Share or save PDF',
                   ),
                 ),
               ],

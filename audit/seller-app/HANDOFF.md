@@ -1,4 +1,4 @@
-# Seller-app remediation — handoff (2026-10-04, updated after P1 round 4a)
+# Seller-app remediation — handoff (2026-10-04, updated after P1 round 4b)
 
 Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and the proof) and
 `FINDINGS.json` (all 95 audit findings with remediation and regression tests).
@@ -30,6 +30,8 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
   - SA-PAY-012
   - Owner decisions: ADR-014 (undo an offline sale within 30 minutes), drop status changes exactly as the spec says, 10-character passwords, email confirmation on.
   - Proof is in `REMEDIATION-LOG.md` (P1 round 4a).
+- **P1 round 4b (app only):** SA-PAY-009/010/013, SA-ORD-004/005, SA-SHIP-002, SA-UX-002. Payment card facts, reject with keep-hold, reminders with the order link, Closed tab, server-matched order buttons, labels only when fully paid, and no placeholder controls. Proof is in `REMEDIATION-LOG.md` (P1 round 4b).
+- **Still open from the owner's batch:** SA-RT-002, SA-PERF-001, SA-CI-001 (migration job), SA-TEST-001.
 
 ## Owner decisions (binding)
 - An unverified UTR claim holds a piece **30 min while the drop is live**, 24 h otherwise. After that the piece returns to sale and the claim stays in the queue as a late claim. It is never expired.

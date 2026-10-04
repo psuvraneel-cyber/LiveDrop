@@ -508,6 +508,10 @@ class SellerOrder {
   /// Payment attempts embedded in order lists (empty when not selected).
   final List<OrderPaymentAttemptSummary> paymentAttempts;
 
+  /// The buyer's order capability token: lets the seller send the buyer a
+  /// link to their own order page (SA-PAY-013). Null when not selected.
+  final String? orderToken;
+
   const SellerOrder({
     required this.id,
     required this.dropId,
@@ -543,7 +547,23 @@ class SellerOrder {
     this.refundReference,
     this.refundedAt,
     this.paymentAttempts = const [],
+    this.orderToken,
   });
+
+  /// What the buyer has to pay next, in paisa (SA-PAY-013): the advance or
+  /// the full total while the order waits for its first payment, the balance
+  /// after an advance, and nothing once paid or closed.
+  int get amountDueNowPaisa {
+    if (status == OrderStatus.pending && paymentStatus == OrderPaymentStatus.unpaid) {
+      return confirmationMode == OrderConfirmationMode.advance && advanceRequiredPaisa > 0
+          ? advanceRequiredPaisa
+          : totalPaisa;
+    }
+    if (status == OrderStatus.confirmed && paymentStatus == OrderPaymentStatus.advancePaid) {
+      return balanceDuePaisa;
+    }
+    return 0;
+  }
 
   /// The buyer-claimed attempt awaiting the seller (if any). While it exists
   /// the hold must not be released (force_release_hold → PAYMENT_CLAIM_PENDING).
@@ -578,6 +598,7 @@ class SellerOrder {
     final balanceDue = json['balance_due_paisa'] as int? ?? (total - totalPaid);
 
     return SellerOrder(
+      orderToken: json['order_token'] as String?,
       id: json['id'] as String,
       dropId: json['drop_id'] as String,
       orderCode: json['order_code'] as String,
@@ -791,6 +812,14 @@ class PaymentAttempt {
   final String? orderCode;
   final String? buyerName;
 
+  /// Order context for the seller's decision (SA-PAY-009). Empty/null when
+  /// the query did not embed it.
+  final String? buyerPhone;
+  final String? orderToken;
+  final String? orderStatus;
+  final int? orderTotalPaisa;
+  final List<ClaimPiece> pieces;
+
   const PaymentAttempt({
     required this.id,
     required this.orderId,
@@ -811,7 +840,34 @@ class PaymentAttempt {
     required this.createdAt,
     this.orderCode,
     this.buyerName,
+    this.buyerPhone,
+    this.orderToken,
+    this.orderStatus,
+    this.orderTotalPaisa,
+    this.pieces = const [],
   });
+
+  /// Seller-facing name of what this payment is for (SA-PAY-009).
+  String get paymentTypeLabel {
+    switch (paymentType) {
+      case 'advance':
+        return 'Advance payment';
+      case 'balance':
+        return 'Balance payment';
+      case 'full':
+        return 'Full payment';
+      default:
+        return 'Payment';
+    }
+  }
+
+  /// For a late claim: are all the order's pieces still free (or still held
+  /// by this order)? Then verifying secures them again; otherwise verifying
+  /// records the money as a refund owed (migration 035). Null when unknown.
+  bool? get piecesStillAvailable {
+    if (pieces.isEmpty) return null;
+    return pieces.every((p) => p.status == 'available' || (p.status == 'reserved' && p.heldByOrderId == orderId));
+  }
 
   bool get isLateClaim => status == PaymentAttemptStatus.lateClaimPendingReview;
 
@@ -873,7 +929,45 @@ class PaymentAttempt {
       createdAt: _parseTimestamp(json['created_at'] as String),
       orderCode: orderMap?['order_code'] as String?,
       buyerName: orderMap?['buyer_name'] as String?,
+      buyerPhone: orderMap?['buyer_phone'] as String?,
+      orderToken: orderMap?['order_token'] as String?,
+      orderStatus: orderMap?['status'] as String?,
+      orderTotalPaisa: orderMap?['total_paisa'] as int?,
+      pieces: ClaimPiece.listFrom(orderMap?['order_items']),
     );
+  }
+}
+
+/// A piece of the order a payment claim is for (SA-PAY-009).
+class ClaimPiece {
+  final String code;
+  final String? title;
+  final String? imageUrl;
+
+  /// Current product status (`available`, `reserved`, `sold`).
+  final String? status;
+  final String? heldByOrderId;
+
+  const ClaimPiece({required this.code, this.title, this.imageUrl, this.status, this.heldByOrderId});
+
+  static List<ClaimPiece> listFrom(Object? raw) {
+    if (raw is! List) return const [];
+    final pieces = <ClaimPiece>[];
+    for (final item in raw) {
+      if (item is! Map<String, dynamic>) continue;
+      final product = item['products'];
+      if (product is! Map<String, dynamic>) continue;
+      final code = product['code'] as String?;
+      if (code == null) continue;
+      pieces.add(ClaimPiece(
+        code: code,
+        title: product['title'] as String?,
+        imageUrl: product['image_url'] as String?,
+        status: product['status'] as String?,
+        heldByOrderId: product['reserved_by_order_id'] as String?,
+      ));
+    }
+    return pieces;
   }
 }
 

@@ -49,7 +49,8 @@ void main() {
     expect(launcher.launched.first, contains('phone=919123456789&'));
   });
 
-  testWidgets('SA-AUD-T03: primary button labelled "Mark as Ready" opens the dispatch (ship) dialog, also for shipped orders',
+  // SA-ORD-005 fixed: inverted. An unpaid order offers "Send pay link", never a dispatch dialog.
+  testWidgets('SA-AUD-T03: primary button follows the server rules (unpaid order: "Send pay link", no dispatch)',
       (tester) async {
     final order = auditOrder();
     await tester.pumpWidget(auditApp(OrderDetailsScreen(
@@ -58,12 +59,8 @@ void main() {
       repository: AuditRepo(orders: [order]),
       onOrderUpdated: () {},
     )));
-    expect(find.text('Mark as Ready'), findsOneWidget);
-    await tester.ensureVisible(find.text('Mark as Ready'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Mark as Ready'));
-    await tester.pumpAndSettle();
-    expect(find.text('Dispatch & Print Label'), findsOneWidget);
-    expect(find.text('Confirm Dispatch'), findsOneWidget);
+    expect(find.text('Mark as Ready'), findsNothing);
+    expect(find.text('Send pay link'), findsOneWidget);
+    expect(find.text('Dispatch & Print Label'), findsNothing);
   });
 }

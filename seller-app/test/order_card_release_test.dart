@@ -41,7 +41,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Hold Expires in:'), findsNothing);
-    expect(find.text('WhatsApp'), findsOneWidget);
+    expect(find.text('Send pay link'), findsOneWidget);
   });
 
   testWidgets('Release is shown when there is no claim (expired/created attempts do not count)', (tester) async {

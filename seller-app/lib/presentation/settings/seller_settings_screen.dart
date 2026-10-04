@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -32,10 +34,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
   bool _isLoading = true;
 
   // Local device preferences (sound, notifications)
-  bool _soundEnabled = true;
-  bool _notifyNewOrders = true;
-  bool _notifyPaymentClaims = true;
-  bool _notifyHoldExpiries = true;
+  bool _soundEnabled = BoutiqueHaptics.enabled;
 
   @override
   void initState() {
@@ -363,7 +362,12 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
             const Divider(color: AppColors.cardBorder, height: 20),
             _buildInfoRow('Store Slug', _profile?.storeSlug ?? 'N/A'),
             const Divider(color: AppColors.cardBorder, height: 20),
-            _buildInfoRow('Verification Status', 'Active Verified Boutique', valueColor: AppColors.emerald),
+            // From the profile, not a fixed label (SA-UX-002).
+            _buildInfoRow(
+              'Verification Status',
+              _profile?.isApproved == true ? 'Approved by LiveDrop' : 'Waiting for approval',
+              valueColor: _profile?.isApproved == true ? AppColors.emerald : AppColors.amber,
+            ),
             const Divider(color: AppColors.cardBorder, height: 20),
             _buildInfoRow('Registered Phone', _profile?.phoneNumber ?? 'N/A'),
             const SizedBox(height: 24),
@@ -627,37 +631,15 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              _buildNotificationSwitch(
-                title: 'New Order Placed',
-                subtitle: 'Push alert when a buyer purchases an item',
-                value: _notifyNewOrders,
-                onChanged: (v) {
-                  BoutiqueHaptics.selection();
-                  setSheetState(() => _notifyNewOrders = v);
-                  setState(() => _notifyNewOrders = v);
-                },
-              ),
-              const Divider(color: AppColors.cardBorder, height: 16),
-              _buildNotificationSwitch(
-                title: 'Manual Payment Claims',
-                subtitle: 'Alert when a buyer submits a UPI transaction reference',
-                value: _notifyPaymentClaims,
-                onChanged: (v) {
-                  BoutiqueHaptics.selection();
-                  setSheetState(() => _notifyPaymentClaims = v);
-                  setState(() => _notifyPaymentClaims = v);
-                },
-              ),
-              const Divider(color: AppColors.cardBorder, height: 16),
-              _buildNotificationSwitch(
-                title: 'Hold Expiry Reminders',
-                subtitle: 'Alert 1 hour before an unconfirmed reservation releases',
-                value: _notifyHoldExpiries,
-                onChanged: (v) {
-                  BoutiqueHaptics.selection();
-                  setSheetState(() => _notifyHoldExpiries = v);
-                  setState(() => _notifyHoldExpiries = v);
-                },
+              // No push notifications exist yet (SA-NOT-001, needs a
+              // Firebase project), so no switch pretends to control them
+              // (SA-UX-002).
+              const Text(
+                'Push notifications are not available yet.\n\n'
+                'Until then, keep LiveDrop open during a live: new orders and payment claims appear '
+                'on their own, and the Payments tab shows a badge for claims waiting for you.',
+                key: Key('notifications-not-available'),
+                style: TextStyle(color: AppColors.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 20),
               BounceableButton(
@@ -707,10 +689,11 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
               ),
               const SizedBox(height: 12),
               _buildNotificationSwitch(
-                title: 'Tactile Haptics & Sound',
-                subtitle: 'Vibration response on button presses and actions',
+                title: 'Vibration on taps',
+                subtitle: 'Short vibration on button presses and actions',
                 value: _soundEnabled,
                 onChanged: (v) {
+                  unawaited(BoutiqueHaptics.setEnabled(v));
                   BoutiqueHaptics.selection();
                   setSheetState(() => _soundEnabled = v);
                   setState(() => _soundEnabled = v);
@@ -720,15 +703,20 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.cleaning_services_outlined, color: AppColors.goldPrimary, size: 22),
-                title: const Text('Clear Image Cache', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
-                subtitle: const Text('Free up storage used by product intakes', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                title: const Text('Clear image memory', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+                subtitle: const Text('Reloads product photos; pieces waiting to upload are kept', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
                 onTap: () {
                   BoutiqueHaptics.medium();
+                  // Really clears the decoded images held in memory; the
+                  // intake queue on disk is never touched (SA-UX-002).
+                  PaintingBinding.instance.imageCache
+                    ..clear()
+                    ..clearLiveImages();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Local image cache cleared successfully.'),
+                      content: Text('Image memory cleared. Photos reload when you open them.'),
                       backgroundColor: AppColors.obsidianElevated,
                     ),
                   );
@@ -799,7 +787,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                 Navigator.pop(ctx);
                 UrlLauncherHelper.launchDialer(
                   context: context,
-                  phoneNumber: '+917439583884',
+                  phoneNumber: '+${AdminConfig.whatsAppNumber}',
                 );
               },
               text: 'Call Seller Concierge',
@@ -946,14 +934,14 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                         _buildSettingTile(
                           icon: Icons.notifications_none_rounded,
                           title: 'Notifications',
-                          subtitle: 'Orders, payments, hold expiry alerts',
+                          subtitle: 'Push alerts are not available yet',
                           onTap: _openNotificationsSettings,
                         ),
                         const Divider(color: AppColors.cardBorder, height: 1),
                         _buildSettingTile(
                           icon: Icons.tune_rounded,
                           title: 'App Preferences',
-                          subtitle: 'Haptics, cache management',
+                          subtitle: 'Vibration, image memory',
                           onTap: _openAppPreferences,
                         ),
                         const Divider(color: AppColors.cardBorder, height: 1),

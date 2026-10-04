@@ -6,6 +6,7 @@ import 'core/errors/seller_error_messages.dart';
 import 'core/services/supabase_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/boutique_haptics.dart';
 import 'core/validation/drop_rules.dart';
 import 'data/realtime/seller_live_store.dart';
 import 'data/repositories/seller_repository.dart';
@@ -30,6 +31,7 @@ export 'presentation/auth/seller_login_screen.dart' show SellerLoginScreen;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await BoutiqueHaptics.loadPreference();
 
   String? initError;
   try {

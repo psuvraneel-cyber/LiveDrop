@@ -81,7 +81,7 @@ class _ShippingDialogState extends State<ShippingDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Print spooler error: $e'),
+            content: Text(e is LiveDropException ? e.message : 'Could not print the label. Try again.'),
             backgroundColor: Colors.red.shade800,
           ),
         );
@@ -107,7 +107,7 @@ class _ShippingDialogState extends State<ShippingDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Share error: $e'),
+            content: Text(e is LiveDropException ? e.message : 'Could not share the label. Try again.'),
             backgroundColor: Colors.red.shade800,
           ),
         );
