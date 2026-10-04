@@ -277,12 +277,14 @@ jobs:
 
           REPORT="$RUNNER_TEMP/apksigner-report.txt"
           "$APKSIGNER" verify --verbose --print-certs "$APK" > "$REPORT"
-          grep -E '^Verified using|^Signer #[0-9]+ certificate (DN|SHA-256 digest):' "$REPORT"
-          SIGNERS=$(grep -c '^Signer #[0-9]* certificate DN:' "$REPORT" || true)
-          APK_DN=$(grep -m1 '^Signer #1 certificate DN: ' "$REPORT" | sed 's/^Signer #1 certificate DN: //' || true)
-          APK_SHA=$(grep -m1 '^Signer #1 certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | normalize || true)
+          # apksigner prints "Signer #1 certificate ..." or, on newer build-tools,
+          # "Signer (minSdkVersion=N, maxSdkVersion=M) certificate ..."; accept both.
+          grep -E '^Verified using|^Signer.* certificate (DN|SHA-256 digest): ' "$REPORT" || true
+          SIGNERS=$(grep -E '^Signer.* certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | tr -d ': \r' | tr 'A-F' 'a-f' | sort -u | grep -c . || true)
+          APK_DN=$(grep -m1 -E '^Signer.* certificate DN: ' "$REPORT" | sed 's/^.* certificate DN: //' || true)
+          APK_SHA=$(grep -m1 -E '^Signer.* certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | normalize || true)
           if [ "$SIGNERS" != "1" ] || [ -z "$APK_SHA" ]; then
-            echo "::error::Expected exactly one APK signer, found '$SIGNERS'"; exit 1
+            echo "::error::Expected exactly one APK signing certificate, found '$SIGNERS'"; sed -n '1,40p' "$REPORT"; exit 1
           fi
           if [[ "${APK_DN,,}" == *"cn=android debug"* ]]; then
             echo "::error::APK is signed with the Android debug certificate ($APK_DN)"; exit 1

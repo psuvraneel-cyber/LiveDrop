@@ -18,12 +18,31 @@ BEGIN
   END IF;
 END $$;
 
-SELECT
-  EXISTS (SELECT 1 FROM information_schema.columns
-          WHERE table_schema='public' AND table_name='orders' AND column_name='refund_status') AS m035_already_applied,
-  (SELECT installed_version FROM pg_available_extensions WHERE name='pg_cron') AS pg_cron_installed_version,
-  EXISTS (SELECT 1 FROM pg_available_extensions WHERE name='pg_cron') AS pg_cron_available,
-  to_regclass('supabase_migrations.schema_migrations') IS NOT NULL AS has_migration_history;
+-- 035 state: 'none' (not applied), 'complete' (column + all four functions), anything else = partial.
+SELECT CASE
+         WHEN NOT has_col AND n_fn = 0 THEN 'none'
+         WHEN has_col AND n_fn = 4 THEN 'complete'
+         ELSE 'partial'
+       END AS m035_state,
+       (SELECT installed_version FROM pg_available_extensions WHERE name='pg_cron') AS pg_cron_installed_version,
+       EXISTS (SELECT 1 FROM pg_available_extensions WHERE name='pg_cron') AS pg_cron_available,
+       to_regclass('supabase_migrations.schema_migrations') IS NOT NULL AS has_migration_history
+FROM (SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE table_schema='public' AND table_name='orders' AND column_name='refund_status') AS has_col,
+             (to_regprocedure('public.record_refund(uuid,text,text)') IS NOT NULL)::int
+           + (to_regprocedure('public.release_stale_hold(uuid)') IS NOT NULL)::int
+           + (to_regprocedure('public.apply_upi_payment_transition(uuid,uuid,text,text,uuid)') IS NOT NULL)::int
+           + EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.orders'::regclass
+                       AND pg_get_constraintdef(oid) ILIKE '%refund_status%') ::int AS n_fn) x
+\gset
+\echo m035_state=:m035_state
+
+SELECT :'m035_state' = 'partial' AS m035_partial \gset
+\if :m035_partial
+DO $$ BEGIN
+  RAISE EXCEPTION 'PREFLIGHT FAILED: migration 035 is partially present (refund column/functions/constraint incomplete). Investigate before deploying.';
+END $$;
+\endif
 
 SELECT count(*) AS orders_total,
        count(*) FILTER (WHERE status = 'pending' AND hold_expires_at < now()) AS expired_holds_still_pending

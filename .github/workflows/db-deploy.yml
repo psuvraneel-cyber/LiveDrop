@@ -56,21 +56,22 @@ jobs:
       - name: Preflight (read-only)
         id: preflight
         run: |
-          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db-deploy/preflight.sql
-          applied=$(psql "$DATABASE_URL" -X -At -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='orders' AND column_name='refund_status')")
-          echo "m035_applied=$applied" >> "$GITHUB_OUTPUT"
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db-deploy/preflight.sql | tee preflight.log
+          state=$(sed -n 's/^m035_state=//p' preflight.log)
+          case "$state" in none|complete) ;; *) echo "::error::unexpected 035 state '$state'"; exit 1;; esac
+          echo "m035_state=$state" >> "$GITHUB_OUTPUT"
 
       - name: Apply 034 (lock down public view privileges)
         if: inputs.mode == 'apply'
         run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/034_lock_down_public_view_privileges.sql
 
       - name: Apply 035 (payment claim safety and refunds)
-        if: inputs.mode == 'apply' && steps.preflight.outputs.m035_applied != 't'
+        if: inputs.mode == 'apply' && steps.preflight.outputs.m035_state == 'none'
         run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/035_payment_claim_safety_and_refunds.sql
 
       - name: Skip 035 (already applied)
-        if: inputs.mode == 'apply' && steps.preflight.outputs.m035_applied == 't'
-        run: echo "::notice::orders.refund_status exists — migration 035 is already applied; skipped."
+        if: inputs.mode == 'apply' && steps.preflight.outputs.m035_state == 'complete'
+        run: echo "::notice::migration 035 is already fully applied (column, functions and constraint present); skipped."
 
       - name: Apply 036 (reaper schedule in the database)
         if: inputs.mode == 'apply'
@@ -83,6 +84,14 @@ jobs:
           DO $$
           BEGIN
             IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations m
+                         JOIN (VALUES ('034', 'lock_down_public_view_privileges'),
+                                      ('035', 'payment_claim_safety_and_refunds'),
+                                      ('036', 'schedule_reaper_in_database')) AS e(version, name)
+                           ON e.version = m.version
+                         WHERE m.name IS DISTINCT FROM e.name) THEN
+                RAISE EXCEPTION 'migration history already has 034/035/036 rows with different names; resolve manually';
+              END IF;
               INSERT INTO supabase_migrations.schema_migrations (version, name)
               VALUES ('034', 'lock_down_public_view_privileges'),
                      ('035', 'payment_claim_safety_and_refunds'),
@@ -99,4 +108,7 @@ jobs:
       - name: Post-deploy checks (read-only)
         # Before the first apply these checks are expected to fail; that must not mark a check-only run red.
         continue-on-error: ${{ inputs.mode == 'check-only' }}
-        run: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db-deploy/post_checks.sql
+        run: |
+          strict=off
+          if [ "${{ inputs.mode }}" = "apply" ]; then strict=on; fi
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -v strict_cron=$strict -f scripts/db-deploy/post_checks.sql
