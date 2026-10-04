@@ -5,11 +5,11 @@ BEGIN
 (1 row)
 
 CREATE FUNCTION
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:83: NOTICE:  INFO 16.1a buyer claimed payment: attempt=awaiting_seller_verification (order still pending, shown with a Release button)
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:83: NOTICE:  PASS 16.1b force_release_hold with a claim in flight -> PAYMENT_CLAIM_PENDING | after release: order=pending piece=reserved held by order=t attempt=awaiting_seller_verification rows unchanged=t in seller queue=1 | verify afterwards -> success=true (order=paid)
+psql:audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:83: NOTICE:  INFO 16.1a buyer claimed payment: attempt=awaiting_seller_verification (order still pending, shown with a Release button)
+psql:audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:83: NOTICE:  PASS 16.1b force_release_hold with a claim in flight -> PAYMENT_CLAIM_PENDING | after release: order=pending piece=reserved held by order=t attempt=awaiting_seller_verification rows unchanged=t in seller queue=1 | verify afterwards -> success=true (order=paid)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:99: NOTICE:  PASS 16.1c force_release_hold without a claim -> release=true order=cancelled piece=available attempt=expired
+psql:audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:99: NOTICE:  PASS 16.1c force_release_hold without a claim -> release=true order=cancelled piece=available attempt=expired
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:115: NOTICE:  PASS 16.2 close_drop with a claim in flight -> close=true order=pending piece=reserved attempt=awaiting_seller_verification
+psql:audit/seller-app/tests/sql/16_release_and_close_with_claims.sql:115: NOTICE:  PASS 16.2 close_drop with a claim in flight -> close=true order=pending piece=reserved attempt=awaiting_seller_verification
 DO
 ROLLBACK

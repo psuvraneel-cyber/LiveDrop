@@ -1,9 +1,10 @@
+NOTICE:  database "livedrop_conc" does not exist, skipping
 == 14.1 40 concurrent checkouts for one piece (#A01)
      39 false
       1 true
-PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/5551f179-465c-42c9-8a96-b0a46c9dc148)
+PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/fb7b0846-db3a-48f4-90cd-80040a48da59)
 == 14.2 late-claim verification racing a fresh checkout of the same piece (#A02)
-   setup: order X=853bcf88-2afb-4d2b-9223-6db5fb7ebac7 is cancelled, attempt is late_claim_pending_review, piece is available
+   setup: order X=d5a6b6a3-5821-4ab0-92b2-c15469b54522 is cancelled, attempt is late_claim_pending_review, piece is available
    session B checkout success: true
    seller verify result: "message": "Late payment verified, but items are no longer available. Seller refund or resolution required."  
    X=cancelled/paid refund=required:258000 total=258000 | Y=pending/unpaid | piece=reserved reserved_by=Y

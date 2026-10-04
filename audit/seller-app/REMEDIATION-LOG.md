@@ -70,3 +70,29 @@ Test fix made during the cross-check: `tests/sql/15_perf_seller_queries.sql` now
 | SA-OFF-001 | Fixed (device check pending) | Queue in app support dir with migration from the old temp location; atomic manifest writes + `.bak`; corrupt manifest quarantined and recovered; queue processed at start and on resume | Audit T14/T19 inverted and passing; `offline_intake_queue_durability_test.dart` | Install the next build on a phone and confirm queued photos survive "Clear cache" |
 
 Totals after this round: DB harness 87 PASS (37 migrations), remaining FINDING 11.5b, 12.3, 12.7, 13.3c, 13.9, 18.1 (all not yet addressed); flutter analyze clean, flutter test 161/161, audit Flutter 26/26; buyer-web 687/687, tsc and lint clean.
+
+## P1 round 2 (2026-10-04) — migration 038: storage, suspension, duplicate UTRs
+
+Local test database: PostgreSQL 16.10 (portable Windows binaries, throwaway cluster). Evidence paths in `evidence/` are now repo-relative.
+
+| Finding | Status | What changed | Proof | Owner actions |
+|---|---|---|---|---|
+| SA-SEC-003 | Fixed (deploy pending) | 038: `product_images_seller_insert` / `_update` also require `is_seller_approved(auth.uid())` | PASS 11.5b (unapproved upload rejected), 11.5c (approved seller still uploads), 20.32 | Run Database Deploy (apply); if H21 fails, run section 1 of 038 in the Supabase SQL editor |
+| SA-SEC-008 | Fixed (deploy pending) | 038: `product_images_public_read` dropped; `product_images_seller_read` lets a seller list only their own folder (needed for upsert). Public object URLs keep working | PASS 18.1 (anon lists 0 objects), 18.1b, 18.1c, 20.31 | As above. Then run the HTTP probe at the end of `tests/sql/90_hosted_readonly_checks.sql`: it should return `[]` |
+| SA-ONB-002 | Fixed (deploy pending) | 038: trigger on `profiles` closes live drops when approval is revoked (SQL update or `admin_approve_seller`), using `close_drop_safely` (`close_drop` refactored onto it). Checkout and `initiate_payment_attempt` return `SELLER_SUSPENDED`. Claims and verification still work; buyer-web knows the code. One-time repair closes live drops of sellers suspended before 038 (tested: before=live, after=closed; approved seller's drop untouched) | PASS 12.7, 20.10–20.20, 20.30, 20.34; buyer-web `data-layer.test.ts` | Run Database Deploy (apply); H23 should list no live drop of an unapproved seller |
+| SA-PAY-011 | Fixed (deploy pending) | 038: `normalize_payment_reference` (no spaces, upper case) at claim and verify; a UTR already verified elsewhere is refused at claim time; unique index on the normalised verified reference | PASS 13.3c, 20.1–20.7, 20.33 | Run Database Deploy (apply); review H22 (should be empty). If 038 warned that the index was skipped, resolve those duplicates and re-run apply |
+
+Also in this round:
+- The harness now also runs `2*.sql` suites, including the new suite 20.
+- The deploy workflow applies 038 and records it in the migration history.
+- `post_checks.sql` adds H21/H22 (strict: H21 fails the apply run if the storage policies were refused).
+- `90_hosted_readonly_checks.sql` adds H21–H23.
+- Docs updated: `12-database-design.md` §6, `13-api-contract.md`, `16-security-architecture.md` §3.2–3.3, RTM row REQ-AUD-SA-03.
+
+Not done in this round (same findings): there is no "UTR already claimed on order X" hint on the seller's verification card. The same UTR claimed but not verified on two orders is still accepted (INFO 13.3a); verification refuses the second one.
+
+Totals after this round:
+- DB harness (38 migrations): 117 PASS, 0 FAIL. Remaining FINDINGs: 12.3 (SA-INV-003) and 13.9 (SA-PAY-015), both P2.
+- 038 re-applied twice cleanly. The refused-policy path was simulated (WARNING, no rollback of the rest).
+- buyer-web: 688/688 tests, tsc clean, lint clean.
+- No Dart code changed this round.

@@ -35,4 +35,5 @@ PASS  034_lock_down_public_view_privileges.sql
 PASS  035_payment_claim_safety_and_refunds.sql
 PASS  036_schedule_reaper_in_database.sql
 PASS  037_claim_hold_and_shipping_quote.sql
+PASS  038_storage_suspension_and_utr_guards.sql
 Migration apply exit status: 0

@@ -79,6 +79,56 @@ BEGIN
   RAISE NOTICE 'PASS security checks (H1/H14/H16)';
 END $$;
 
+\echo '== H21/H22: migration 038 (storage policies, suspension trigger, UTR guards)'
+SELECT policyname, cmd, roles::text AS roles,
+       (coalesce(qual, '') || coalesce(with_check, '')) LIKE '%is_seller_approved%' AS requires_approval
+FROM pg_policies
+WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname LIKE 'product_images_%'
+ORDER BY policyname;
+DO $$
+DECLARE v_strict boolean := current_setting('livedrop.strict_cron') IN ('on', 'true', '1'); v_dupes int;
+BEGIN
+  IF to_regprocedure('public.close_drop_safely(uuid)') IS NULL THEN
+    RAISE NOTICE 'migration 038 not applied yet (close_drop_safely missing)';
+    RETURN;
+  END IF;
+  -- H21 (SA-SEC-003 / SA-SEC-008)
+  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'
+               AND policyname = 'product_images_public_read')
+     OR (SELECT count(*) FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects'
+           AND policyname IN ('product_images_seller_insert', 'product_images_seller_update')
+           AND (coalesce(qual, '') || coalesce(with_check, '')) LIKE '%is_seller_approved%') <> 2 THEN
+    IF v_strict THEN
+      RAISE EXCEPTION 'CHECK FAILED (H21, SA-SEC-003/SA-SEC-008): product-images storage policies not updated — run section 1 of migration 038 in the Supabase SQL editor';
+    END IF;
+    RAISE WARNING 'H21: product-images storage policies not updated yet';
+  ELSE
+    RAISE NOTICE 'PASS H21 storage: no public listing; uploads need an approved seller';
+  END IF;
+  -- H22 (SA-ONB-002, SA-PAY-011)
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_close_live_drops_on_suspension' AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'CHECK FAILED (H22, SA-ONB-002): suspension trigger missing';
+  END IF;
+  IF has_function_privilege('anon', 'public.close_drop_safely(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.close_drop_safely(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (H22): close_drop_safely is callable by clients';
+  END IF;
+  IF to_regclass('public.uq_order_payments_reference_verified_norm') IS NULL THEN
+    SELECT count(*) INTO v_dupes FROM (
+      SELECT public.normalize_payment_reference(reference_id) FROM public.order_payments
+       WHERE status = 'verified' AND public.normalize_payment_reference(reference_id) IS NOT NULL
+       GROUP BY 1 HAVING count(*) > 1) d;
+    RAISE WARNING 'H22 (SA-PAY-011): unique index on normalised verified references missing; % duplicate reference group(s) need review (see 90_hosted_readonly_checks.sql H22)', v_dupes;
+  ELSE
+    RAISE NOTICE 'PASS H22 suspension trigger, helper privileges and normalised UTR index';
+  END IF;
+  -- Approved = false while a drop is live should be impossible after 038.
+  IF EXISTS (SELECT 1 FROM public.drops d JOIN public.profiles p ON p.id = d.seller_id
+              WHERE d.status = 'live' AND p.is_approved IS NOT TRUE) THEN
+    RAISE WARNING 'H22: a live drop belongs to a seller who is not approved (close it with close_drop)';
+  END IF;
+END $$;
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

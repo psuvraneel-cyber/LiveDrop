@@ -100,10 +100,17 @@ BEGIN
   PERFORM audit.as_seller(audit.seller_a());
   PERFORM reject_manual_upi_payment((y->>'attempt_id')::uuid, 'duplicate', true);
   PERFORM audit.as_postgres();
+  -- SA-PAY-011 (fixed in 038): the case variant is refused at claim time; if a claim slipped
+  -- through (e.g. stored before 038), verification refuses it too.
   z := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a2()], 'full_payment', 'abcdef123456');
-  vz := pg_temp.verify_as_a((z->>'attempt_id')::uuid);
-  RAISE NOTICE '% 13.3c lower-case variant of an already verified UTR verified on a different order: %',
-    CASE WHEN (vz->>'success')::boolean THEN 'FINDING' ELSE 'PASS' END, COALESCE(vz->>'error', vz->>'success');
+  IF (z->'claim'->>'success')::boolean THEN
+    vz := pg_temp.verify_as_a((z->>'attempt_id')::uuid);
+  END IF;
+  RAISE NOTICE '% 13.3c lower-case variant of an already verified UTR on a different order: claim=% verify=%',
+    CASE WHEN (vz->>'success')::boolean THEN 'FINDING'
+         WHEN z->'claim'->>'error' = 'REFERENCE_USED_ON_ANOTHER_ORDER' OR vz->>'error' = 'REFERENCE_USED_ON_ANOTHER_ORDER' THEN 'PASS'
+         ELSE 'FAIL' END,
+    COALESCE(z->'claim'->>'error', z->'claim'->>'success'), COALESCE(vz->>'error', vz->>'success', 'not attempted');
 END $$;
 
 -- reset stock for the remaining tests

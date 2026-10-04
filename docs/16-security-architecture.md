@@ -271,6 +271,15 @@ Rules since migration 034:
 * RLS policies are unchanged.
 * **Any new view must be granted SELECT only.** Checked locally by SQL 10.3–10.9 and 19.20a–c; on hosted by `audit/seller-app/tests/sql/90_hosted_readonly_checks.sql` H1 and H14.
 
+### 3.2 Product Image Storage (migration 038, SA-SEC-003 / SA-SEC-008)
+* The `product-images` bucket is public: photos are served by public object URL, which no RLS policy governs.
+* Listing/searching objects is limited to the owning seller's folder (`product_images_seller_read`, `authenticated` only). Anonymous visitors can no longer enumerate seller IDs, draft-drop photos or other uploads.
+* Uploading and overwriting require the caller's own folder **and** an approved seller (`public.is_seller_approved(auth.uid())`), so self-registered, unapproved accounts cannot use the bucket as free public hosting.
+* On a hosted project the deploy role may be refused when changing policies on `storage.objects` (owned by `supabase_storage_admin`). Migration 038 then logs a WARNING instead of failing, and post-deploy check H21 fails until section 1 of 038 is run in the Supabase SQL editor.
+
+### 3.3 Seller Suspension (migration 038, SA-ONB-002)
+Revoking approval (`admin_approve_seller(id, false)` or a direct update of `profiles.is_approved`) closes the seller's live drops through the safe-closure path, and checkout and new payment requests return `SELLER_SUSPENDED`. Buyers who already paid can still submit their UTR, and the seller can still verify it or record a refund.
+
 ## 4. Database Security Definer Hardening
 
 PostgreSQL functions declared with `SECURITY DEFINER` execute with the privileges of the database owner.
@@ -284,7 +293,7 @@ PostgreSQL functions declared with `SECURITY DEFINER` execute with the privilege
   REVOKE EXECUTE ON FUNCTION mark_order_paid(UUID) FROM PUBLIC, anon;
   GRANT EXECUTE ON FUNCTION mark_order_paid(UUID) TO authenticated;
   ```
-* **Internal helpers (migration 035):** `release_stale_hold`, `apply_upi_payment_transition`, `upi_verification_response` and the trigger function `prevent_finalized_order_deletion` have EXECUTE revoked from `PUBLIC`, `anon` and `authenticated` (the three helpers also from `service_role`). `record_refund` is granted to `authenticated` and `service_role` only. Verified by SQL 19.3 and 19.9a; hosted check H16.
+* **Internal helpers (migration 035):** `release_stale_hold`, `apply_upi_payment_transition`, `upi_verification_response` and the trigger function `prevent_finalized_order_deletion` have EXECUTE revoked from `PUBLIC`, `anon` and `authenticated` (the three helpers also from `service_role`). `record_refund` is granted to `authenticated` and `service_role` only. Verified by SQL 19.3 and 19.9a; hosted check H16. Since migration 038, `close_drop_safely` and the trigger function `close_live_drops_on_suspension` are revoked the same way (SQL 20.30, hosted H22).
 
 ---
 

@@ -23,66 +23,66 @@ CREATE FUNCTION
 CREATE FUNCTION
 CREATE FUNCTION
 CREATE FUNCTION
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:196: NOTICE:  PASS 19.1 checkout of a piece behind an expired, unclaimed hold -> success=true | stale order=cancelled its attempt=expired | piece=reserved held by new order=t | other piece of the stale order=available
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:196: NOTICE:  PASS 19.1 checkout of a piece behind an expired, unclaimed hold -> success=true | stale order=cancelled its attempt=expired | piece=reserved held by new order=t | other piece of the stale order=available
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:242: NOTICE:  PASS 19.2a checkout of a piece behind an expired hold whose claim window is still open -> STOCK_UNAVAILABLE | order=pending attempt=awaiting_seller_verification utr=719000000001 piece=reserved held by claimant=t rows unchanged=t
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:242: NOTICE:  PASS 19.2b checkout of a piece behind an expired hold whose claim window lapsed -> success=true | claimant order=cancelled attempt=late_claim_pending_review utr=719000000001 | piece=reserved held by new buyer=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:242: NOTICE:  PASS 19.2a checkout of a piece behind an expired hold whose claim window is still open -> STOCK_UNAVAILABLE | order=pending attempt=awaiting_seller_verification utr=719000000001 piece=reserved held by claimant=t rows unchanged=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:242: NOTICE:  PASS 19.2b checkout of a piece behind an expired hold whose claim window lapsed -> success=true | claimant order=cancelled attempt=late_claim_pending_review utr=719000000001 | piece=reserved held by new buyer=t
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:278: NOTICE:  PASS 19.3 release_stale_hold / order_has_open_payment_claim / apply_upi_payment_transition / upi_verification_response not executable by anon or authenticated -> grants: none | anon call: permission denied | seller call: permission denied
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:278: NOTICE:  PASS 19.3 release_stale_hold / order_has_open_payment_claim / apply_upi_payment_transition / upi_verification_response not executable by anon or authenticated -> grants: none | anon call: permission denied | seller call: permission denied
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:330: NOTICE:  PASS 19.4 late advance (claim=late_claim_pending_review) with the piece still free -> order=confirmed/advance_paid advance_paid=25000 total_paid=25000 balance_due=215000 (total 240000) ledger=25000 hold_left=30 days piece=reserved held=t | rpc late=true inventory=true refund=false
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:330: NOTICE:  PASS 19.4b balance (balance=215000 paisa) on the revived order -> success=true | order=paid/paid total_paid=240000 balance_due=0 ledger=240000 piece=sold | response keys complete=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:330: NOTICE:  PASS 19.4 late advance (claim=late_claim_pending_review) with the piece still free -> order=confirmed/advance_paid advance_paid=25000 total_paid=25000 balance_due=215000 (total 240000) ledger=25000 hold_left=30 days piece=reserved held=t | rpc late=true inventory=true refund=false
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:330: NOTICE:  PASS 19.4b balance (balance=215000 paisa) on the revived order -> success=true | order=paid/paid total_paid=240000 balance_due=0 ledger=240000 piece=sold | response keys complete=t
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:374: NOTICE:  PASS 19.5 late full payment, piece resold -> rpc refund_required=true refund_amount=128000 inventory=false | order=cancelled/paid total_paid=128000 balance=0 refund=required/128000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE ledger=128000 | other buyer keeps piece=t | response keys complete=t
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:374: NOTICE:  PASS 19.5b verify replay -> success=true idempotent=true refund_required=true keys complete=t | ledger rows before=1 after=1
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:374: NOTICE:  PASS 19.5 late full payment, piece resold -> rpc refund_required=true refund_amount=128000 inventory=false | order=cancelled/paid total_paid=128000 balance=0 refund=required/128000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE ledger=128000 | other buyer keeps piece=t | response keys complete=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:374: NOTICE:  PASS 19.5b verify replay -> success=true idempotent=true refund_required=true keys complete=t | ledger rows before=1 after=1
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:407: NOTICE:  PASS 19.6 late advance, piece resold -> success=true | order=cancelled/advance_paid total=240000 total_paid=25000 advance_paid=25000 balance_due=215000 refund=required/25000 ledger=25000 | other buyer keeps piece=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:407: NOTICE:  PASS 19.6 late advance, piece resold -> success=true | order=cancelled/advance_paid total=240000 total_paid=25000 advance_paid=25000 balance_due=215000 refund=required/25000 ledger=25000 | other buyer keeps piece=t
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:430: NOTICE:  PASS 19.7 seller direct UPDATE of refund fields -> clear=ERR 42501 Direct | mark refunded=ERR 42501 Direct | amount=ERR 42501 Direct | control (shipping_address)=OK rows=1 | stored refund=required/25000/null
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:430: NOTICE:  PASS 19.7 seller direct UPDATE of refund fields -> clear=ERR 42501 Direct | mark refunded=ERR 42501 Direct | amount=ERR 42501 Direct | control (shipping_address)=OK rows=1 | stored refund=required/25000/null
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:466: NOTICE:  PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order 92c58048-7d57-4eae-afdc-57471d97806b wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order fd5a8219-03cf-4088-8290-dcf318ab044c bec (rows kept=1) | control without payments -> OK rows=1
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:466: NOTICE:  PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order 5c66d91c-163e-421e-9f40-5f8e808d5515 wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order d6d8a1cc-8e3f-43ca-b2b9-37c3191de5e2 bec (rows kept=1) | control without payments -> OK rows=1
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9a anon cannot execute record_refund -> EXECUTE granted=f call=permission denied
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9b other seller -> ORDER_NOT_FOUND_OR_UNAUTHORIZED
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9c invalid references "ab" / "REF;DROP TABLE" -> INVALID_REFUND_REFERENCE / INVALID_REFUND_REFERENCE
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9d order without a refund obligation -> NO_REFUND_DUE
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9e happy path -> success=true idempotent=false status=refunded amount=128000 reference="UPI-REF 9876/01" refunded_at set=t | stored by seller A=t note appended=t
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9f replay with the same reference -> success=true idempotent=true | different reference -> NO_REFUND_DUE
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9g trusted backend (service_role) -> success=true | order status=refunded recorded_by=null
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order 92c58048-7d57-4eae-afdc-57471d97806b with refund s
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9a anon cannot execute record_refund -> EXECUTE granted=f call=permission denied
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9b other seller -> ORDER_NOT_FOUND_OR_UNAUTHORIZED
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9c invalid references "ab" / "REF;DROP TABLE" -> INVALID_REFUND_REFERENCE / INVALID_REFUND_REFERENCE
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9d order without a refund obligation -> NO_REFUND_DUE
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9e happy path -> success=true idempotent=false status=refunded amount=128000 reference="UPI-REF 9876/01" refunded_at set=t | stored by seller A=t note appended=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9f replay with the same reference -> success=true idempotent=true | different reference -> NO_REFUND_DUE
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9g trusted backend (service_role) -> success=true | order status=refunded recorded_by=null
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order 5c66d91c-163e-421e-9f40-5f8e808d5515 with refund s
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10a release with a claim in flight -> PAYMENT_CLAIM_PENDING attempt=t utr=819000000010 message=t | order=pending attempt=awaiting_seller_verification piece=reserved held=t rows unchanged=t
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10b release without a claim -> success=true released=1 expired attempts=1 | order=cancelled attempt=expired piece=available
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10c release while a late claim (late_claim_pending_review) is pending on a pending order -> PAYMENT_CLAIM_PENDING (order=pending)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10a release with a claim in flight -> PAYMENT_CLAIM_PENDING attempt=t utr=819000000010 message=t | order=pending attempt=awaiting_seller_verification piece=reserved held=t rows unchanged=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10b release without a claim -> success=true released=1 expired attempts=1 | order=cancelled attempt=expired piece=available
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10c release while a late claim (late_claim_pending_review) is pending on a pending order -> PAYMENT_CLAIM_PENDING (order=pending)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:690: NOTICE:  PASS 19.11 one reaper run -> lapsed claim A=cancelled/late_claim_pending_review/available (changed=t) | late claim on pending C=cancelled/late_claim_pending_review/available (changed=t) | overdue balance claim E=confirmed/awaiting_seller_verification/reserved (untouched=t) | unclaimed B=cancelled/expired/available | lapsed advance D=expired/advance_paid/25000/available
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:690: NOTICE:  PASS 19.12 verify after the window: claim A -> ok/paid (late=true) | late claim C -> ok/paid (late=true) | balance claim E -> ok/paid | control: unclaimed attempt past expiry -> PAYMENT_ATTEMPT_EXPIRED (attempt=expired)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:690: NOTICE:  PASS 19.11 one reaper run -> lapsed claim A=cancelled/late_claim_pending_review/available (changed=t) | late claim on pending C=cancelled/late_claim_pending_review/available (changed=t) | overdue balance claim E=confirmed/awaiting_seller_verification/reserved (untouched=t) | unclaimed B=cancelled/expired/available | lapsed advance D=expired/advance_paid/25000/available
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:690: NOTICE:  PASS 19.12 verify after the window: claim A -> ok/paid (late=true) | late claim C -> ok/paid (late=true) | balance claim E -> ok/paid | control: unclaimed attempt past expiry -> PAYMENT_ATTEMPT_EXPIRED (attempt=expired)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:713: NOTICE:  PASS 19.13 verify when the piece is not reserved for the order -> INVENTORY_CONFLICT | ledger rows=0 rows unchanged=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:713: NOTICE:  PASS 19.13 verify when the piece is not reserved for the order -> INVENTORY_CONFLICT | ledger rows=0 rows unchanged=t
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:743: NOTICE:  PASS 19.14 late full-amount claim on an advance-paid order -> PAYMENT_AMOUNT_MISMATCH | order=confirmed total_paid=25000 ledger=25000 rows unchanged=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:743: NOTICE:  PASS 19.14 late full-amount claim on an advance-paid order -> PAYMENT_AMOUNT_MISMATCH | order=confirmed total_paid=25000 ledger=25000 rows unchanged=t
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:769: NOTICE:  PASS 19.15 reject with another claim pending -> hold_released=false (order/piece=pending/reserved) | reject of the last claim -> hold_released=true (order/piece=cancelled/available)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:769: NOTICE:  PASS 19.15 reject with another claim pending -> hold_released=false (order/piece=pending/reserved) | reject of the last claim -> hold_released=true (order/piece=cancelled/available)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:797: NOTICE:  PASS 19.16 late balance (claim=late_claim_pending_review) on an expired advance order, piece free -> success=true | order=paid/paid total_paid=240000 ledger=240000 piece=sold
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:797: NOTICE:  PASS 19.16 late balance (claim=late_claim_pending_review) on an expired advance order, piece free -> success=true | order=paid/paid total_paid=240000 ledger=240000 piece=sold
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:826: NOTICE:  PASS 19.17 refund constraints: amount above total paid -> rejected | refunded without reference -> rejected | amount with status none -> rejected
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:826: NOTICE:  PASS 19.17 refund constraints: amount above total paid -> rejected | refunded without reference -> rejected | amount with status none -> rejected
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:848: NOTICE:  PASS 19.18 pg_cron not available here: 036 applied as a no-op (extension installed=f, cron schema=f)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:848: NOTICE:  PASS 19.18 pg_cron not available here: 036 applied as a no-op (extension installed=f, cron schema=f)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:866: NOTICE:  PASS 19.19 SECURITY DEFINER functions with pinned search_path: 24 of 24 (unpinned: none)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:866: NOTICE:  PASS 19.19 SECURITY DEFINER functions with pinned search_path: 26 of 26 (unpinned: none)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20a no view in public grants anything but SELECT to anon/authenticated (2 views; offenders: none)
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20b no table in public grants TRUNCATE/REFERENCES/TRIGGER to anon/authenticated (offenders: none)
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20c new tables/views get no anon INSERT/UPDATE/DELETE/TRUNCATE and no authenticated TRUNCATE by default (offenders: none)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20a no view in public grants anything but SELECT to anon/authenticated (2 views; offenders: none)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20b no table in public grants TRUNCATE/REFERENCES/TRIGGER to anon/authenticated (offenders: none)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20c new tables/views get no anon INSERT/UPDATE/DELETE/TRUNCATE and no authenticated TRUNCATE by default (offenders: none)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T09:19:08.893259+00:00) | re-claim keeps the window=t
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22b claim on a drop that is not live -> hold in 1 day window in 1 day
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22c lapsed ADVANCE claim after reaper -> cancelled/late_claim_pending_review/available (seller queue rows=1) | verify -> success=true late=true | order=confirmed/advance_paid advance_paid=25000 ledger=25000 piece=reserved held=t
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22d lapsed FULL claim, piece resold -> other checkout=true | verify -> success=true refund_required=true | order=cancelled/paid refund=required/128000 ledger=128000 | other buyer keeps piece=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T18:22:40.352825+05:30) | re-claim keeps the window=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22b claim on a drop that is not live -> hold in 1 day window in 1 day
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22c lapsed ADVANCE claim after reaper -> cancelled/late_claim_pending_review/available (seller queue rows=1) | verify -> success=true late=true | order=confirmed/advance_paid advance_paid=25000 ledger=25000 piece=reserved held=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22d lapsed FULL claim, piece resold -> other checkout=true | verify -> success=true refund_required=true | order=cancelled/paid refund=required/128000 ledger=128000 | other buyer keeps piece=t
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:1013: NOTICE:  PASS 19.23 expired attempts carrying a buyer UTR: 0 (none)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1013: NOTICE:  PASS 19.23 expired attempts carrying a buyer UTR: 0 (none)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/19_p0_remediation.sql:1031: NOTICE:  PASS 19.21 ledger invariant holds for 28 of 28 orders (violations: none)
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1031: NOTICE:  PASS 19.21 ledger invariant holds for 28 of 28 orders (violations: none)
 DO
 ROLLBACK

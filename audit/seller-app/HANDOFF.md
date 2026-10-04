@@ -1,4 +1,4 @@
-# Seller-app remediation — handoff (2026-10-04)
+# Seller-app remediation — handoff (2026-10-04, updated after P1 round 2)
 
 Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and the proof) and
 `FINDINGS.json` (all 95 audit findings with remediation and regression tests).
@@ -15,6 +15,12 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
   - SA-SHIP-001: the shipping shortcut no longer generates a fake AWB.
   - SA-OFF-001: durable intake queue.
   - SA-PAY-006, SA-PAY-018, SA-INT-002, SA-OFF-003 and SA-CQ-001 were fixed alongside the P0s.
+- **P1 round 2 (migration 038, this branch):**
+  - SA-SEC-003: only approved sellers can upload product images.
+  - SA-SEC-008: nobody can list the image bucket except their own folder.
+  - SA-ONB-002: suspending a seller closes their live drops; checkout and new payment requests return `SELLER_SUSPENDED`.
+  - SA-PAY-011: UTRs are normalised; a UTR verified on one order cannot pay for another.
+  - Proof is in `REMEDIATION-LOG.md` (P1 round 2).
 
 ## Owner decisions (binding)
 - An unverified UTR claim holds a piece **30 min while the drop is live**, 24 h otherwise. After that the piece returns to sale and the claim stays in the queue as a late claim. It is never expired.
@@ -25,7 +31,9 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - Improvements and the redesign only start **after all P0/P1 blockers are fixed**.
 
 ## Waiting on the owner
-1. Run **Actions → Database Deploy** in `apply` mode. This puts migration 037 live; if it hasn't run, 037 is not live yet.
+1. Run **Actions → Database Deploy** in `apply` mode (after the round-2 PR is merged). This puts migrations 037 and 038 live.
+   - If check H21 fails, the deploy role could not change the storage policies. Run section 1 of `038_storage_suspension_and_utr_guards.sql` in the Supabase SQL editor, then re-run apply.
+   - If 038 logged that it skipped the normalised-UTR index, review H22 and re-run apply.
 2. Set up custom SMTP in Supabase (Gmail app password, `smtp.gmail.com:465`).
 3. Raise the email rate limit.
 4. Edit the Reset Password email template to link to `https://livedrop-in.vercel.app/seller/reset-password?token_hash={{ .TokenHash }}&type=recovery`.
@@ -40,16 +48,15 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - **Needs an owner account first:**
   - SA-OBS-001 crash reporting (Sentry or Firebase Crashlytics).
   - SA-NOT-001 push notifications (a Firebase project).
-- **Then the 39 MEDIUM P1 items**, listed in `REMEDIATION-LOG.md` and `FINDINGS.json` (priority P1, not yet fixed). Still-open SQL audit FINDINGs:
-  - 11.5b (SA-SEC-003)
-  - 12.7 (SA-ONB-002)
-  - 13.3c (SA-PAY-011)
-  - 18.1 (SA-SEC-008)
-  - plus the P2 items 12.3 and 13.9
+- **Then the remaining MEDIUM P1 items**, listed in `REMEDIATION-LOG.md` and `FINDINGS.json` (priority P1, not yet fixed).
+  - All SQL-proven P1 FINDINGs are now fixed. The harness still prints only the P2 items 12.3 (SA-INV-003) and 13.9 (SA-PAY-015).
+  - Not yet done for SA-PAY-011: the seller card does not show "UTR already claimed on order X".
 
 ## How to work in this repo
 - **Database tests:**
   - Setup: `audit/seller-app/tests/sql/run_local_db_audit.sh` on a throwaway PostgreSQL 16, with `PGHOST`/`PGPORT`/`PGUSER` set (see `audit/seller-app/README.md`).
+  - On the owner's Windows PC (no PostgreSQL, WSL or Docker): unzip EnterpriseDB's `postgresql-16.x-windows-x64-binaries.zip` into the session scratchpad. Then run `initdb -U postgres -A trust` and `pg_ctl -o "-p 55432" start`, and run the harness from Git Bash with `PGHOST=localhost PGPORT=55432 PGUSER=postgres`.
+  - Strip local absolute paths from `evidence/` before committing.
   - Expect every migration to PASS and no new FINDING lines.
 - **App checks:** in `seller-app`, run `flutter analyze` and `flutter test`. Run the audit tests with `audit/seller-app/tests/flutter/run_flutter_audit_tests.sh`.
 - **Website checks:** in `buyer-web`, run `npm ci && npm test && npx tsc --noEmit && npm run lint`.
