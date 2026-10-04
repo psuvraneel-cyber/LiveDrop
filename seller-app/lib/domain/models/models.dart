@@ -1017,6 +1017,37 @@ class SellerAnalytics {
     required this.dailySales,
     required this.topProducts,
   });
+
+  /// From `seller_sales_summary` (migration 040, SA-PERF-001).
+  factory SellerAnalytics.fromSummary(Map<String, dynamic> json, {required int paymentClaimsCount}) {
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    int asInt(Object? v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+    final daily = <DailySalesStat>[];
+    for (final raw in (json['daily'] as List<dynamic>? ?? const [])) {
+      final map = raw as Map<String, dynamic>;
+      final date = DateTime.parse(map['date'] as String);
+      daily.add(DailySalesStat(date: date, dayLabel: dayNames[date.weekday - 1], totalPaisa: asInt(map['total_paisa'])));
+    }
+    final top = <TopProductStat>[
+      for (final raw in (json['top_products'] as List<dynamic>? ?? const []))
+        TopProductStat(
+          productCode: (raw as Map<String, dynamic>)['code'] as String? ?? 'Piece',
+          title: raw['title'] as String? ?? (raw['code'] as String? ?? 'Piece'),
+          soldCount: asInt(raw['sold_count']),
+          revenuePaisa: asInt(raw['revenue_paisa']),
+          imageUrl: raw['image_url'] as String?,
+        ),
+    ];
+    return SellerAnalytics(
+      totalRevenuePaisa: asInt(json['total_revenue_paisa']),
+      itemsSoldCount: asInt(json['items_sold']),
+      activeHoldsCount: asInt(json['active_holds']),
+      paymentClaimsCount: paymentClaimsCount,
+      peakRevenuePaisa: daily.fold<int>(0, (peak, d) => d.totalPaisa > peak ? d.totalPaisa : peak),
+      dailySales: daily,
+      topProducts: top.take(5).toList(),
+    );
+  }
 }
 
 class SellerActivityItem {

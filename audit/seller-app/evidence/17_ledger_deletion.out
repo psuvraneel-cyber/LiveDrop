@@ -6,13 +6,13 @@ BEGIN
 
 CREATE FUNCTION
 CREATE FUNCTION
-psql:audit/seller-app/tests/sql/17_ledger_deletion.sql:76: NOTICE:  PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 1c9b2755-a636-4cb2-bf26-df1a9f7ebd2e with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
+psql:audit/seller-app/tests/sql/17_ledger_deletion.sql:76: NOTICE:  PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 37c62dfe-5385-4992-9f15-f4b7eaa0c9fb with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
 DO
 UPDATE 3
 UPDATE 1
-psql:audit/seller-app/tests/sql/17_ledger_deletion.sql:97: NOTICE:  PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order e87229e6-da63-4b64-8325-0bb7db663202 with status "expired" | verified ledger rows before=1 after=1
+psql:audit/seller-app/tests/sql/17_ledger_deletion.sql:97: NOTICE:  PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order c68c8631-83c8-4611-a3eb-be2a735b86d7 with status "expired" | verified ledger rows before=1 after=1
 DO
 UPDATE 3
-psql:audit/seller-app/tests/sql/17_ledger_deletion.sql:111: NOTICE:  PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order 15c5d4f1-5906-499f-a525-59a38d06b50f with status "paid"
+psql:audit/seller-app/tests/sql/17_ledger_deletion.sql:111: NOTICE:  PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order d30d28ef-1108-45c6-8ce7-2bd32e714b3c with status "paid"
 DO
 ROLLBACK

@@ -1,9 +1,9 @@
 == 14.1 40 concurrent checkouts for one piece (#A01)
      39 false
       1 true
-PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/021e75e3-d1b0-4d9a-a8b1-d05ce2b90a31)
+PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/8159b1d9-f761-49ea-8521-befac75f4855)
 == 14.2 late-claim verification racing a fresh checkout of the same piece (#A02)
-   setup: order X=a0fb5d7e-fc0d-45a1-9afa-80abb872d319 is cancelled, attempt is late_claim_pending_review, piece is available
+   setup: order X=fefae2d3-a72e-4674-a1aa-3d11e690b668 is cancelled, attempt is late_claim_pending_review, piece is available
    session B checkout success: true
    seller verify result: "message": "Late payment verified, but items are no longer available. Seller refund or resolution required."  
    X=cancelled/paid refund=required:258000 total=258000 | Y=pending/unpaid | piece=reserved reserved_by=Y

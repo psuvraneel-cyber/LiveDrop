@@ -142,3 +142,18 @@ Totals:
 - `flutter test`: 210 pass, 2 fail, and those 2 fail only on Windows (temp-folder lock in `inventory_queue_status_test.dart`).
 - Audit Flutter suite 26/26.
 - No database change.
+
+## P1 round 4c (2026-10-04): reliability, download size, tests in CI (migration 040)
+
+| Finding | Status | What changed | Proof | Owner actions |
+|---|---|---|---|---|
+| SA-RT-002 | Fixed | The live store already reconnects, catches up after a reconnect or resume, polls while the channel is down and debounces bursts (P0 round, ADR-013). The remaining gap was that the seller could not tell: the shell now shows "Live updates paused: reconnecting…" while the channel is down and hides it on reconnect | `reliability_test.dart` (banner appears on drop, disappears on reconnect, catch-up runs) | Ship a new app build |
+| SA-PERF-001 | Fixed (deploy pending for analytics) | Order lists ask for the newest 300 orders at most, with a note on the Orders screen when capped; recent activity asks for 20. Migration 040 `seller_sales_summary(p_from, p_utc_offset_minutes)` (SECURITY INVOKER, RLS-scoped, sellers only) returns revenue, items, holds, 7 local days and top products. The app uses it and falls back to the local computation until 040 is deployed | Suite 22 (22.1–22.7); suite 15: 15.1b (300 orders, about 420 KB instead of about 2.8 MB), 15.1c (summary about 1.5 KB); `reliability_test.dart` | Run Database Deploy (apply); check H25 |
+| SA-CI-001 | Fixed | New workflow `db-tests.yml`: every PR touching migrations, SQL tests or deploy scripts applies all migrations to a PostgreSQL 16 service and runs every audit suite plus the post-deploy checks. It fails on any FAIL, ERROR, failed migration, or FINDING outside the known open list (12.3, 13.9). Flutter was already pinned and gitleaks already runs | Local dry run of the result check (known findings pass, an unlisted finding fails) | None |
+| SA-TEST-001 | Fixed | The SQL audit suites run in CI (above). Seller App CI also runs the audit Flutter suite (`run_flutter_audit_tests.sh`). Rounds 4a–4c added app tests for money (claims, refunds, labels, reminders), stock (Mark Sold / undo, intake target), login (approval gate, re-auth, passwords) and order states | CI jobs; `account_drops_inventory_test.dart`, `payments_orders_labels_test.dart`, `reliability_test.dart` | None |
+
+Totals:
+- DB harness (40 migrations): 152 PASS, 0 FAIL. Remaining FINDINGs: 12.3 and 13.9, both P2.
+- Post-checks H21–H25 PASS. 040 re-applied twice cleanly.
+- `flutter analyze` clean. `flutter test`: 212 pass, 2 fail, and those 2 fail only on Windows.
+- Audit Flutter suite 26/26.

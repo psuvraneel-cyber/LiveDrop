@@ -150,6 +150,19 @@ BEGIN
 END $$;
 SELECT count(*) AS h24_payee_changes_last_30_days FROM public.payee_change_log WHERE changed_at > now() - interval '30 days';
 
+\echo '== H25: migration 040 (seller_sales_summary for analytics)'
+DO $$
+BEGIN
+  IF to_regprocedure('public.seller_sales_summary(timestamptz,integer)') IS NULL THEN
+    RAISE NOTICE 'migration 040 not applied yet (seller_sales_summary missing; the app falls back to local analytics)';
+  ELSIF has_function_privilege('anon', 'public.seller_sales_summary(timestamptz,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.seller_sales_summary(timestamptz,integer)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (H25): seller_sales_summary privileges are wrong';
+  ELSE
+    RAISE NOTICE 'PASS H25 seller_sales_summary: sellers only';
+  END IF;
+END $$;
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

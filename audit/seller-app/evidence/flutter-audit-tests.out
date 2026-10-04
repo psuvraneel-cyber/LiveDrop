@@ -4,16 +4,15 @@
 00:00 +1: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T07: approval gate stays CLOSED when the profile request fails (offline / RLS / parse error)
 [LiveDrop Seller] Profile load failed: LiveDropException[NETWORK_ERROR]: network down
 00:00 +2: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 1280x720
-00:00 +2: seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T22: EXIF orientation is applied during decode (rotated photos stay upright)
+AUDIT T24 input=1280x720 1263KB -> 720x720 552KB image/jpeg in 386 ms (dev host)
+00:00 +3: seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T22: EXIF orientation is applied during decode (rotated photos stay upright)
 AUDIT T22 out=300x300 bytes=4872 rightPixel=254,0,0 leftPixel=255,255,255
-00:00 +3: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 1280x720
-AUDIT T24 input=1280x720 1263KB -> 720x720 552KB image/jpeg in 317 ms (dev host)
 00:00 +4: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
 00:01 +4: seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T23: camera/gallery EXIF (device, GPS) is stripped before the image is published
 AUDIT T23 make=null gpsLatitude=null size=1200x1200 45190B mime=image/jpeg
 00:01 +5: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
 00:01 +5: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T14 (fixed): default queue location is the app support directory, not the OS temp/cache directory
-AUDIT T14 default baseDir=<TEMP>\audit_app_support_b6acf2db/livedrop_intake_queue systemTemp=<TEMP> migrates from=<TEMP>/livedrop_intake_queue
+AUDIT T14 default baseDir=<TEMP>\audit_app_support_8d3e6d45/livedrop_intake_queue systemTemp=<TEMP> migrates from=<TEMP>/livedrop_intake_queue
 00:01 +6: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
 00:01 +7: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
 00:01 +7: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T16 (fixed): a timeout after the server committed is recognised on retry — 23505 for a product carrying our own uploaded photo marks the piece completed (lost-response idempotency)
@@ -25,15 +24,15 @@ AUDIT T17 enqueued code=#A05 status=IntakeQueueStatus.completed | entry refusal=
 00:02 +9: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T18 (fixed): an item enqueued while a sync is running is picked up by that same run
 AUDIT T18 second item status after the run finished: IntakeQueueStatus.completed createCalls=2
 00:02 +10: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
-AUDIT T08 after Shipping tap: labelScreen=0 readyVisible=1 pendingVisible=0 shipCalls=[]
-00:02 +11: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:02 +11: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T25 (fixed): re-initialising the shared queue during a sync (camera_intake_screen.dart) is a no-op, so the run keeps its progress and the garment is created exactly once
+00:02 +10: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T25 (fixed): re-initialising the shared queue during a sync (camera_intake_screen.dart) is a no-op, so the run keeps its progress and the garment is created exactly once
 AUDIT T25 statusAfterFirstRun=IntakeQueueStatus.completed final=IntakeQueueStatus.completed lastError=null serverProducts=1 createCalls=1
-00:02 +12: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:02 +12: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T19 (fixed): a corrupt manifest is moved aside and the queue is restored from queue.json.bak
-[OfflineIntakeQueue] Unreadable manifest moved to <TEMP>\audit_queue_ec9695da/queue.json.corrupt-1791120549118
+00:02 +11: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
+00:02 +11: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T19 (fixed): a corrupt manifest is moved aside and the queue is restored from queue.json.bak
+[OfflineIntakeQueue] Unreadable manifest moved to <TEMP>\audit_queue_dc9a8fa6/queue.json.corrupt-1791121160697
 [OfflineIntakeQueue] Restored 1 item(s) from queue.json.bak
-AUDIT T19 reloaded items=[#A01] quarantined=[queue.json.corrupt-1791120549118]
+AUDIT T19 reloaded items=[#A01] quarantined=[queue.json.corrupt-1791121160697]
+00:02 +12: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
+AUDIT T08 after Shipping tap: labelScreen=0 readyVisible=1 pendingVisible=0 shipCalls=[]
 00:02 +13: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:02 +13: seller-app/test/audit/audit_kanban_test.dart: SA-AUD-T20 (fixed): a verified late payment that needs a refund is listed under Payments → Refunds owed, and cancelled/expired orders are under the Kanban "Closed" tab (SA-ORD-004)
 AUDIT T20 refunds section=1 order=1 amount=1
@@ -45,9 +44,9 @@ AUDIT T01 exception: Null: null
 00:03 +16: seller-app/test/audit/audit_order_details_test.dart: SA-AUD-T02: WhatsApp contact keeps +91 for mobile numbers starting with 91
 AUDIT T02 launched: [whatsapp://send?phone=919123456789&text=Hello%20Riya%20Sen%2C%20regarding%20your%20LiveDrop%20order%20%23LD-AB12CD...]
 00:03 +17: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:03 +18: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:03 +18: seller-app/test/audit/audit_timezone_test.dart: SA-AUD-T04: PostgREST timestamptz is converted to local time at the model boundary
+00:03 +17: seller-app/test/audit/audit_timezone_test.dart: SA-AUD-T04: PostgREST timestamptz is converted to local time at the model boundary
 AUDIT T04 device offset=5:30:00.000000 createdAt.isUtc=false card text=02:30 PM local=02:30 PM
+00:03 +18: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:03 +19: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:03 +20: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:03 +21: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
@@ -57,5 +56,5 @@ AUDIT T11 reject calls: [{id: attempt-1, reason: payment_not_found, releaseHold:
 00:03 +23: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:03 +24: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:03 +25: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-AUDIT T24 input=4000x3000 16427KB -> 1200x1200 1158KB image/jpeg in 1781 ms (dev host)
+AUDIT T24 input=4000x3000 16427KB -> 1200x1200 1158KB image/jpeg in 1807 ms (dev host)
 00:05 +26: All tests passed!

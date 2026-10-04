@@ -1,0 +1,107 @@
+name: Database Tests
+
+# Applies every migration to a throwaway PostgreSQL 16 and runs the seller-app audit
+# suites (audit/seller-app/tests/sql) plus the read-only post-deploy checks
+# (SA-CI-001, SA-TEST-001). Never touches a hosted database.
+#
+# A run fails when a migration fails, a suite prints FAIL or ERROR, or a FINDING appears
+# that is not listed in KNOWN_FINDINGS (defects that are still open, by test id).
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "audit/seller-app/tests/sql/**"
+      - "scripts/db-deploy/**"
+      - ".github/workflows/db-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "audit/seller-app/tests/sql/**"
+      - "scripts/db-deploy/**"
+      - ".github/workflows/db-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  db-audit:
+    name: Migrations & SQL audit suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      # Open P2 defects whose suites still print FINDING (SA-INV-003, SA-PAY-015).
+      KNOWN_FINDINGS: "12.3 13.9"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          psql --version
+
+      - name: Apply migrations and run the audit suites
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/db-evidence
+        run: |
+          bash audit/seller-app/tests/sql/run_local_db_audit.sh | tee "$RUNNER_TEMP/db-console.txt"
+          exit "${PIPESTATUS[0]}"
+
+      - name: Check results
+        run: |
+          console="$RUNNER_TEMP/db-console.txt"
+          status=0
+          if grep -E '^FAIL  ' "$RUNNER_TEMP/db-evidence/migration-apply.log"; then
+            echo "::error::a migration failed"; status=1
+          fi
+          if grep -E '^ +(FAIL|ERROR)' "$console"; then
+            echo "::error::a suite reported FAIL or ERROR"; status=1
+          fi
+          while read -r line; do
+            id=$(printf '%s\n' "$line" | sed -E 's/^ *FINDING ([0-9]+\.[0-9]+[a-z]?).*/\1/')
+            case " $KNOWN_FINDINGS " in
+              *" $id "*) echo "known open finding: $id" ;;
+              *) echo "::error::new FINDING $id: $line"; status=1 ;;
+            esac
+          done < <(grep -E '^ +FINDING ' "$console" || true)
+          passes=$(grep -cE '^ +PASS' "$console" || true)
+          migrations=$(grep -cE '^PASS  ' "$RUNNER_TEMP/db-evidence/migration-apply.log" || true)
+          echo "### Database tests: ${migrations} migrations applied, ${passes} PASS" >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Post-deploy checks against the test database
+        run: psql -X -v ON_ERROR_STOP=1 -v strict_cron=off -d livedrop_audit -f scripts/db-deploy/post_checks.sql
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: db-audit-evidence
+          path: ${{ runner.temp }}/db-evidence
+          retention-days: 14

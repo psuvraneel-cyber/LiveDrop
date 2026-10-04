@@ -1,0 +1,16 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+CREATE FUNCTION
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.1 — seller A last 7 days: revenue=400000 items=2 (expected 400000 / 2)
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.2 — active holds=1 (expected 1)
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.3 — seller B sees only its own sales: revenue=100000
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.4 — daily buckets=7, today=150000
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.5 — top products=[{"code": "#A01", "title": "Kantha Stitch Saree", "image_url": "https://x.supabase.co/a1.jpg", "sold_count": 1, "revenue_paisa": 150000}, {"code": "#A02", "title": "Banarasi Silk Saree", "image_url": "https://x.supabase.co/a2.jpg", "sold_count": 1, "revenue_paisa": 250000}]
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.6 — anon cannot execute seller_sales_summary: permission denied
+psql:audit/seller-app/tests/sql/22_p1_round4c.sql:75: NOTICE:  PASS 22.7 — summary payload 674 bytes (the app used to download every order)
+DO
+ROLLBACK
