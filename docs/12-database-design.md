@@ -394,3 +394,24 @@ Public object URLs of the public bucket do not depend on any policy, so buyers s
 * Unique index `uq_order_payments_reference_verified_norm` on `order_payments (normalize_payment_reference(reference_id)) WHERE status = 'verified'`. If an existing ledger already contains a normalised duplicate, 038 skips the index and logs a WARNING (hosted check H22 lists the groups); the RPC checks below still apply.
 * `submit_buyer_payment_claim` stores the normalised UTR and refuses a UTR already verified on another order (`REFERENCE_USED_ON_ANOTHER_ORDER`). The same UTR claimed but not verified on two orders is still accepted; verification refuses the second.
 * `verify_manual_upi_payment` normalises the seller-typed or stored UTR and compares normalised references.
+
+---
+
+## 7. Drop Lifecycle, Payee and Offline-Sale Guards (migration 039)
+
+Source: seller-app audit, findings SA-DROP-001, SA-DROP-002, SA-PAY-012, SA-INV-001 (ADR-014) and SA-AUTH-004. Regression suites: SQL 12.4b, 12.4c, 12.5, 13.13, and 21.1–21.41.
+
+* **Trigger `trg_enforce_drop_lifecycle`** (BEFORE UPDATE on `drops`):
+  * Allows only `draft` to `live` and `live` to `closed`. The latter still requires `close_drop` / `close_drop_safely`, because of the guard from migration 024.
+  * Freezes `slug` once the drop has left `draft`.
+  * Errors carry SQLSTATE `42501` and the hint `DROP_TRANSITION_FORBIDDEN` or `DROP_SLUG_LOCKED`.
+* **`products.sold_offline_at TIMESTAMPTZ`:**
+  * Set by `mark_product_sold_offline`; readable by `authenticated` only.
+  * `undo_mark_product_sold_offline` returns the piece to `available` within 30 minutes, if no live order contains it and the drop is not closed (ADR-014).
+* **`create_order_with_reservation`** returns `UPI_DISABLED` / `UPI_NOT_CONFIGURED` before reserving anything.
+* **Table `payee_change_log`:**
+  * Columns: `id`, `seller_id`, `field`, `old_value`, `new_value`, `changed_by`, `changed_by_role`, `changed_at`.
+  * RLS is on; sellers can only SELECT their own rows; there is no client write path.
+* **Trigger `trg_guard_and_log_payee_change`** (BEFORE UPDATE OF `upi_id`, `upi_vpa`, `upi_display_name`, `phone_number` on `profiles`):
+  * Logs every change.
+  * For the `authenticated` role, it requires a password sign-in in the last 10 minutes (`seconds_since_password_sign_in()`, from the JWT `amr` claim) before `upi_id`, `upi_vpa` or `phone_number` change.

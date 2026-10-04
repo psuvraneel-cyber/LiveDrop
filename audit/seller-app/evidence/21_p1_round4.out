@@ -1,0 +1,39 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:76: NOTICE:  PASS 21.1 — draft -> closed refused (close guard from 024 or lifecycle guard): ERR 42501 -
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:76: NOTICE:  PASS 21.2 — draft slug edit=OK rows=1, draft -> live=OK rows=1, close_drop=true
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:76: NOTICE:  PASS 21.3 — slug edit on a closed drop refused: ERR 42501 DROP_SLUG_LOCKED
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:76: NOTICE:  PASS 21.4 — title edit on a closed drop still allowed: OK rows=1
+DO
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:102: NOTICE:  PASS 21.10 — UPI off -> UPI_DISABLED; no payee UPI ID -> UPI_NOT_CONFIGURED; piece stayed available
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:102: NOTICE:  PASS 21.11 — control: checkout with UPI on -> true
+DO
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:156: NOTICE:  PASS 21.20 — mark sold offline -> true status=sold sold_offline_at set=t
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:156: NOTICE:  PASS 21.21 — other seller undo -> PRODUCT_NOT_FOUND_OR_UNAUTHORIZED
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:156: NOTICE:  PASS 21.22 — undo within 30 min -> true, piece=available, second undo idempotent=true
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:156: NOTICE:  PASS 21.23 — undo after 31 min -> UNDO_WINDOW_EXPIRED
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:156: NOTICE:  PASS 21.24 — undo on an order-sold piece -> NOT_SOLD_OFFLINE
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:156: NOTICE:  PASS 21.25 — direct UPDATE back to available -> ERR 42501 -
+DO
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:175: NOTICE:  PASS 21.26 — mark sold on a reserved piece -> PRODUCT_RESERVED
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:175: NOTICE:  PASS 21.27 — undo while a live order references the piece -> PRODUCT_HAS_ORDER
+DO
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:208: NOTICE:  PASS 21.30 — no amr -> ERR 42501 REAUTH_REQUIRED | password 1 h ago -> ERR 42501 REAUTH_REQUIRED | OTP only -> ERR 42501 REAUTH_REQUIRED
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:208: NOTICE:  PASS 21.31 — fresh password -> OK rows=1 | store name with old token -> OK rows=1
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:208: NOTICE:  PASS 21.32 — seller A sees 2 log rows (vpa + display name), seller B sees 0, seller delete -> ERR 42501 -
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:208: NOTICE:  PASS 21.33 — log row records old/new value, who and which role
+DO
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:220: NOTICE:  PASS 21.34 — service_role change -> OK rows=1, logged
+DO
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:238: NOTICE:  PASS 21.40 — undo_mark_product_sold_offline: sellers only
+psql:audit/seller-app/tests/sql/21_p1_round4.sql:238: NOTICE:  PASS 21.41 — payee_change_log: RLS on, sellers read only, anon nothing
+DO
+ROLLBACK

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/offline_intake_queue.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/validation/drop_rules.dart';
 import '../../data/realtime/seller_live_store.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
@@ -437,13 +438,15 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen>
         shape: const CircleBorder(),
         elevation: 6,
         onPressed: () async {
-          if (_activeDrop != null) {
+          // A closed drop never receives new pieces (SA-INV-002).
+          final target = DropRules.acceptsNewPieces(_activeDrop) ? _activeDrop : null;
+          if (target != null) {
             Navigator.push(
               context,
               MaterialPageRoute<void>(
                 builder: (_) => CameraIntakeScreen(
                   repository: widget.repository,
-                  drop: _activeDrop,
+                  drop: target,
                   intakeQueue: widget.intakeQueue,
                 ),
               ),

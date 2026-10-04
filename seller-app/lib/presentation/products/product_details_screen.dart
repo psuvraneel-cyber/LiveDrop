@@ -249,6 +249,69 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     }
   }
 
+  SellerProduct _withStatus(ProductStatus status, {DateTime? soldOfflineAt}) => SellerProduct(
+        id: _product.id,
+        dropId: _product.dropId,
+        code: _product.code,
+        title: _product.title,
+        pricePaisa: _product.pricePaisa,
+        size: _product.size,
+        imageUrl: _product.imageUrl,
+        imageUrls: _product.imageUrls,
+        status: status,
+        version: _product.version + 1,
+        soldOfflineAt: soldOfflineAt,
+      );
+
+  /// Seller-facing text for Mark Sold / Undo errors (SA-INV-001).
+  static String _markSoldErrorMessage(Object e) {
+    final code = e is LiveDropException ? e.code : null;
+    switch (code) {
+      case 'PRODUCT_RESERVED':
+        return 'This piece is reserved for an order. Release the hold or finish the order instead.';
+      case 'ALREADY_SOLD':
+        return 'This piece is already sold. Pull down to refresh.';
+      case 'DROP_CLOSED':
+        return 'This drop is closed.';
+      case 'UNDO_WINDOW_EXPIRED':
+        return 'A sale can only be undone within 30 minutes.';
+      case 'PRODUCT_HAS_ORDER':
+        return 'This piece belongs to an order and cannot be put back on sale.';
+      case 'NOT_SOLD_OFFLINE':
+        return 'Only a piece you marked as sold yourself can be put back on sale.';
+      case 'NETWORK_ERROR':
+        return 'No connection to LiveDrop. Check your internet and try again.';
+      default:
+        return 'Could not update this piece. Try again.';
+    }
+  }
+
+  /// Puts a piece marked sold by mistake back on sale (ADR-014).
+  Future<void> _handleUndoSold() async {
+    setState(() => _isMarkingSold = true);
+    try {
+      await widget.repository.undoMarkProductSoldOffline(_product.id);
+      if (!mounted) return;
+      setState(() {
+        _product = _withStatus(ProductStatus.available);
+        _isMarkingSold = false;
+      });
+      widget.onProductUpdated?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_product.code} is back on sale.'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isMarkingSold = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_markSoldErrorMessage(e)), backgroundColor: AppColors.crimson),
+      );
+    }
+  }
+
   Future<void> _handleMarkSold() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -260,7 +323,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         ),
         title: const Text('Mark as Sold Offline?', style: TextStyle(color: Colors.white)),
         content: Text(
-          'Marking ${_product.code} as sold offline will immediately update its status.',
+          '${_product.code} comes off sale right away and buyers can no longer reserve it. '
+          'If you tapped this by mistake, you can undo it for 30 minutes.',
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
@@ -285,28 +349,25 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     setState(() => _isMarkingSold = true);
     try {
       await widget.repository.markProductSoldOffline(_product.id);
+      if (!mounted) return;
       setState(() {
-        _product = SellerProduct(
-          id: _product.id,
-          dropId: _product.dropId,
-          code: _product.code,
-          title: _product.title,
-          pricePaisa: _product.pricePaisa,
-          size: _product.size,
-          imageUrl: _product.imageUrl,
-          imageUrls: _product.imageUrls,
-          status: ProductStatus.sold,
-          version: _product.version + 1,
-        );
+        _product = _withStatus(ProductStatus.sold, soldOfflineAt: DateTime.now());
         _isMarkingSold = false;
       });
       widget.onProductUpdated?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_product.code} marked as sold.'),
+          backgroundColor: AppColors.emerald,
+          action: SnackBarAction(label: 'Undo', textColor: Colors.black, onPressed: _handleUndoSold),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isMarkingSold = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text(_markSoldErrorMessage(e)),
           backgroundColor: AppColors.crimson,
         ),
       );
@@ -406,6 +467,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final priceRupees = (_product.pricePaisa / 100).toStringAsFixed(0);
     final isSold = _product.status == ProductStatus.sold;
     final isReserved = _product.status == ProductStatus.reserved;
+    final canUndoSale = _product.canUndoOfflineSale();
     final images = _allImages;
     final activeIndex = _currentImageIndex.clamp(0, images.isEmpty ? 0 : images.length - 1);
 
@@ -598,13 +660,27 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
+                        // Reserved pieces belong to an order: no Mark Sold.
+                        // A piece marked sold offline can be undone for 30
+                        // minutes (SA-INV-001, ADR-014).
                         child: BounceableButton(
-                          onPressed: isSold ? null : _handleMarkSold,
+                          key: const Key('product-mark-sold'),
+                          onPressed: canUndoSale
+                              ? _handleUndoSold
+                              : (isSold || isReserved)
+                                  ? null
+                                  : _handleMarkSold,
                           isLoading: _isMarkingSold,
                           variant: ButtonVariant.darkCard,
                           height: 44,
-                          icon: Icons.sell_outlined,
-                          text: isSold ? 'Sold' : 'Mark Sold',
+                          icon: canUndoSale ? Icons.undo_rounded : Icons.sell_outlined,
+                          text: canUndoSale
+                              ? 'Undo sale'
+                              : isSold
+                                  ? 'Sold'
+                                  : isReserved
+                                      ? 'Reserved'
+                                      : 'Mark Sold',
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -619,6 +695,21 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                     ],
                   ),
+                  if (isReserved) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Reserved for an order. To sell it another way, release the hold in Orders first.',
+                      key: Key('product-reserved-note'),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ],
+                  if (canUndoSale) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Marked sold by you. You can undo this within 30 minutes of marking it.',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ],
                   const SizedBox(height: 24),
 
                   // Category & Description

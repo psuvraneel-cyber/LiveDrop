@@ -16,6 +16,9 @@ class SellerErrorMessages {
   /// Error code of [error] when it is a [LiveDropException], else `null`.
   static String? codeOf(Object error) => error is LiveDropException ? error.code : null;
 
+  /// True when [error] means the phone could not reach LiveDrop.
+  static bool isNetworkError(Object? error) => error != null && _isNetwork(error);
+
   static bool _isNetwork(Object error) =>
       error is SocketException ||
       error is TimeoutException ||

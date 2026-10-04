@@ -1,6 +1,6 @@
 name: Database Deploy
 
-# Applies the seller-app audit migrations (034–038) to the hosted Supabase database and
+# Applies the seller-app audit migrations (034–039) to the hosted Supabase database and
 # runs read-only post-deploy checks. Manual only, main branch only.
 #
 # Required secret : SUPABASE_DB_URL  (Supabase -> Connect -> "Session pooler" connection string)
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "check-only = read-only preflight + checks; apply = apply 034–038 then check"
+        description: "check-only = read-only preflight + checks; apply = apply 034–039 then check"
         type: choice
         options: [check-only, apply]
         default: check-only
@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: ${{ inputs.mode }} migrations 034–038
+    name: ${{ inputs.mode }} migrations 034–039
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: supabase-production
@@ -85,6 +85,10 @@ jobs:
         if: inputs.mode == 'apply'
         run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/038_storage_suspension_and_utr_guards.sql
 
+      - name: Apply 039 (drop lifecycle, payee and offline-sale guards; idempotent)
+        if: inputs.mode == 'apply'
+        run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/039_drop_lifecycle_payee_and_offline_sale_guards.sql
+
       - name: Record migrations in Supabase history (if present)
         if: inputs.mode == 'apply'
         run: |
@@ -97,19 +101,21 @@ jobs:
                                       ('035', 'payment_claim_safety_and_refunds'),
                                       ('036', 'schedule_reaper_in_database'),
                                       ('037', 'claim_hold_and_shipping_quote'),
-                                      ('038', 'storage_suspension_and_utr_guards')) AS e(version, name)
+                                      ('038', 'storage_suspension_and_utr_guards'),
+                                      ('039', 'drop_lifecycle_payee_and_offline_sale_guards')) AS e(version, name)
                            ON e.version = m.version
                          WHERE m.name IS DISTINCT FROM e.name) THEN
-                RAISE EXCEPTION 'migration history already has 034-038 rows with different names; resolve manually';
+                RAISE EXCEPTION 'migration history already has 034-039 rows with different names; resolve manually';
               END IF;
               INSERT INTO supabase_migrations.schema_migrations (version, name)
               VALUES ('034', 'lock_down_public_view_privileges'),
                      ('035', 'payment_claim_safety_and_refunds'),
                      ('036', 'schedule_reaper_in_database'),
                      ('037', 'claim_hold_and_shipping_quote'),
-                     ('038', 'storage_suspension_and_utr_guards')
+                     ('038', 'storage_suspension_and_utr_guards'),
+                     ('039', 'drop_lifecycle_payee_and_offline_sale_guards')
               ON CONFLICT (version) DO NOTHING;
-              RAISE NOTICE 'recorded 034–038 in supabase_migrations.schema_migrations';
+              RAISE NOTICE 'recorded 034–039 in supabase_migrations.schema_migrations';
             ELSE
               RAISE NOTICE 'no supabase_migrations.schema_migrations table; nothing recorded';
             END IF;

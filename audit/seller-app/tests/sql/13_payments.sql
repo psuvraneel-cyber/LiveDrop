@@ -397,10 +397,15 @@ BEGIN
   UPDATE profiles SET upi_enabled = false WHERE id = audit.seller_a();
   PERFORM audit.as_anon();
   o := create_order_with_reservation(audit.drop_a_live(), ARRAY[audit.p_a3()], 'Late Buyer', '9830077777', '2 Hazra Road, Kolkata', '700026', 'full_payment', NULL);
-  a := initiate_payment_attempt((o->>'order_id')::uuid, o->>'order_token', NULL);
+  IF (o->>'success')::boolean THEN
+    a := initiate_payment_attempt((o->>'order_id')::uuid, o->>'order_token', NULL);
+  END IF;
   PERFORM audit.as_postgres();
-  RAISE NOTICE 'INFO 13.13 upi_enabled=false: checkout success=% (piece reserved) but initiate_payment_attempt -> %',
-    o->>'success', a->>'error';
+  -- SA-PAY-012 (fixed in 039): checkout refuses before reserving anything.
+  RAISE NOTICE '% 13.13 upi_enabled=false: checkout -> % piece=% | initiate_payment_attempt -> %',
+    CASE WHEN o->>'error' = 'UPI_DISABLED' AND (SELECT status FROM products WHERE id = audit.p_a3()) = 'available' THEN 'PASS'
+         WHEN (o->>'success')::boolean THEN 'FINDING' ELSE 'FAIL' END,
+    COALESCE(o->>'error', o->>'success'), (SELECT status FROM products WHERE id = audit.p_a3()), COALESCE(a->>'error', 'not attempted');
   UPDATE profiles SET upi_enabled = true WHERE id = audit.seller_a();
 END $$;
 

@@ -59,8 +59,9 @@ describe('parseRecoveryLink / validateNewPassword', () => {
     expect(parseRecoveryLink('', '')).toEqual({ kind: 'none' });
   });
 
-  it('requires 8+ characters and matching confirmation', () => {
-    expect(validateNewPassword('short', 'short')).toMatch(/at least 8/);
+  it('requires 10+ characters (SA-AUTH-003) and matching confirmation', () => {
+    expect(validateNewPassword('short', 'short')).toMatch(/at least 10/);
+    expect(validateNewPassword('ninechars', 'ninechars')).toMatch(/at least 10/);
     expect(validateNewPassword('longenough1', 'longenough2')).toMatch(/do not match/);
     expect(validateNewPassword('x'.repeat(73), 'x'.repeat(73))).toMatch(/at most 72/);
     expect(validateNewPassword('longenough1', 'longenough1')).toBeNull();
@@ -146,7 +147,7 @@ describe('SellerPasswordResetView', () => {
     await screen.findByTestId('reset-form');
 
     fillAndSubmit('short', 'short');
-    expect(screen.getByTestId('reset-form-error')).toHaveTextContent(/at least 8 characters/i);
+    expect(screen.getByTestId('reset-form-error')).toHaveTextContent(/at least 10 characters/i);
 
     fillAndSubmit(TEST_NEW_PASSWORD, 'NewPassw0rd?');
     expect(screen.getByTestId('reset-form-error')).toHaveTextContent(/do not match/i);

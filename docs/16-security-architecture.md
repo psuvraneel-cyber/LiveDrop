@@ -280,6 +280,12 @@ Rules since migration 034:
 ### 3.3 Seller Suspension (migration 038, SA-ONB-002)
 Revoking approval (`admin_approve_seller(id, false)` or a direct update of `profiles.is_approved`) closes the seller's live drops through the safe-closure path, and checkout and new payment requests return `SELLER_SUSPENDED`. Buyers who already paid can still submit their UTR, and the seller can still verify it or record a refund.
 
+### 3.4 Payee Details Need a Recent Password Sign-In (migration 039, SA-AUTH-004)
+The payee UPI ID decides where every buyer's money goes. Since migration 039:
+* A seller can change `upi_id`, `upi_vpa` or `phone_number` only within 10 minutes of signing in with their password. The access token's `amr` claim is checked by a database trigger, so a stolen session token alone is not enough.
+* Every change, by the seller or by LiveDrop staff, is written to `payee_change_log`. Sellers can read it but not change it, and the app shows recent changes in Payment settings.
+* The app asks for the password and shows the new UPI ID for checking before it saves. While a drop is live, it also warns that the change applies to payments buyers start from then on.
+
 ## 4. Database Security Definer Hardening
 
 PostgreSQL functions declared with `SECURITY DEFINER` execute with the privileges of the database owner.

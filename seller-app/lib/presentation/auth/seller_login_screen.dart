@@ -108,7 +108,12 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
       if (!mounted) return;
       BoutiqueHaptics.heavy();
       final msg = e.message.toLowerCase();
-      if (msg.contains('invalid') || msg.contains('credentials')) {
+      if (msg.contains('not confirmed')) {
+        // Email confirmation is required for new sellers (SA-AUTH-003).
+        setState(() {
+          _errorMessage = 'Confirm your email first: open the link we sent to your inbox, then sign in.';
+        });
+      } else if (msg.contains('invalid') || msg.contains('credentials')) {
         setState(() {
           _errorMessage = 'Invalid email or password. Please verify your credentials.';
         });

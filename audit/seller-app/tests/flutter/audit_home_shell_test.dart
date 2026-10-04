@@ -35,7 +35,8 @@ void main() {
     expect(find.text('Account Under Review'), findsOneWidget);
   });
 
-  testWidgets('SA-AUD-T07: approval gate fails OPEN when the profile request fails (offline / RLS / parse error)',
+  // SA-AUTH-002 fixed: inverted. A failed profile load shows an error with Retry, never the dashboard.
+  testWidgets('SA-AUD-T07: approval gate stays CLOSED when the profile request fails (offline / RLS / parse error)',
       (tester) async {
     final repo = AuditRepo(
       profileError: const LiveDropException('network down', code: 'NETWORK_ERROR'),
@@ -43,9 +44,10 @@ void main() {
     );
     await tester.pumpWidget(auditApp(SellerHomeScreen(repository: repo)));
     await _settle(tester);
-    expect(find.text('Account Under Review'), findsNothing);
-    expect(find.text('Add Product'), findsOneWidget); // full operational dashboard rendered
-    expect(find.text('Verify Payments'), findsWidgets);
+    expect(find.text('Could not load your boutique'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Add Product'), findsNothing); // no operational dashboard
+    expect(find.text('Verify Payments'), findsNothing);
   });
 
   testWidgets('SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the '

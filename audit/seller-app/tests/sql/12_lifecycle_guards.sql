@@ -60,24 +60,34 @@ END $$;
 DO $$
 BEGIN
   RAISE NOTICE 'INFO 12.4a live -> closed direct UPDATE -> %', pg_temp.try_as_a(format('UPDATE drops SET status=%L WHERE id=%L', 'closed', audit.drop_a_live()));
-  RAISE NOTICE 'INFO 12.4c slug change on LIVE drop -> %', pg_temp.try_as_a(format('UPDATE drops SET slug=%L WHERE id=%L', 'renamed-mid-live', audit.drop_a_live()));
+  -- SA-DROP-002 (fixed in 039): the slug is locked once the drop has gone live.
+  RAISE NOTICE '%', (SELECT CASE WHEN r LIKE 'ERR 42501%' THEN 'PASS' ELSE 'FINDING' END || ' 12.4c slug change on LIVE drop -> ' || r
+                       FROM (SELECT pg_temp.try_as_a(format('UPDATE drops SET slug=%L WHERE id=%L', 'renamed-mid-live', audit.drop_a_live())) AS r) x);
+  RAISE NOTICE '%', (SELECT CASE WHEN r LIKE 'OK%' THEN 'PASS' ELSE 'FAIL' END || ' 12.4c2 slug change on DRAFT drop (control) -> ' || r
+                       FROM (SELECT pg_temp.try_as_a(format('UPDATE drops SET slug=%L WHERE id=%L', 'aarohi-next-week-v2', audit.drop_a_draft())) AS r) x);
   RAISE NOTICE 'INFO 12.4d second live drop for same seller -> %', pg_temp.try_as_a(format('UPDATE drops SET status=%L, live_started_at=now() WHERE id=%L', 'live', audit.drop_a_draft()));
 END $$;
 
--- 12.5 close via RPC, then "Re-open Draft" and go live again (app offers this)
+-- 12.5 close via RPC, then "Re-open Draft" and go live again (SA-DROP-001, fixed in 039: forbidden).
+--      Uses its own drop for seller D so seller A's live drop stays live for later cases.
 DO $$
-DECLARE r jsonb; s1 text; s2 text;
+DECLARE r jsonb; s1 text; s2 text; d uuid := 'dddd0000-0000-0000-0000-000000000005';
 BEGIN
-  PERFORM audit.as_seller(audit.seller_a());
-  r := close_drop(audit.drop_a_live());
+  INSERT INTO drops (id, seller_id, title, slug, status, shipping_fee_paisa) VALUES (d, audit.seller_d(), 'D one-off', 'd-one-off', 'draft', 8000);
+  PERFORM audit.as_seller(audit.seller_d());
+  BEGIN UPDATE drops SET status = 'live', live_started_at = now() WHERE id = d; END;
+  r := close_drop(d);
+  BEGIN UPDATE drops SET status = 'draft' WHERE id = d; s1 := 'OK';
+  EXCEPTION WHEN OTHERS THEN s1 := 'ERR ' || SQLSTATE || ' ' || left(SQLERRM, 60); END;
+  BEGIN UPDATE drops SET status = 'live', live_started_at = now() WHERE id = d; s2 := 'OK';
+  EXCEPTION WHEN OTHERS THEN s2 := 'ERR ' || SQLSTATE || ' ' || left(SQLERRM, 60); END;
   PERFORM audit.as_postgres();
+  RAISE NOTICE '% 12.5 close_drop=% then closed->draft=% then closed->live=%',
+    CASE WHEN (r->>'success')::boolean AND s1 LIKE 'ERR 42501%' AND s2 LIKE 'ERR 42501%' THEN 'PASS'
+         WHEN s1 LIKE 'OK%' OR s2 LIKE 'OK%' THEN 'FINDING' ELSE 'FAIL' END, r->>'success', s1, s2;
   s1 := pg_temp.try_as_a(format('UPDATE drops SET status=%L WHERE id=%L', 'draft', audit.drop_a_live()));
-  s2 := pg_temp.try_as_a(format('UPDATE drops SET status=%L, live_started_at=now() WHERE id=%L', 'live', audit.drop_a_live()));
-  RAISE NOTICE 'INFO 12.5 close_drop=% then closed->draft=% then draft->live=%', r->>'success', s1, s2;
-  RAISE NOTICE 'INFO 12.4b live -> draft direct UPDATE (unpublish without releasing holds) -> %',
-    pg_temp.try_as_a(format('UPDATE drops SET status=%L WHERE id=%L', 'draft', audit.drop_a_live()));
-  RAISE NOTICE 'INFO 12.4b   draft -> live again -> %',
-    pg_temp.try_as_a(format('UPDATE drops SET status=%L, live_started_at=now() WHERE id=%L', 'live', audit.drop_a_live()));
+  RAISE NOTICE '% 12.4b live -> draft direct UPDATE (unpublish without releasing holds) -> %',
+    CASE WHEN s1 LIKE 'ERR 42501%' THEN 'PASS' ELSE 'FINDING' END, s1;
 END $$;
 
 -- 12.6 approval gate: unapproved seller C
@@ -130,7 +140,7 @@ BEGIN
   PERFORM audit.as_anon();
   o := create_order_with_reservation(audit.drop_a_draft(), ARRAY[audit.p_a3()], 'Nope', '9830011111', '1 Test Lane Kolkata', '700001', 'full_payment', NULL);
   RAISE NOTICE '% 12.8a checkout on draft drop -> %', CASE WHEN o->>'error' = 'DROP_NOT_LIVE' THEN 'PASS' ELSE 'FAIL' END, o->>'error';
-  -- live drop of seller A may have been closed by 12.5 and reopened live; use it
+  -- seller A's live drop is still live (12.4b/12.5 no longer change it)
   o := create_order_with_reservation(audit.drop_a_live(), ARRAY[audit.p_a1()], 'Pooja Das', '9830022222', '3 Gariahat Road, Kolkata', '700029', 'full_payment', NULL);
   oid := (o->>'order_id')::uuid;
   PERFORM audit.as_seller(audit.seller_a());

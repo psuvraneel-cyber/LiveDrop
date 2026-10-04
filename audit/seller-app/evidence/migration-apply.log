@@ -36,4 +36,5 @@ PASS  035_payment_claim_safety_and_refunds.sql
 PASS  036_schedule_reaper_in_database.sql
 PASS  037_claim_hold_and_shipping_quote.sql
 PASS  038_storage_suspension_and_utr_guards.sql
+PASS  039_drop_lifecycle_payee_and_offline_sale_guards.sql
 Migration apply exit status: 0

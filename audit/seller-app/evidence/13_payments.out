@@ -51,15 +51,15 @@ DO
 psql:audit/seller-app/tests/sql/13_payments.sql:365: NOTICE:  PASS 13.10d column defaults: drops=none profiles=none
 DO
 UPDATE 3
-psql:audit/seller-app/tests/sql/13_payments.sql:377: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-YAZTTA-FUL-10AB (internal reference, not a bank UTR)
+psql:audit/seller-app/tests/sql/13_payments.sql:377: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-5TL4RK-FUL-B25A (internal reference, not a bank UTR)
 DO
 UPDATE 3
 psql:audit/seller-app/tests/sql/13_payments.sql:391: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
 DO
-psql:audit/seller-app/tests/sql/13_payments.sql:405: NOTICE:  INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
+psql:audit/seller-app/tests/sql/13_payments.sql:410: NOTICE:  PASS 13.13 upi_enabled=false: checkout -> UPI_DISABLED piece=available | initiate_payment_attempt -> not attempted
 DO
 UPDATE 3
-psql:audit/seller-app/tests/sql/13_payments.sql:447: NOTICE:  PASS 13.14a claim during a live -> hold in 00:30:00 / window in 00:30:00 | re-claim with another UTR -> success=true window unchanged=t
-psql:audit/seller-app/tests/sql/13_payments.sql:447: NOTICE:  PASS 13.14b claim when the drop is not live -> hold in 1 day / window in 1 day
+psql:audit/seller-app/tests/sql/13_payments.sql:452: NOTICE:  PASS 13.14a claim during a live -> hold in 00:30:00 / window in 00:30:00 | re-claim with another UTR -> success=true window unchanged=t
+psql:audit/seller-app/tests/sql/13_payments.sql:452: NOTICE:  PASS 13.14b claim when the drop is not live -> hold in 1 day / window in 1 day
 DO
 ROLLBACK

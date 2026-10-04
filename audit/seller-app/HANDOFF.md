@@ -1,4 +1,4 @@
-# Seller-app remediation — handoff (2026-10-04, updated after P1 round 2)
+# Seller-app remediation — handoff (2026-10-04, updated after P1 round 4a)
 
 Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and the proof) and
 `FINDINGS.json` (all 95 audit findings with remediation and regression tests).
@@ -21,6 +21,15 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
   - SA-ONB-002: suspending a seller closes their live drops; checkout and new payment requests return `SELLER_SUSPENDED`.
   - SA-PAY-011: UTRs are normalised; a UTR verified on one order cannot pay for another.
   - Proof is in `REMEDIATION-LOG.md` (P1 round 2).
+- **P1 round 3 (PR #17, merged):** SA-ORD-001/002/003. Order times are shown in local time, WhatsApp keeps +91, and names with double spaces no longer crash the order screen.
+- **P1 round 4a (migration 039):**
+  - SA-AUTH-002/003/004
+  - SA-SEC-004
+  - SA-DROP-001/002/004
+  - SA-INV-001/002
+  - SA-PAY-012
+  - Owner decisions: ADR-014 (undo an offline sale within 30 minutes), drop status changes exactly as the spec says, 10-character passwords, email confirmation on.
+  - Proof is in `REMEDIATION-LOG.md` (P1 round 4a).
 
 ## Owner decisions (binding)
 - An unverified UTR claim holds a piece **30 min while the drop is live**, 24 h otherwise. After that the piece returns to sale and the claim stays in the queue as a late claim. It is never expired.
@@ -31,18 +40,15 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - Improvements and the redesign only start **after all P0/P1 blockers are fixed**.
 
 ## Waiting on the owner
-1. Run **Actions → Database Deploy** in `apply` mode (after the round-2 PR is merged). This puts migrations 037 and 038 live.
+1. Run **Actions → Database Deploy** in `apply` mode after each database PR is merged (037, 038, 039). Check H21, H22 and H24 in the log.
    - If check H21 fails, the deploy role could not change the storage policies. Run section 1 of `038_storage_suspension_and_utr_guards.sql` in the Supabase SQL editor, then re-run apply.
    - If 038 logged that it skipped the normalised-UTR index, review H22 and re-run apply.
-2. Set up custom SMTP in Supabase (Gmail app password, `smtp.gmail.com:465`).
-3. Raise the email rate limit.
-4. Edit the Reset Password email template to link to `https://livedrop-in.vercel.app/seller/reset-password?token_hash={{ .TokenHash }}&type=recovery`.
-5. Add that URL to Auth → URL Configuration → Redirect URLs.
-6. SA-SEC-002:
+2. Done 2026-10-04: custom SMTP, rate limit, reset template and redirect URL were set by the owner. Still to do (SA-AUTH-003), under Supabase → Auth → Providers → Email: set the minimum password length to 10 and turn on **Confirm email**.
+3. SA-SEC-002:
    - Review the Auth logs since 2026-09-26.
    - Check whose token is in commit `0dd7c3f` (`scratch/test-jwt.mjs`).
    - Enable GitHub Push protection.
-7. Review the shop and drop free-shipping thresholds in the app (old rows were silently 200000).
+4. Review the shop and drop free-shipping thresholds in the app (old rows were silently 200000).
 
 ## Next blockers (P1), in agreed order
 - **Needs an owner account first:**

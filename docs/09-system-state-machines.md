@@ -79,6 +79,8 @@ stateDiagram-v2
 * `closed` ➔ `live`: **Strictly Forbidden**. Drops cannot be reopened. Seller must create a new drop to prevent cross-stream inventory confusion.
 * `closed` ➔ `draft`: **Strictly Forbidden**.
 * `draft` ➔ `closed`: **Forbidden**. Must transition through `live` or be deleted if empty.
+* `live` ➔ `draft`: **Forbidden** (not a listed transition).
+* **Enforcement (migration 039, SA-DROP-001/002):** the trigger `trg_enforce_drop_lifecycle` refuses every status change except `draft` ➔ `live` and `live` ➔ `closed` (the latter only through `close_drop`). The drop `slug` can be edited only while the drop is a `draft`, because shared links must keep working. Errors carry the hint `DROP_TRANSITION_FORBIDDEN` or `DROP_SLUG_LOCKED`.
 
 ---
 
@@ -114,7 +116,7 @@ stateDiagram-v2
 | `available` | `sold` | Seller | Manual long-press "Mark Sold Offline" | Product in `available` | `UPDATE products SET status='sold', version=version+1` | `product:updated (sold)` | Live dashboard reflects instant offline sale | Rollback on DB error |
 
 ### 3.2 Illegal Product Transitions
-* `sold` ➔ `available`: **Forbidden in MVP**. Prevents accidental relisting of packed goods.
+* `sold` ➔ `available`: **Forbidden in MVP**. Prevents accidental relisting of packed goods. **Exception (ADR-014, migration 039):** a piece the seller marked sold offline can be returned to sale by that seller within 30 minutes through `undo_mark_product_sold_offline`, if no live order contains it and the drop is not closed.
 * `sold` ➔ `reserved`: **Strictly Forbidden**.
 * `available` ➔ `reserved` via direct REST: **Forbidden**. Only callable via `create_order_with_reservation` RPC.
 
