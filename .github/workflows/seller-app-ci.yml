@@ -277,12 +277,13 @@ jobs:
 
           REPORT="$RUNNER_TEMP/apksigner-report.txt"
           "$APKSIGNER" verify --verbose --print-certs "$APK" > "$REPORT"
-          # apksigner prints "Signer #1 certificate ..." or, on newer build-tools,
-          # "Signer (minSdkVersion=N, maxSdkVersion=M) certificate ..."; accept both.
+          # apksigner labels signer lines as "Signer #1 certificate ...",
+          # "Signer (minSdkVersion=N, maxSdkVersion=M) certificate ..." or
+          # "V2 Signer: certificate ..." depending on build-tools; accept all.
           grep -E '^Verified using|^Signer.* certificate (DN|SHA-256 digest): ' "$REPORT" || true
-          SIGNERS=$(grep -E '^Signer.* certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | tr -d ': \r' | tr 'A-F' 'a-f' | sort -u | grep -c . || true)
-          APK_DN=$(grep -m1 -E '^Signer.* certificate DN: ' "$REPORT" | sed 's/^.* certificate DN: //' || true)
-          APK_SHA=$(grep -m1 -E '^Signer.* certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | normalize || true)
+          SIGNERS=$(grep -E '^(V[0-9.]+ )?Signer[^:]*:? certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | tr -d ': \r' | tr 'A-F' 'a-f' | sort -u | grep -c . || true)
+          APK_DN=$(grep -m1 -E '^(V[0-9.]+ )?Signer[^:]*:? certificate DN: ' "$REPORT" | sed 's/^.* certificate DN: //' || true)
+          APK_SHA=$(grep -m1 -E '^(V[0-9.]+ )?Signer[^:]*:? certificate SHA-256 digest: ' "$REPORT" | sed 's/^.*digest: //' | normalize || true)
           if [ "$SIGNERS" != "1" ] || [ -z "$APK_SHA" ]; then
             echo "::error::Expected exactly one APK signing certificate, found '$SIGNERS'"; sed -n '1,40p' "$REPORT"; exit 1
           fi
