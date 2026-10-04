@@ -7,6 +7,15 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase (SA-OBS-001 Crashlytics, SA-NOT-001 Cloud Messaging). google-services.json is
+// gitignored: local builds use the file from the Firebase console, CI writes it from the
+// GOOGLE_SERVICES_JSON secret. Without it the app still builds and runs, only without crash
+// reporting and push (the Dart side checks that Firebase initialised).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+}
+
 // -----------------------------------------------------------------------------
 // Release signing (SA-AND-001)
 //
@@ -89,6 +98,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by flutter_local_notifications (SA-NOT-001).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -162,4 +173,8 @@ gradle.taskGraph.whenReady {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

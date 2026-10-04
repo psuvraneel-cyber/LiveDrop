@@ -45,6 +45,7 @@ PASS  037_claim_hold_and_shipping_quote.sql
 PASS  038_storage_suspension_and_utr_guards.sql
 PASS  039_drop_lifecycle_payee_and_offline_sale_guards.sql
 PASS  040_seller_sales_summary.sql
+PASS  041_seller_push_notifications.sql
 Migration apply exit status: 0
 == Installing audit helpers (schema audit)
 == Running 10_exposure_and_view_dml
@@ -121,26 +122,26 @@ Migration apply exit status: 0
    PASS 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=0 (drop banner promised free shipping)
    PASS 13.10c drop 299900 vs shop 100000, subtotal 250000 -> shipping 8000 (resolved 299900) | drop NULL, shop 100000, subtotal 150000 -> shipping 0 | drop NULL, shop NULL, subtotal 450000 -> shipping 8000 (resolved NULL) | anon EXECUTE=t
    PASS 13.10d column defaults: drops=none profiles=none
-   INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-016NBB-FUL-6E2B (internal reference, not a bank UTR)
+   INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-NQUKV5-FUL-4C3A (internal reference, not a bank UTR)
    INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
    PASS 13.13 upi_enabled=false: checkout -> UPI_DISABLED piece=available | initiate_payment_attempt -> not attempted
    PASS 13.14a claim during a live -> hold in 00:30:00 / window in 00:30:00 | re-claim with another UTR -> success=true window unchanged=t
    PASS 13.14b claim when the drop is not live -> hold in 1 day / window in 1 day
 == Running 15_perf_seller_queries
-   INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 168 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
+   INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 193 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
    PASS 15.1b getAllOrders(limit 300): 300 orders, ~422 KB JSON, 19 ms
-   PASS 15.1c seller_sales_summary (analytics): 1563 bytes, 91 ms (was the full download above)
-   INFO 15.2 getPendingVerifications(): 0 rows, 6.3 ms
-   INFO 15.3 getProducts(liveDrop): 3 rows, 0.5 ms
+   PASS 15.1c seller_sales_summary (analytics): 1563 bytes, 104 ms (was the full download above)
+   INFO 15.2 getPendingVerifications(): 0 rows, 9.5 ms
+   INFO 15.3 getProducts(liveDrop): 3 rows, 0.8 ms
 == Running 16_release_and_close_with_claims
    INFO 16.1a buyer claimed payment: attempt=awaiting_seller_verification (order still pending, shown with a Release button)
    PASS 16.1b force_release_hold with a claim in flight -> PAYMENT_CLAIM_PENDING | after release: order=pending piece=reserved held by order=t attempt=awaiting_seller_verification rows unchanged=t in seller queue=1 | verify afterwards -> success=true (order=paid)
    PASS 16.1c force_release_hold without a claim -> release=true order=cancelled piece=available attempt=expired
    PASS 16.2 close_drop with a claim in flight -> close=true order=pending piece=reserved attempt=awaiting_seller_verification
 == Running 17_ledger_deletion
-   PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 37c62dfe-5385-4992-9f15-f4b7eaa0c9fb with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
-   PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order c68c8631-83c8-4611-a3eb-be2a735b86d7 with status "expired" | verified ledger rows before=1 after=1
-   PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order d30d28ef-1108-45c6-8ce7-2bd32e714b3c with status "paid"
+   PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 9946848a-ab1a-4f67-81b3-65b0f3b916ae with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
+   PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order 39899b54-6ac1-498d-9ed8-70f76ad3f685 with status "expired" | verified ledger rows before=1 after=1
+   PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order 90accb13-c2ea-4334-9f7f-6a0a82d536f9 with status "paid"
 == Running 18_storage_enumeration
    PASS 18.1 anon can list 0 object(s) in product-images, incl. draft-drop and unapproved-seller paths: <NULL>
    PASS 18.1b seller B lists 0 object(s) in the bucket (own folder only)
@@ -157,7 +158,7 @@ Migration apply exit status: 0
    PASS 19.5b verify replay -> success=true idempotent=true refund_required=true keys complete=t | ledger rows before=1 after=1
    PASS 19.6 late advance, piece resold -> success=true | order=cancelled/advance_paid total=240000 total_paid=25000 advance_paid=25000 balance_due=215000 refund=required/25000 ledger=25000 | other buyer keeps piece=t
    PASS 19.7 seller direct UPDATE of refund fields -> clear=ERR 42501 Direct | mark refunded=ERR 42501 Direct | amount=ERR 42501 Direct | control (shipping_address)=OK rows=1 | stored refund=required/25000/null
-   PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order d4063861-8ed0-49db-94a8-5c7765ca7a5b wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order 42782c14-a235-45b5-bf1f-040bf2c091f7 bec (rows kept=1) | control without payments -> OK rows=1
+   PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order 0256b93d-b25d-4355-9742-4a656e1b7788 wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order 5a3b76c4-20fc-4e8d-8983-3b57debaec11 bec (rows kept=1) | control without payments -> OK rows=1
    PASS 19.9a anon cannot execute record_refund -> EXECUTE granted=f call=permission denied
    PASS 19.9b other seller -> ORDER_NOT_FOUND_OR_UNAUTHORIZED
    PASS 19.9c invalid references "ab" / "REF;DROP TABLE" -> INVALID_REFUND_REFERENCE / INVALID_REFUND_REFERENCE
@@ -165,7 +166,7 @@ Migration apply exit status: 0
    PASS 19.9e happy path -> success=true idempotent=false status=refunded amount=128000 reference="UPI-REF 9876/01" refunded_at set=t | stored by seller A=t note appended=t
    PASS 19.9f replay with the same reference -> success=true idempotent=true | different reference -> NO_REFUND_DUE
    PASS 19.9g trusted backend (service_role) -> success=true | order status=refunded recorded_by=null
-   PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order d4063861-8ed0-49db-94a8-5c7765ca7a5b with refund s
+   PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order 0256b93d-b25d-4355-9742-4a656e1b7788 with refund s
    PASS 19.10a release with a claim in flight -> PAYMENT_CLAIM_PENDING attempt=t utr=819000000010 message=t | order=pending attempt=awaiting_seller_verification piece=reserved held=t rows unchanged=t
    PASS 19.10b release without a claim -> success=true released=1 expired attempts=1 | order=cancelled attempt=expired piece=available
    PASS 19.10c release while a late claim (late_claim_pending_review) is pending on a pending order -> PAYMENT_CLAIM_PENDING (order=pending)
@@ -177,11 +178,11 @@ Migration apply exit status: 0
    PASS 19.16 late balance (claim=late_claim_pending_review) on an expired advance order, piece free -> success=true | order=paid/paid total_paid=240000 ledger=240000 piece=sold
    PASS 19.17 refund constraints: amount above total paid -> rejected | refunded without reference -> rejected | amount with status none -> rejected
    PASS 19.18 pg_cron not available here: 036 applied as a no-op (extension installed=f, cron schema=f)
-   PASS 19.19 SECURITY DEFINER functions with pinned search_path: 28 of 28 (unpinned: none)
+   PASS 19.19 SECURITY DEFINER functions with pinned search_path: 37 of 37 (unpinned: none)
    PASS 19.20a no view in public grants anything but SELECT to anon/authenticated (2 views; offenders: none)
    PASS 19.20b no table in public grants TRUNCATE/REFERENCES/TRIGGER to anon/authenticated (offenders: none)
    PASS 19.20c new tables/views get no anon INSERT/UPDATE/DELETE/TRUNCATE and no authenticated TRUNCATE by default (offenders: none)
-   PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T19:40:04.686198+05:30) | re-claim keeps the window=t
+   PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-05T00:04:10.760535+05:30) | re-claim keeps the window=t
    PASS 19.22b claim on a drop that is not live -> hold in 1 day window in 1 day
    PASS 19.22c lapsed ADVANCE claim after reaper -> cancelled/late_claim_pending_review/available (seller queue rows=1) | verify -> success=true late=true | order=confirmed/advance_paid advance_paid=25000 ledger=25000 piece=reserved held=t
    PASS 19.22d lapsed FULL claim, piece resold -> other checkout=true | verify -> success=true refund_required=true | order=cancelled/paid refund=required/128000 ledger=128000 | other buyer keeps piece=t
@@ -241,11 +242,21 @@ Migration apply exit status: 0
    PASS 22.5 — top products=[{"code": "#A01", "title": "Kantha Stitch Saree", "image_url": "https://x.supabase.co/a1.jpg", "sold_count": 1, "revenue_paisa": 150000}, {"code": "#A02", "title": "Banarasi Silk Saree", "image_url": "https://x.supabase.co/a2.jpg", "sold_count": 1, "revenue_paisa": 250000}]
    PASS 22.6 — anon cannot execute seller_sales_summary: permission denied
    PASS 22.7 — summary payload 674 bytes (the app used to download every order)
+== Running 23_push_notifications
+   PASS 23.1 — register=true short=INVALID_TOKEN A sees 1, B sees 0, B unregister leaves it with A
+   PASS 23.2 — token moves to the seller now signed in on that phone
+   PASS 23.3 — new_order=1 payment_claim=1 messages with buyer phone/address/name=0
+   INFO 23.3 messages: New order #LD-G0L834 | ₹1580 reserved. Waiting for the buyer's payment. || Payment to check for #LD-G0L834 | ₹1580 claimed. Check your bank app, then verify or reject.
+   PASS 23.4 — new-order alerts off -> new_order messages 1 -> 1; claim alerts still true
+   PASS 23.5 — reaper move: 2 -> 2 messages; late claim messages=1
+   PASS 23.6 — seller call=permission denied; batch=6 messages; tokens on first=2; dead token removed
+   PASS 23.7 — second claim right away returns 0 messages
+   PASS 23.8 — outbox/tokens/config locked down; RLS on; token RPCs for sellers only
 == Catalog inventory
 == Running 14_concurrency.sh
         39 false
          1 true
-   PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/8159b1d9-f761-49ea-8521-befac75f4855)
+   PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/78b27fb7-d68e-4cfa-85bb-14eddf2ecd92)
    PASS 14.2 late claim recorded as refund-required on cancelled order X; order Y keeps the piece (no overwrite)
    PASS 14.2b exactly one live paid order owns #A02 (Y); X's money is tracked as a refund
    PASS 14.3 no deadlock; reaper left the claimed order alone and the seller's verification succeeded

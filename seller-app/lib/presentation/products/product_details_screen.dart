@@ -9,6 +9,7 @@ import '../../core/theme/bounceable_button.dart';
 import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../../core/services/app_log.dart';
 
 /// Screen 5: Luxury Boutique Product Details Screen
 class ProductDetailsScreen extends StatefulWidget {
@@ -382,7 +383,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       if (drop != null) {
         dropSlug = drop.slug;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLog.error('product_details_screen:385', e, st);
+    }
 
     final productUrl = dropSlug.isNotEmpty
         ? EnvConfig.getProductUrl(dropSlug, _product.code)

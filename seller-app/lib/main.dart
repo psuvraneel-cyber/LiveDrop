@@ -26,11 +26,15 @@ import 'presentation/pending_verifications_screen.dart';
 import 'presentation/products/products_inventory_screen.dart';
 import 'presentation/settings/seller_settings_screen.dart';
 import 'presentation/splash/animated_splash_screen.dart';
+import 'core/services/app_log.dart';
+import 'core/services/push_service.dart';
 
 export 'presentation/auth/seller_login_screen.dart' show SellerLoginScreen;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Crash reporting first, so start-up failures are reported too (SA-OBS-001).
+  await AppLog.init();
   await BoutiqueHaptics.loadPreference();
 
   String? initError;
@@ -139,7 +143,8 @@ class _SellerAuthGateState extends State<SellerAuthGate> {
         _isAuthenticated = isAuth;
         _isChecking = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('main:142', e, st);
       setState(() {
         _isAuthenticated = false;
         _isChecking = false;
@@ -235,6 +240,24 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
   Future<void> _startUp() async {
     await _loadProfile();
     await _syncIntakeQueue();
+    await _startPush();
+  }
+
+  /// Push notifications for an approved seller (SA-NOT-001). A tap opens
+  /// Payments for a payment claim and Orders for a new order.
+  Future<void> _startPush() async {
+    final profile = _profile;
+    if (profile == null || !profile.isApproved) return;
+    await PushService.instance.start(
+      register: (token) => widget.repository.registerPushToken(token),
+      unregister: (token) => widget.repository.unregisterPushToken(token),
+      onOpen: (data) {
+        final tab = PushRoute.tabFor(data);
+        if (tab != null && mounted) _navigateToTab(tab);
+        _liveStore.requestRefresh(immediate: true);
+      },
+      onForeground: () => _liveStore.requestRefresh(immediate: true),
+    );
   }
 
   @override
@@ -282,6 +305,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
     }
     try {
       final p = await widget.repository.getProfile();
+      AppLog.setSeller(p.id);
       if (mounted) {
         setState(() {
           _profile = p;
@@ -349,7 +373,8 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
           ),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('main:352', e, st);
       _navigateToTab(1);
     }
   }

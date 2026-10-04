@@ -8,6 +8,7 @@ import '../../core/validation/drop_rules.dart';
 import '../../data/realtime/seller_live_store.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../common/load_error_banner.dart';
 import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
 import '../drops/create_drop_screen.dart';
@@ -15,6 +16,7 @@ import '../drops/drops_list_screen.dart';
 import '../intake/camera_intake_screen.dart';
 import 'product_details_screen.dart';
 import 'queued_piece_editor.dart';
+import '../../core/services/app_log.dart';
 
 /// Screen 3: Luxury Boutique Products & Inventory Screen
 ///
@@ -41,6 +43,7 @@ class ProductsInventoryScreen extends StatefulWidget {
 class _ProductsInventoryScreenState extends State<ProductsInventoryScreen>
     with SellerLiveRefreshMixin<ProductsInventoryScreen> {
   bool _isLoading = true;
+  Object? _loadError;
   List<SellerProduct> _allProducts = [];
   List<IntakeQueueItem> _queuedItems = [];
   Set<String> _knownCompletedIds = {};
@@ -157,10 +160,15 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen>
         _queuedItems = _computeQueuedItems(active, products);
         _knownCompletedIds = _completedIdsFor(active);
         _isLoading = false;
+        _loadError = null;
       });
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('products_inventory_screen:161', e, st);
       if (mounted && sequence == _loadSequence) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _loadError = e;
+        });
       }
     }
   }
@@ -300,6 +308,11 @@ class _ProductsInventoryScreenState extends State<ProductsInventoryScreen>
       body: SafeArea(
         child: Column(
           children: [
+            if (_loadError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: LoadErrorBanner(error: _loadError!, what: 'your pieces', onRetry: _loadProducts),
+              ),
             // Search Bar & Filter Action Row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

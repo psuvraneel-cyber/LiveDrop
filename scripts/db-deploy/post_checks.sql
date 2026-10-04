@@ -163,6 +163,23 @@ BEGIN
   END IF;
 END $$;
 
+\echo '== H26: migration 041 (push notifications)'
+DO $$
+BEGIN
+  IF to_regprocedure('public.claim_push_batch(integer)') IS NULL THEN
+    RAISE NOTICE 'migration 041 not applied yet';
+  ELSIF has_table_privilege('authenticated', 'public.push_outbox', 'SELECT')
+     OR has_function_privilege('authenticated', 'public.claim_push_batch(integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.register_push_token(text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (H26): push notification privileges are wrong';
+  ELSE
+    RAISE NOTICE 'PASS H26 push: outbox private, dispatcher API service-only, pg_net=% cron job=%',
+      to_regnamespace('net') IS NOT NULL,
+      (to_regclass('cron.job') IS NOT NULL);
+  END IF;
+END $$;
+SELECT count(*) FILTER (WHERE sent_at IS NULL) AS h26_push_pending, count(*) FILTER (WHERE sent_at IS NULL AND attempts >= 5) AS h26_push_failed FROM public.push_outbox;
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

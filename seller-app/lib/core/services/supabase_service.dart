@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/env_config.dart';
+import 'push_service.dart';
 
 /// LiveDrop Seller Mobile App — Supabase Client Service
 ///
@@ -74,6 +75,8 @@ class SupabaseService {
 
   /// Terminates the seller session and clears credentials.
   Future<void> signOut() async {
+    // This phone must stop receiving the seller's alerts (SA-NOT-001); best effort.
+    await PushService.instance.stop();
     if (_isInitialized) {
       await client.auth.signOut();
     }

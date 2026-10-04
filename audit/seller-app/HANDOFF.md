@@ -66,7 +66,7 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
    - Check whose token is in commit `0dd7c3f` (`scratch/test-jwt.mjs`).
    - Enable GitHub Push protection.
 4. Review the shop and drop free-shipping thresholds in the app (old rows were silently 200000).
-5. Create a Firebase project (Crashlytics + Cloud Messaging) for SA-OBS-001 / SA-NOT-001: add Android app `store.livedrop.seller_app` and provide `google-services.json`.
+5. Finish Firebase setup (SA-OBS-001 / SA-NOT-001). The project `livedrop-eaf3d` and Android app are created; round 5 code is in the repo. Remaining steps are in `REMEDIATION-LOG.md` (P1 round 5, owner actions): Database Deploy for 041, the `FCM_SERVICE_ACCOUNT` Supabase secret, GitHub secrets `GOOGLE_SERVICES_JSON` + `SUPABASE_ACCESS_TOKEN`, and deploying `push-dispatch`.
 
 ## Next blockers (P1), in agreed order
 - **Needs an owner account first:**

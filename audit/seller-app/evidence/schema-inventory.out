@@ -1,16 +1,19 @@
 Pager usage is off.
 == Tables: RLS enabled / forced
-     relname      | rls | forced 
-------------------+-----+--------
- drops            | t   | f
- order_items      | t   | f
- order_payments   | t   | f
- orders           | t   | f
- payee_change_log | t   | f
- payment_attempts | t   | f
- products         | t   | f
- profiles         | t   | f
-(8 rows)
+      relname       | rls | forced 
+--------------------+-----+--------
+ app_config         | t   | f
+ drops              | t   | f
+ order_items        | t   | f
+ order_payments     | t   | f
+ orders             | t   | f
+ payee_change_log   | t   | f
+ payment_attempts   | t   | f
+ products           | t   | f
+ profiles           | t   | f
+ push_outbox        | t   | f
+ seller_push_tokens | t   | f
+(11 rows)
 
 == Views and auto-updatability (information_schema)
         table_name         | is_updatable | is_insertable_into 
@@ -58,32 +61,34 @@ Pager usage is off.
  public_products_catalog   | authenticated | SELECT
  public_seller_storefronts | anon          | SELECT
  public_seller_storefronts | authenticated | SELECT
-(19 rows)
+ seller_push_tokens        | authenticated | SELECT
+(20 rows)
 
 == Policies
-    tablename     |                policyname                |  cmd   |        roles         | permissive 
-------------------+------------------------------------------+--------+----------------------+------------
- drops            | drops_public_read                        | SELECT | {anon,authenticated} | PERMISSIVE
- drops            | drops_seller_manage                      | ALL    | {authenticated}      | PERMISSIVE
- objects          | product_images_seller_delete             | DELETE | {authenticated}      | PERMISSIVE
- objects          | product_images_seller_insert             | INSERT | {authenticated}      | PERMISSIVE
- objects          | product_images_seller_read               | SELECT | {authenticated}      | PERMISSIVE
- objects          | product_images_seller_update             | UPDATE | {authenticated}      | PERMISSIVE
- order_items      | order_items_buyer_read_with_token        | SELECT | {anon}               | PERMISSIVE
- order_items      | order_items_seller_select                | SELECT | {authenticated}      | PERMISSIVE
- order_payments   | order_payments_buyer_read_with_token     | SELECT | {anon}               | PERMISSIVE
- order_payments   | order_payments_seller_select             | SELECT | {authenticated}      | PERMISSIVE
- orders           | orders_buyer_read_with_token             | SELECT | {anon}               | PERMISSIVE
- orders           | orders_seller_delete                     | DELETE | {authenticated}      | PERMISSIVE
- orders           | orders_seller_select                     | SELECT | {authenticated}      | PERMISSIVE
- orders           | orders_seller_update                     | UPDATE | {authenticated}      | PERMISSIVE
- payee_change_log | payee_change_log_owner_read              | SELECT | {authenticated}      | PERMISSIVE
- payment_attempts | payment_attempts_buyer_select_with_token | SELECT | {anon}               | PERMISSIVE
- payment_attempts | payment_attempts_seller_select           | SELECT | {authenticated}      | PERMISSIVE
- products         | products_public_read_live                | SELECT | {anon}               | PERMISSIVE
- products         | products_seller_manage                   | ALL    | {authenticated}      | PERMISSIVE
- profiles         | profiles_seller_insert                   | INSERT | {authenticated}      | PERMISSIVE
- profiles         | profiles_seller_select                   | SELECT | {authenticated}      | PERMISSIVE
- profiles         | profiles_seller_update                   | UPDATE | {authenticated}      | PERMISSIVE
-(22 rows)
+     tablename      |                policyname                |  cmd   |        roles         | permissive 
+--------------------+------------------------------------------+--------+----------------------+------------
+ drops              | drops_public_read                        | SELECT | {anon,authenticated} | PERMISSIVE
+ drops              | drops_seller_manage                      | ALL    | {authenticated}      | PERMISSIVE
+ objects            | product_images_seller_delete             | DELETE | {authenticated}      | PERMISSIVE
+ objects            | product_images_seller_insert             | INSERT | {authenticated}      | PERMISSIVE
+ objects            | product_images_seller_read               | SELECT | {authenticated}      | PERMISSIVE
+ objects            | product_images_seller_update             | UPDATE | {authenticated}      | PERMISSIVE
+ order_items        | order_items_buyer_read_with_token        | SELECT | {anon}               | PERMISSIVE
+ order_items        | order_items_seller_select                | SELECT | {authenticated}      | PERMISSIVE
+ order_payments     | order_payments_buyer_read_with_token     | SELECT | {anon}               | PERMISSIVE
+ order_payments     | order_payments_seller_select             | SELECT | {authenticated}      | PERMISSIVE
+ orders             | orders_buyer_read_with_token             | SELECT | {anon}               | PERMISSIVE
+ orders             | orders_seller_delete                     | DELETE | {authenticated}      | PERMISSIVE
+ orders             | orders_seller_select                     | SELECT | {authenticated}      | PERMISSIVE
+ orders             | orders_seller_update                     | UPDATE | {authenticated}      | PERMISSIVE
+ payee_change_log   | payee_change_log_owner_read              | SELECT | {authenticated}      | PERMISSIVE
+ payment_attempts   | payment_attempts_buyer_select_with_token | SELECT | {anon}               | PERMISSIVE
+ payment_attempts   | payment_attempts_seller_select           | SELECT | {authenticated}      | PERMISSIVE
+ products           | products_public_read_live                | SELECT | {anon}               | PERMISSIVE
+ products           | products_seller_manage                   | ALL    | {authenticated}      | PERMISSIVE
+ profiles           | profiles_seller_insert                   | INSERT | {authenticated}      | PERMISSIVE
+ profiles           | profiles_seller_select                   | SELECT | {authenticated}      | PERMISSIVE
+ profiles           | profiles_seller_update                   | UPDATE | {authenticated}      | PERMISSIVE
+ seller_push_tokens | seller_push_tokens_owner_read            | SELECT | {authenticated}      | PERMISSIVE
+(23 rows)
 

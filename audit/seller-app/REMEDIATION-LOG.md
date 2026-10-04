@@ -168,3 +168,15 @@ Totals:
 | SA-AUTH-001 / SA-AUTH-003 hosted settings | Set by the owner in Supabase Auth: custom SMTP, rate limit, reset template + redirect URL, minimum password length 10, Confirm email on (owner-reported; not readable from the repo) |
 | App-side fixes | Not yet verified on a device; they need a new app build (see HANDOFF "Waiting on the owner") |
 
+## P1 round 5 (2026-10-04): crash reporting and push notifications (migration 041, ADR-015)
+
+| Finding | Status | What changed | Proof | Owner actions |
+|---|---|---|---|---|
+| SA-OBS-001 | Fixed in repo | Firebase Crashlytics via `AppLog`: uncaught errors reported, handled errors reported. 31 silent `catch (_)` blocks now log; haptics stay silent on purpose. Home, Products and Settings show a retry banner when loading fails | `crash_reporting_push_test.dart`; debug APK built with Firebase config processed | Add GitHub secret `GOOGLE_SERVICES_JSON` (contents of `android/app/google-services.json`) so CI and release builds include Firebase |
+| SA-NOT-001 | Fixed in repo; owner setup required | 041: device tokens, preferences, `push_outbox` filled by order/claim triggers, service-only dispatcher API, pg_net wake-up + pg_cron backstop. Edge Function `push-dispatch` (FCM HTTP v1). App: permission prompt, token register/unregister, foreground display, tap routing, real switches in Settings | SQL suite 23 (8/8); Deno tests 3/3; Flutter tests | 1. Run Database Deploy (apply), check H26. 2. Firebase → Project settings → Service accounts → Generate new private key, then paste its JSON as Supabase Edge Function secret `FCM_SERVICE_ACCOUNT`. 3. Add GitHub secret `SUPABASE_ACCESS_TOKEN` and run "Deploy Edge Functions" (or `npx supabase functions deploy push-dispatch --no-verify-jwt`). 4. New app build; check a test order produces a notification |
+
+Totals:
+- DB harness (41 migrations): 160 PASS, 0 FAIL. Remaining FINDINGs: 12.3 and 13.9, both P2.
+- `flutter analyze` clean. `flutter test`: 218 pass, 2 fail, and those 2 fail only on Windows.
+- Audit Flutter suite 26/26. Deno tests 3/3.
+

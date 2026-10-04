@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
+import '../services/app_log.dart';
 
 /// LiveDrop Seller Mobile App — Resilient URL & Deep Link Launcher Helper
 ///
@@ -28,7 +29,8 @@ class UrlLauncherHelper {
         final launched = await launchUrl(nativeUri, mode: LaunchMode.externalNonBrowserApplication);
         if (launched) return;
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('url_launcher_helper:31', e, st);
       // Fall through to web universal link
     }
 
@@ -39,7 +41,8 @@ class UrlLauncherHelper {
         final launched = await launchUrl(webUri, mode: LaunchMode.externalApplication);
         if (launched) return;
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('url_launcher_helper:42', e, st);
       // Fall through to fallback UI
     }
 
@@ -73,7 +76,8 @@ class UrlLauncherHelper {
         final launched = await launchUrl(uri);
         if (launched) return;
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('url_launcher_helper:76', e, st);
       // Fall through
     }
 
@@ -103,7 +107,8 @@ class UrlLauncherHelper {
         final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
         if (launched) return;
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('url_launcher_helper:106', e, st);
       // Fall through
     }
 
@@ -133,7 +138,8 @@ class UrlLauncherHelper {
           final launched = await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication);
           if (launched) return;
         }
-      } catch (_) {
+      } catch (e, st) {
+        AppLog.error('url_launcher_helper:136', e, st);
         // Fall through
       }
     }

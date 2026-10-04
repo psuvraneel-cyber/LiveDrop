@@ -9,6 +9,7 @@ import '../../domain/models/models.dart';
 import '../errors/exceptions.dart';
 import '../validation/product_rules.dart';
 import 'intake_error_classifier.dart';
+import 'app_log.dart';
 
 /// Lifecycle of a captured piece on this phone.
 ///
@@ -302,7 +303,8 @@ class OfflineIntakeQueue {
     final target = '${file.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}';
     try {
       await file.rename(target);
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('offline_intake_queue:305', e, st);
       await file.copy(target);
       await file.delete();
     }
@@ -314,7 +316,8 @@ class OfflineIntakeQueue {
     if (await manifest.exists()) {
       try {
         return (items: _decodeManifest(await manifest.readAsString()), restoredFromBackup: false);
-      } catch (_) {
+      } catch (e, st) {
+        AppLog.error('offline_intake_queue:317', e, st);
         await _quarantine(manifest);
       }
     }
@@ -325,7 +328,8 @@ class OfflineIntakeQueue {
         final items = _decodeManifest(await backup.readAsString());
         debugPrint('[OfflineIntakeQueue] Restored ${items.length} item(s) from $backupName');
         return (items: items, restoredFromBackup: true);
-      } catch (_) {
+      } catch (e, st) {
+        AppLog.error('offline_intake_queue:328', e, st);
         await _quarantine(backup);
       }
     }
@@ -367,7 +371,8 @@ class OfflineIntakeQueue {
           legacyItems = _decodeManifest(await file.readAsString());
           legacyReadable = true;
           break;
-        } catch (_) {
+        } catch (e, st) {
+          AppLog.error('offline_intake_queue:370', e, st);
           legacyReadable = false;
           await file.copy(
             '${baseDir.path}/$name.legacy.corrupt-${DateTime.now().millisecondsSinceEpoch}',
