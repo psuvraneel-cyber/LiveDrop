@@ -4,6 +4,11 @@
 -- Exits non-zero (ON_ERROR_STOP + RAISE) when a security expectation fails.
 \set ON_ERROR_STOP on
 \pset footer off
+\if :{?strict_cron}
+\else
+\set strict_cron off
+\endif
+SET livedrop.strict_cron = :'strict_cron';
 
 \echo '== H1: grants on public_seller_storefronts (expected: SELECT only)'
 SELECT grantee, string_agg(privilege_type, ', ' ORDER BY privilege_type) AS privileges
@@ -27,20 +32,42 @@ SELECT has_function_privilege('anon', 'public.release_stale_hold(uuid)', 'EXECUT
        has_function_privilege('authenticated', 'public.record_refund(uuid,text,text)', 'EXECUTE') AS record_refund_auth;
 
 DO $$
-DECLARE v_bad int;
+DECLARE v_bad int; v_view text; v_role text;
 BEGIN
+  -- Every public view: client roles hold nothing but SELECT (H14, incl. REFERENCES/TRIGGER).
   SELECT count(*) INTO v_bad
   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
   CROSS JOIN (VALUES ('anon'), ('authenticated')) AS g(rolname)
   CROSS JOIN unnest(ARRAY['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) AS pr(p)
   WHERE n.nspname = 'public' AND c.relkind = 'v' AND has_table_privilege(g.rolname, c.oid, pr.p);
-  IF v_bad > 0 THEN RAISE EXCEPTION 'CHECK FAILED (SA-SEC-001): % write privileges remain on public views', v_bad; END IF;
-  IF to_regprocedure('public.record_refund(uuid,text,text)') IS NULL THEN
-    RAISE EXCEPTION 'CHECK FAILED: record_refund missing — migration 035 not applied';
+  IF v_bad > 0 THEN RAISE EXCEPTION 'CHECK FAILED (SA-SEC-001): % non-SELECT privileges remain on public views', v_bad; END IF;
+
+  -- H1: the buyer-facing projection views must stay readable by both client roles.
+  FOREACH v_view IN ARRAY ARRAY['public.public_seller_storefronts', 'public.public_products_catalog'] LOOP
+    FOREACH v_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+      IF to_regclass(v_view) IS NULL OR NOT has_table_privilege(v_role, v_view, 'SELECT') THEN
+        RAISE EXCEPTION 'CHECK FAILED (H1): % cannot SELECT %', v_role, v_view;
+      END IF;
+    END LOOP;
+  END LOOP;
+
+  -- H16: function privilege matrix.
+  IF to_regprocedure('public.record_refund(uuid,text,text)') IS NULL
+     OR to_regprocedure('public.release_stale_hold(uuid)') IS NULL
+     OR to_regprocedure('public.apply_upi_payment_transition(uuid,uuid,text,text,uuid)') IS NULL THEN
+    RAISE EXCEPTION 'CHECK FAILED: migration 035 functions missing';
   END IF;
-  IF has_function_privilege('anon', 'public.release_stale_hold(uuid)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.record_refund(uuid,text,text)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'CHECK FAILED: anon can execute an internal/seller-only function';
+  IF NOT has_function_privilege('authenticated', 'public.record_refund(uuid,text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (H16): sellers cannot execute record_refund';
+  END IF;
+  FOREACH v_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF has_function_privilege(v_role, 'public.release_stale_hold(uuid)', 'EXECUTE')
+       OR has_function_privilege(v_role, 'public.apply_upi_payment_transition(uuid,uuid,text,text,uuid)', 'EXECUTE') THEN
+      RAISE EXCEPTION 'CHECK FAILED (H16): % can execute an internal helper', v_role;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.record_refund(uuid,text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (H16): anon can execute record_refund';
   END IF;
   RAISE NOTICE 'PASS security checks (H1/H14/H16)';
 END $$;
@@ -51,22 +78,30 @@ SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' 
 \echo '== H8/H17: pg_cron and the reaper job (expected: one active job, every minute)'
 SELECT name, installed_version FROM pg_available_extensions WHERE name = 'pg_cron';
 DO $$
-DECLARE r record; n int := 0;
+DECLARE r record; n int := 0; v_strict boolean := current_setting('livedrop.strict_cron') IN ('on', 'true', '1');
 BEGIN
   IF to_regclass('cron.job') IS NULL THEN
-    RAISE WARNING 'pg_cron is not installed: enable it in Supabase (Database -> Extensions) and re-run this workflow in apply mode';
+    IF v_strict THEN RAISE EXCEPTION 'CHECK FAILED (SA-OPS-001): pg_cron is not installed — enable it in Supabase (Database -> Extensions) and re-run apply'; END IF;
+    RAISE WARNING 'pg_cron is not installed yet';
     RETURN;
   END IF;
   FOR r IN EXECUTE $q$SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'livedrop-release-expired-holds'$q$ LOOP
     n := n + 1;
     RAISE NOTICE 'cron job % schedule=% active=%', r.jobname, r.schedule, r.active;
+    IF v_strict AND (NOT r.active OR r.schedule <> '* * * * *') THEN
+      RAISE EXCEPTION 'CHECK FAILED (SA-OPS-001): reaper job is inactive or not every minute';
+    END IF;
   END LOOP;
-  IF n = 0 THEN RAISE WARNING 'reaper job not scheduled yet'; END IF;
+  IF n <> 1 THEN
+    IF v_strict THEN RAISE EXCEPTION 'CHECK FAILED (SA-OPS-001): expected exactly one reaper job, found %', n; END IF;
+    RAISE WARNING 'reaper job count is % (expected 1)', n;
+  END IF;
   FOR r IN EXECUTE $q$SELECT status, start_time FROM cron.job_run_details
                      WHERE jobid IN (SELECT jobid FROM cron.job WHERE jobname = 'livedrop-release-expired-holds')
                      ORDER BY start_time DESC LIMIT 5$q$ LOOP
     RAISE NOTICE 'reaper run % at %', r.status, r.start_time;
   END LOOP;
+  IF n = 1 THEN RAISE NOTICE 'PASS reaper schedule (H17)'; END IF;
 END $$;
 
 \echo '== H18/H19: holds and claims (counts only)'
