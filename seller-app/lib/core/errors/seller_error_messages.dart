@@ -45,6 +45,25 @@ class SellerErrorMessages {
     }
   }
 
+  /// Messages for `mark_order_ready_to_ship` / `mark_order_shipped` (SA-ORD-005).
+  static String fulfilment(Object error) {
+    if (_isNetwork(error)) return _network;
+    switch (codeOf(error)) {
+      case 'ORDER_NOT_PAID':
+        return 'This order is not fully paid yet. Collect the balance before packing or shipping.';
+      case 'ORDER_NOT_READY_TO_SHIP':
+        return 'Mark the order as packed before dispatching it.';
+      case 'ALREADY_SHIPPED':
+        return 'This order has already been shipped. Pull down to refresh.';
+      case 'INVALID_ORDER_STATE':
+        return 'This order can no longer be packed or shipped. Pull down to refresh.';
+      case 'UNAUTHORIZED':
+        return 'Your session has expired. Please sign in again.';
+      default:
+        return 'Could not update this order right now. Please try again.';
+    }
+  }
+
   /// Messages for `verify_manual_upi_payment`.
   static String verifyPayment(Object error) {
     if (_isNetwork(error)) return _network;

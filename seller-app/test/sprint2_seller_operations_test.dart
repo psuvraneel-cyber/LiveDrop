@@ -196,7 +196,7 @@ void main() {
         expect(find.text('#PEND-001'), findsOneWidget);
         expect(find.text('₹1580'), findsOneWidget);
         expect(find.text('Ananya Rao'), findsOneWidget);
-        expect(find.text('WhatsApp'), findsOneWidget);
+        expect(find.text('Send pay link'), findsOneWidget);
         expect(find.text('Release'), findsOneWidget);
         expect(find.textContaining('Hold Expires in:'), findsOneWidget);
         expect(find.text('#A01  ₹1500'), findsOneWidget);

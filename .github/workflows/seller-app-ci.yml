@@ -10,11 +10,13 @@ on:
     branches: [main, master, "feat/**", "fix/**"]
     paths:
       - "seller-app/**"
+      - "audit/seller-app/tests/flutter/**"
       - ".github/workflows/seller-app-ci.yml"
   pull_request:
     branches: [main, master]
     paths:
       - "seller-app/**"
+      - "audit/seller-app/tests/flutter/**"
       - ".github/workflows/seller-app-ci.yml"
   workflow_dispatch:
     inputs:
@@ -81,6 +83,14 @@ jobs:
 
       - name: Run Flutter unit & widget tests
         run: flutter test
+
+      # SA-TEST-001: the audit regression tests (audit/seller-app/tests/flutter) run against a
+      # scratch copy of the app, with TZ=Asia/Kolkata for the time-zone cases.
+      - name: Run seller-app audit tests
+        working-directory: .
+        env:
+          FLUTTER: flutter
+        run: WORK="$RUNNER_TEMP/ld-seller/seller-app" bash audit/seller-app/tests/flutter/run_flutter_audit_tests.sh
 
       - name: Build Android staging debug APK
         env:

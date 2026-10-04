@@ -75,6 +75,9 @@ PaymentAttempt auditAttempt({
   String paymentType = 'full',
   int amountPaisa = 158000,
   PaymentAttemptStatus status = PaymentAttemptStatus.awaitingSellerVerification,
+  List<ClaimPiece> pieces = const [],
+  String? orderStatus,
+  int? orderTotalPaisa,
 }) {
   return PaymentAttempt(
     id: id,
@@ -91,6 +94,11 @@ PaymentAttempt auditAttempt({
     createdAt: DateTime.utc(2026, 10, 3, 9, 0),
     orderCode: 'LD-AB12CD',
     buyerName: 'Riya Sen',
+    buyerPhone: '9830012345',
+    orderToken: 'tok-1',
+    orderStatus: orderStatus,
+    orderTotalPaisa: orderTotalPaisa,
+    pieces: pieces,
   );
 }
 
@@ -165,7 +173,7 @@ class AuditRepo extends Fake implements SellerRepository {
   Future<List<SellerProduct>> getProducts(String dropId) async => products;
 
   @override
-  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status}) async {
+  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status, int limit = 300}) async {
     calls.add('getAllOrders');
     return orders;
   }

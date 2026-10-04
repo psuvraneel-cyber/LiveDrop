@@ -2,14 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/errors/exceptions.dart';
 import '../../core/errors/seller_error_messages.dart';
 import '../../core/services/pdf_label_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/utils/payment_reminder.dart';
 import '../../core/utils/phone_utils.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import 'order_actions.dart';
 import 'order_details_screen.dart';
 import 'shipping_dialog.dart';
 
@@ -82,17 +85,11 @@ class _OrderCardState extends State<OrderCard> {
 
   Future<void> _sendWhatsAppReminder() async {
     final cleanPhone = PhoneUtils.whatsAppDigits(widget.order.buyerPhone);
-    final amountRupees = (widget.order.totalPaisa / 100).toStringAsFixed(0);
-    final storeName = widget.profile.storeName;
-    final upiId = widget.profile.upiId;
-
-    final message = Uri.encodeComponent(
-      'Hi ${widget.order.buyerName}! 👋\n\n'
-      'This is from *$storeName*. Your reserved order *#${widget.order.orderCode}* for ₹$amountRupees is awaiting payment confirmation.\n\n'
-      '💳 Pay via UPI: *$upiId*\n'
-      'Please complete your payment before the hold reservation expires!\n\n'
-      'Thank you for shopping with us! ✨',
-    );
+    // Amount actually due + the buyer's order link; never the raw UPI ID
+    // (SA-PAY-013).
+    final text = PaymentReminder.message(widget.order, storeName: widget.profile.storeName);
+    if (text == null) return;
+    final message = Uri.encodeComponent(text);
 
     final url = Uri.parse('https://wa.me/$cleanPhone?text=$message');
     if (await canLaunchUrl(url)) {
@@ -200,12 +197,122 @@ class _OrderCardState extends State<OrderCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Print error: $e'),
+            content: Text(e is LiveDropException ? e.message : 'Could not print the label. Try again.'),
             backgroundColor: AppColors.crimson,
           ),
         );
       }
     }
+  }
+
+  bool _isMarkingPacked = false;
+
+  Future<void> _markPacked() async {
+    setState(() => _isMarkingPacked = true);
+    try {
+      await widget.repository.markOrderReadyToShip(widget.order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('#${widget.order.orderCode} is packed and ready to dispatch.'),
+          backgroundColor: AppColors.emerald,
+        ),
+      );
+      widget.onOrderUpdated();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(SellerErrorMessages.fulfilment(e)),
+          backgroundColor: AppColors.crimson,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isMarkingPacked = false);
+    }
+  }
+
+  Widget _buildActionRow(SellerOrder order) {
+    final actions = OrderActions.forOrder(order);
+    if (actions.isEmpty) {
+      return Text(
+        OrderActions.isClosed(order) ? OrderActions.closedReason(order) : 'No action needed.',
+        key: const Key('order-closed-reason'),
+        style: TextStyle(color: order.isRefundOwed ? AppColors.crimson : AppColors.textMuted, fontSize: 12),
+      );
+    }
+    final children = <Widget>[];
+    for (final action in actions) {
+      if (children.isNotEmpty) children.add(const SizedBox(width: 10));
+      switch (action) {
+        case OrderAction.remindPayment:
+        case OrderAction.collectBalance:
+          children.add(Expanded(
+            child: BounceableButton(
+              key: Key('order-action-${action.name}'),
+              onPressed: _sendWhatsAppReminder,
+              variant: ButtonVariant.darkCard,
+              height: 40,
+              icon: Icons.chat,
+              text: action == OrderAction.collectBalance ? 'Ask for balance' : 'Send pay link',
+            ),
+          ));
+        case OrderAction.releaseHold:
+          // Release is hidden while the buyer has a payment claim: the
+          // server refuses it (PAYMENT_CLAIM_PENDING) anyway.
+          children.add(OutlinedButton(
+            key: const Key('order-action-releaseHold'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.crimson,
+              side: const BorderSide(color: AppColors.crimson),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: _forceReleaseHold,
+            child: const Text('Release', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ));
+        case OrderAction.markPacked:
+          children.add(Expanded(
+            child: BounceableButton(
+              key: const Key('order-action-markPacked'),
+              onPressed: _isMarkingPacked ? null : _markPacked,
+              isLoading: _isMarkingPacked,
+              variant: ButtonVariant.goldGradient,
+              height: 40,
+              icon: Icons.inventory_2_outlined,
+              text: 'Mark packed',
+            ),
+          ));
+        case OrderAction.printLabel:
+        case OrderAction.reprintLabel:
+          final reprint = action == OrderAction.reprintLabel;
+          final button = OutlinedButton.icon(
+            key: Key('order-action-${action.name}'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: reprint ? AppColors.textSecondary : AppColors.goldPrimary,
+              side: BorderSide(color: reprint ? AppColors.cardBorder : AppColors.goldPrimary),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: Icon(reprint ? Icons.print_outlined : Icons.print, size: 16),
+            label: Text(reprint ? 'Reprint 4×6 Label' : '4×6 Label', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            onPressed: _printShippingLabel,
+          );
+          children.add(reprint ? Expanded(child: button) : button);
+        case OrderAction.dispatch:
+          children.add(Expanded(
+            child: BounceableButton(
+              key: const Key('order-action-dispatch'),
+              onPressed: _openDispatchDialog,
+              variant: ButtonVariant.goldGradient,
+              height: 40,
+              icon: Icons.local_shipping,
+              text: 'Dispatch',
+            ),
+          ));
+      }
+    }
+    return Row(children: children);
   }
 
   void _openOrderDetails() {
@@ -239,7 +346,17 @@ class _OrderCardState extends State<OrderCard> {
     Color statusPillTint = AppColors.amberTint;
     String statusPillText = 'Payment Pending';
 
-    if (order.status == OrderStatus.paid) {
+    if (OrderActions.isClosed(order)) {
+      // Closed orders first: a cancelled order can still carry payment_status
+      // 'paid' (late payment, refund owed) and must not look like a sale.
+      statusPillColor = order.isRefundOwed ? AppColors.crimson : AppColors.textMuted;
+      statusPillTint = order.isRefundOwed ? AppColors.crimsonTint : AppColors.obsidianElevated;
+      statusPillText = order.isRefundOwed
+          ? 'Refund owed'
+          : order.status == OrderStatus.expired
+              ? 'Expired'
+              : 'Cancelled';
+    } else if (order.status == OrderStatus.paid) {
       statusPillColor = AppColors.emerald;
       statusPillTint = AppColors.emeraldTint;
       statusPillText = 'Paid';
@@ -444,83 +561,9 @@ class _OrderCardState extends State<OrderCard> {
               const Divider(color: AppColors.cardBorder, height: 1),
               const SizedBox(height: 10),
 
-              // Contextual Action Buttons
-              Row(
-                children: [
-                  // Pending Actions: WhatsApp & Release
-                  if (order.status == OrderStatus.pending) ...[
-                    Expanded(
-                      child: BounceableButton(
-                        onPressed: _sendWhatsAppReminder,
-                        variant: ButtonVariant.darkCard,
-                        height: 40,
-                        icon: Icons.chat,
-                        text: 'WhatsApp',
-                      ),
-                    ),
-                    // Release is hidden while the buyer has a payment claim:
-                    // the server refuses it (PAYMENT_CLAIM_PENDING) anyway.
-                    if (pendingClaim == null) ...[
-                      const SizedBox(width: 10),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.crimson,
-                          side: const BorderSide(color: AppColors.crimson),
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: _forceReleaseHold,
-                        child: const Text('Release', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ],
-
-                  // Paid / Ready Actions: 4x6 Label & Dispatch
-                  if (order.status == OrderStatus.paid ||
-                      order.status == OrderStatus.confirmed ||
-                      order.fulfilmentStatus == OrderFulfilmentStatus.readyToShip) ...[
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.goldPrimary,
-                        side: const BorderSide(color: AppColors.goldPrimary),
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      icon: const Icon(Icons.print, size: 16),
-                      label: const Text('4×6 Label', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      onPressed: _printShippingLabel,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: BounceableButton(
-                        onPressed: _openDispatchDialog,
-                        variant: ButtonVariant.goldGradient,
-                        height: 40,
-                        icon: Icons.local_shipping,
-                        text: 'Dispatch',
-                      ),
-                    ),
-                  ],
-
-                  // Shipped Actions: Reprint 4x6 Label
-                  if (order.status == OrderStatus.shipped ||
-                      order.fulfilmentStatus == OrderFulfilmentStatus.shipped) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          side: const BorderSide(color: AppColors.cardBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        icon: const Icon(Icons.print_outlined, size: 16),
-                        label: const Text('Reprint 4×6 Label', style: TextStyle(fontSize: 12)),
-                        onPressed: _printShippingLabel,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              // Contextual Action Buttons: derived from the server's rules
+              // (SA-ORD-005, OrderActions).
+              _buildActionRow(order),
             ],
           ),
         ),

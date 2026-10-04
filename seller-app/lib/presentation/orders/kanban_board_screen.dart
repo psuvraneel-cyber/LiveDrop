@@ -6,6 +6,7 @@ import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
+import 'order_actions.dart';
 import 'order_card.dart';
 
 /// Asks the Orders board to show one pipeline tab. The home shell uses it so
@@ -77,9 +78,9 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
     super.initState();
     final requested = widget.tabRequest?.tab;
     _tabController = TabController(
-      length: 4,
+      length: 5,
       vsync: this,
-      initialIndex: (requested != null && requested >= 0 && requested < 4) ? requested : 0,
+      initialIndex: (requested != null && requested >= 0 && requested < 5) ? requested : 0,
     );
     widget.tabRequest?.addListener(_onTabRequested);
     _loadInitialData();
@@ -181,6 +182,11 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
     }).toList();
   }
 
+  /// Cancelled and expired orders, with their reason on the card (SA-ORD-004).
+  List<SellerOrder> get _closedOrders => _filterOrders(
+        _allOrders.where(OrderActions.isClosed).toList(),
+      );
+
   List<SellerOrder> get _pendingOrders => _filterOrders(
         _allOrders.where((o) => o.status == OrderStatus.pending).toList(),
       );
@@ -192,7 +198,8 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
                     o.status == OrderStatus.confirmed ||
                     o.paymentStatus == OrderPaymentStatus.advancePaid) &&
                 o.fulfilmentStatus != OrderFulfilmentStatus.readyToShip &&
-                o.status != OrderStatus.shipped)
+                o.status != OrderStatus.shipped &&
+                !OrderActions.isClosed(o))
             .toList(),
       );
 
@@ -292,9 +299,21 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
                 ),
               ),
 
-              // 4 Pipeline Tabs
+              // SA-PERF-001: across all drops only the newest orders are loaded.
+              if (_selectedDropId == null && _allOrders.length >= SellerRepository.ordersPageLimit)
+                const Padding(
+                  key: Key('orders-capped-note'),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Text(
+                    'Showing your newest ${SellerRepository.ordersPageLimit} orders. Pick a drop to see older ones.',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                ),
+              // Pipeline tabs + Closed (SA-ORD-004); scrollable on phones.
               TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 indicatorColor: AppColors.goldPrimary,
                 indicatorSize: TabBarIndicatorSize.tab,
                 labelColor: AppColors.goldPrimary,
@@ -304,6 +323,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
                   Tab(text: 'Paid (${_paidOrders.length})'),
                   Tab(text: 'Ready (${_readyOrders.length})'),
                   Tab(text: 'Shipped (${_shippedOrders.length})'),
+                  Tab(text: 'Closed (${_closedOrders.length})'),
                 ],
               ),
             ],
@@ -332,12 +352,19 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
                     _buildOrderList(_paidOrders, 'No paid orders waiting for verification or packing.'),
                     _buildOrderList(_readyOrders, 'No orders marked ready for shipping.'),
                     _buildOrderList(_shippedOrders, 'No dispatched orders yet.'),
+                    _buildOrderList(_closedOrders, 'No cancelled or expired orders.'),
                   ],
                 ),
     );
   }
 
   Widget _buildOrderList(List<SellerOrder> orders, String emptyText) {
+    // Cards need the real profile (store name in messages); never a
+    // placeholder one (SA-UX-002).
+    final profile = _profile;
+    if (profile == null && orders.isNotEmpty) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.goldPrimary));
+    }
     if (orders.isEmpty) {
       return Center(
         child: Column(
@@ -365,19 +392,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
           final order = orders[i];
           return OrderCard(
             order: order,
-            profile: _profile ??
-                SellerProfile(
-                  id: order.dropId,
-                  storeName: 'Boutique Store',
-                  storeSlug: 'store',
-                  phoneNumber: '+91 9999999999',
-                  upiId: 'store@upi',
-                  returnAddress: 'Boutique Studio, India',
-                  defaultShippingFeePaisa: 8000,
-                  advanceConfirmationEnabled: false,
-                  advanceAmountPaisa: 25000,
-                  holdDurationDays: 30,
-                ),
+            profile: profile!,
             repository: widget.repository,
             onOrderUpdated: _onOrderMutated,
           );

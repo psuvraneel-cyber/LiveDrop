@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../domain/models/models.dart';
+import '../errors/exceptions.dart';
 
 /// LiveDrop Seller Mobile App — 4×6" Thermal Shipping Label Generator
 ///
@@ -12,6 +13,29 @@ import '../../domain/models/models.dart';
 class PdfLabelService {
   const PdfLabelService();
 
+  /// Why a label must not be printed for [order], or `null` when it may
+  /// (SA-SHIP-002): a parcel is only labelled once nothing is left to pay,
+  /// so no courier is told "prepaid" for an order with a balance due.
+  static String? labelBlockedReason(SellerOrder order) {
+    if (order.status == OrderStatus.cancelled || order.status == OrderStatus.expired) {
+      return 'This order is ${order.status.name}; there is nothing to ship.';
+    }
+    if (order.paymentStatus != OrderPaymentStatus.paid || order.balanceDuePaisa > 0) {
+      return 'This order is not fully paid yet. Collect the balance before printing a label.';
+    }
+    return null;
+  }
+
+  /// Text of the payment banner. Only printed for fully paid orders.
+  static String paymentBanner(SellerOrder order) => 'PREPAID - DO NOT COLLECT CASH';
+
+  /// The tracking number to encode as a barcode, or `null` when there is no
+  /// real AWB yet (SA-SHIP-002: no made-up barcode a courier cannot scan).
+  static String? barcodeData(SellerOrder order, {String? trackingNumber}) {
+    String? nonEmpty(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+    return nonEmpty(trackingNumber) ?? nonEmpty(order.trackingNumber);
+  }
+
   /// Generates the standard 4×6" thermal label document as PDF bytes.
   Future<Uint8List> generateShippingLabel({
     required SellerOrder order,
@@ -19,6 +43,10 @@ class PdfLabelService {
     String? courierPartner,
     String? trackingNumber,
   }) async {
+    final blocked = labelBlockedReason(order);
+    if (blocked != null) {
+      throw LiveDropException(blocked, code: 'LABEL_NOT_ALLOWED');
+    }
     final pdf = pw.Document();
 
     // Never invent a courier or AWB (SA-SHIP-001): a label printed before the
@@ -26,8 +54,7 @@ class PdfLabelService {
     // reference instead.
     String? nonEmpty(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
     final courier = nonEmpty(courierPartner) ?? nonEmpty(order.courierPartner) ?? 'Courier';
-    final realTracking = nonEmpty(trackingNumber) ?? nonEmpty(order.trackingNumber);
-    final tracking = realTracking ?? order.orderCode;
+    final realTracking = barcodeData(order, trackingNumber: trackingNumber);
     final trackingLine = realTracking != null
         ? 'AWB / TRACKING: $realTracking'
         : 'AWB: NOT YET ASSIGNED  •  REF ${order.orderCode}';
@@ -71,10 +98,6 @@ class PdfLabelService {
                               fontWeight: pw.FontWeight.bold,
                             ),
                           ),
-                          pw.Text(
-                            'Routing: SURFACE-PRIORITY-STANDARD',
-                            style: const pw.TextStyle(fontSize: 7),
-                          ),
                         ],
                       ),
                       pw.Text(
@@ -97,14 +120,17 @@ class PdfLabelService {
                   ),
                   child: pw.Column(
                     children: [
-                      pw.BarcodeWidget(
-                        barcode: pw.Barcode.code128(),
-                        data: tracking,
-                        width: 220,
-                        height: 38,
-                        drawText: false,
-                      ),
-                      pw.SizedBox(height: 3),
+                      // Barcode only for a real AWB (SA-SHIP-002).
+                      if (realTracking != null) ...[
+                        pw.BarcodeWidget(
+                          barcode: pw.Barcode.code128(),
+                          data: realTracking,
+                          width: 220,
+                          height: 38,
+                          drawText: false,
+                        ),
+                        pw.SizedBox(height: 3),
+                      ],
                       pw.Text(
                         trackingLine,
                         style: pw.TextStyle(
@@ -125,7 +151,7 @@ class PdfLabelService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text(
-                        'PREPAID - DO NOT COLLECT CASH',
+                        paymentBanner(order),
                         style: pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 10,
@@ -264,7 +290,7 @@ class PdfLabelService {
                         ),
                         pw.BarcodeWidget(
                           barcode: pw.Barcode.qrCode(),
-                          data: 'LIVEDROP:${order.orderCode}:$tracking',
+                          data: 'LIVEDROP:${order.orderCode}${realTracking != null ? ':$realTracking' : ''}',
                           width: 44,
                           height: 44,
                         ),

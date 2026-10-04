@@ -63,6 +63,27 @@ BEGIN
   ms := extract(epoch FROM clock_timestamp() - t0) * 1000;
   RAISE NOTICE 'INFO 15.1 getAllOrders(): % orders, ~% KB JSON, % ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)', n, round(bytes/1024.0), round(ms);
 
+  -- SA-PERF-001 (fixed in round 4c): the app now asks for the newest 300 orders at most, and
+  -- analytics come from seller_sales_summary (migration 040) instead of the full download above.
+  t0 := clock_timestamp();
+  SELECT count(*), sum(length(j::text)) INTO n, bytes FROM (
+    SELECT to_jsonb(o) || jsonb_build_object('order_items', (
+      SELECT coalesce(jsonb_agg(to_jsonb(oi) || jsonb_build_object('products',
+               (SELECT jsonb_build_object('code', p.code, 'title', p.title, 'image_url', p.image_url) FROM products p WHERE p.id = oi.product_id))), '[]')
+      FROM order_items oi WHERE oi.order_id = o.id)) AS j
+    FROM orders o ORDER BY o.created_at DESC LIMIT 300) s;
+  ms := extract(epoch FROM clock_timestamp() - t0) * 1000;
+  RAISE NOTICE '% 15.1b getAllOrders(limit 300): % orders, ~% KB JSON, % ms',
+    CASE WHEN n <= 300 THEN 'PASS' ELSE 'FAIL' END, n, round(bytes/1024.0), round(ms);
+
+  IF to_regprocedure('public.seller_sales_summary(timestamptz,integer)') IS NOT NULL THEN
+    t0 := clock_timestamp();
+    SELECT length(seller_sales_summary(now() - interval '30 days', 330)::text) INTO bytes;
+    ms := extract(epoch FROM clock_timestamp() - t0) * 1000;
+    RAISE NOTICE '% 15.1c seller_sales_summary (analytics): % bytes, % ms (was the full download above)',
+      CASE WHEN bytes < 8192 THEN 'PASS' ELSE 'FAIL' END, bytes, round(ms);
+  END IF;
+
   -- SellerRepository.getPendingVerifications() — RLS EXISTS join per attempt
   t0 := clock_timestamp();
   SELECT count(*) INTO n FROM payment_attempts pa JOIN orders o ON o.id = pa.order_id

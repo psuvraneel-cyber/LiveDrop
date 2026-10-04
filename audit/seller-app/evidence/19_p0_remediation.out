@@ -40,7 +40,7 @@ psql:audit/seller-app/tests/sql/19_p0_remediation.sql:407: NOTICE:  PASS 19.6 la
 DO
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:430: NOTICE:  PASS 19.7 seller direct UPDATE of refund fields -> clear=ERR 42501 Direct | mark refunded=ERR 42501 Direct | amount=ERR 42501 Direct | control (shipping_address)=OK rows=1 | stored refund=required/25000/null
 DO
-psql:audit/seller-app/tests/sql/19_p0_remediation.sql:466: NOTICE:  PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order 32f6d0e8-e948-49ca-9787-ee5fad2c9759 wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order 6e4a1110-68bc-4cd1-9f9b-6d9b83a90994 bec (rows kept=1) | control without payments -> OK rows=1
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:466: NOTICE:  PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order d4063861-8ed0-49db-94a8-5c7765ca7a5b wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order 42782c14-a235-45b5-bf1f-040bf2c091f7 bec (rows kept=1) | control without payments -> OK rows=1
 DO
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9a anon cannot execute record_refund -> EXECUTE granted=f call=permission denied
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9b other seller -> ORDER_NOT_FOUND_OR_UNAUTHORIZED
@@ -49,7 +49,7 @@ psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9d o
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9e happy path -> success=true idempotent=false status=refunded amount=128000 reference="UPI-REF 9876/01" refunded_at set=t | stored by seller A=t note appended=t
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9f replay with the same reference -> success=true idempotent=true | different reference -> NO_REFUND_DUE
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9g trusted backend (service_role) -> success=true | order status=refunded recorded_by=null
-psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order 32f6d0e8-e948-49ca-9787-ee5fad2c9759 with refund s
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:535: NOTICE:  PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order d4063861-8ed0-49db-94a8-5c7765ca7a5b with refund s
 DO
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10a release with a claim in flight -> PAYMENT_CLAIM_PENDING attempt=t utr=819000000010 message=t | order=pending attempt=awaiting_seller_verification piece=reserved held=t rows unchanged=t
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:591: NOTICE:  PASS 19.10b release without a claim -> success=true released=1 expired attempts=1 | order=cancelled attempt=expired piece=available
@@ -76,7 +76,7 @@ psql:audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20a 
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20b no table in public grants TRUNCATE/REFERENCES/TRIGGER to anon/authenticated (offenders: none)
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:911: NOTICE:  PASS 19.20c new tables/views get no anon INSERT/UPDATE/DELETE/TRUNCATE and no authenticated TRUNCATE by default (offenders: none)
 DO
-psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T19:13:17.452309+05:30) | re-claim keeps the window=t
+psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T19:40:04.686198+05:30) | re-claim keeps the window=t
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22b claim on a drop that is not live -> hold in 1 day window in 1 day
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22c lapsed ADVANCE claim after reaper -> cancelled/late_claim_pending_review/available (seller queue rows=1) | verify -> success=true late=true | order=confirmed/advance_paid advance_paid=25000 ledger=25000 piece=reserved held=t
 psql:audit/seller-app/tests/sql/19_p0_remediation.sql:1001: NOTICE:  PASS 19.22d lapsed FULL claim, piece resold -> other checkout=true | verify -> success=true refund_required=true | order=cancelled/paid refund=required/128000 ledger=128000 | other buyer keeps piece=t

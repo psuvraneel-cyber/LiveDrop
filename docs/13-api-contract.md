@@ -317,6 +317,12 @@ LiveDrop isolates API interactions into two strict surfaces:
 
 ---
 
+### 3.7c Seller Sales Summary (RPC), new in migration 040 (SA-PERF-001)
+* **Endpoint:** `POST /rest/v1/rpc/seller_sales_summary`
+* **Actor:** Seller (RLS-scoped, `SECURITY INVOKER`); `anon` cannot call it.
+* **Request Body:** `{"p_from": "2026-09-27T00:00:00Z", "p_utc_offset_minutes": 330}`
+* **Response:** `{"total_revenue_paisa": 400000, "items_sold": 2, "active_holds": 1, "top_products": [{"code": "#A02", "title": "...", "sold_count": 1, "revenue_paisa": 250000, "image_url": "..."}], "daily": [{"date": "2026-09-28", "total_paisa": 0}, ...]}`. `daily` has exactly 7 entries, oldest first.
+
 ### 3.8 Force Release Hold (RPC)
 * **Endpoint:** `POST /rest/v1/rpc/force_release_hold`
 * **Actor:** Owning Seller.
@@ -459,6 +465,12 @@ LiveDrop isolates API interactions into two strict surfaces:
 
 ### 3.15 Reject Manual UPI Payment (RPC) — change in migration 035
 `reject_manual_upi_payment(p_payment_attempt_id, p_rejection_reason, p_release_hold)` keeps the hold and returns `hold_released: false` while another claim on the same order is still in flight, even if `p_release_hold` is true.
+
+Since round 4b (SA-PAY-010) the seller app offers both choices:
+* "Ask buyer to fix (keep piece)" sends `p_release_hold = false`. The order and its pieces stay held until the existing deadline, and the buyer can submit a corrected UTR on the same attempt from their order page (`/order/{id}?token=...`).
+* "Reject & release piece" sends `true`.
+
+Late claims are only rejected, because their order is already cancelled.
 
 ### 3.16 Internal Functions (not part of the client API)
 `release_stale_hold(p_order_id uuid) RETURNS boolean`, `apply_upi_payment_transition(...)`, `upi_verification_response(...)` and (since 038) `close_drop_safely(p_drop_id uuid) RETURNS int` are `SECURITY DEFINER` helpers with EXECUTE revoked from `PUBLIC`, `anon`, `authenticated` and `service_role`; a client call returns `permission denied`. `release_expired_holds()` is called by pg_cron (migration 036) and by the backup GitHub Actions reaper (`scripts/run-reaper.mjs`, service role).

@@ -12,9 +12,11 @@ INSERT 0 2000
 INSERT 0 2000
 INSERT 0 2000
 ANALYZE
-psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 178 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
-psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.2 getPendingVerifications(): 0 rows, 8.6 ms
-psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:80: NOTICE:  INFO 15.3 getProducts(liveDrop): 3 rows, 0.6 ms
+psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:101: NOTICE:  INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 168 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
+psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:101: NOTICE:  PASS 15.1b getAllOrders(limit 300): 300 orders, ~422 KB JSON, 19 ms
+psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:101: NOTICE:  PASS 15.1c seller_sales_summary (analytics): 1563 bytes, 91 ms (was the full download above)
+psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:101: NOTICE:  INFO 15.2 getPendingVerifications(): 0 rows, 6.3 ms
+psql:audit/seller-app/tests/sql/15_perf_seller_queries.sql:101: NOTICE:  INFO 15.3 getProducts(liveDrop): 3 rows, 0.5 ms
 DO
  as_seller 
 -----------
@@ -35,8 +37,8 @@ DO
                  Filter: (((seller_id = (COALESCE(NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text), ((NULLIF(current_setting('request.jwt.claims'::text, true), ''::text))::jsonb ->> 'sub'::text)))::uuid) OR ((status = ANY ('{live,closed}'::text[])) AND is_seller_approved(seller_id))) AND (seller_id = (COALESCE(NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text), ((NULLIF(current_setting('request.jwt.claims'::text, true), ''::text))::jsonb ->> 'sub'::text)))::uuid))
                  Rows Removed by Filter: 1
                  Buffers: shared hit=2
- Planning Time: 0.226 ms
- Execution Time: 0.858 ms
+ Planning Time: 0.229 ms
+ Execution Time: 0.811 ms
 (14 rows)
 
  as_postgres 

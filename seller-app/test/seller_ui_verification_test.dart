@@ -50,7 +50,7 @@ class TestSellerRepository extends Fake implements SellerRepository {
   Future<List<SellerProduct>> getProducts(String dropId) async => products;
 
   @override
-  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status}) async => orders;
+  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status, int limit = 300}) async => orders;
 
   @override
   Future<List<PaymentAttempt>> getPendingVerifications() async => pendingVerifications;
