@@ -52,7 +52,7 @@ IntakeQueueItem _queued(String dropId, IntakeQueueStatus status) => IntakeQueueI
     );
 
 class _Repo extends P0FakeRepo {
-  _Repo({super.drops, super.products});
+  _Repo({super.drops});
 
   final List<String> markSoldCalls = [];
   final List<String> undoCalls = [];
