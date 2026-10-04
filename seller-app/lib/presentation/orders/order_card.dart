@@ -7,6 +7,7 @@ import '../../core/services/pdf_label_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/utils/phone_utils.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import 'order_details_screen.dart';
@@ -80,8 +81,7 @@ class _OrderCardState extends State<OrderCard> {
   }
 
   Future<void> _sendWhatsAppReminder() async {
-    final phone = widget.order.buyerPhone.replaceAll(RegExp(r'[^0-9]'), '');
-    final cleanPhone = phone.startsWith('91') ? phone : '91$phone';
+    final cleanPhone = PhoneUtils.whatsAppDigits(widget.order.buyerPhone);
     final amountRupees = (widget.order.totalPaisa / 100).toStringAsFixed(0);
     final storeName = widget.profile.storeName;
     final upiId = widget.profile.upiId;
@@ -227,7 +227,7 @@ class _OrderCardState extends State<OrderCard> {
     final order = widget.order;
     final pendingClaim = order.pendingPaymentClaim;
     final totalRupees = (order.totalPaisa / 100).toStringAsFixed(0);
-    final dateStr = DateFormat('hh:mm a').format(order.createdAt);
+    final dateStr = DateFormat('hh:mm a').format(order.createdAt.toLocal());
 
     final isUrgent = pendingClaim == null &&
         _remainingTime.inMinutes < 3 &&

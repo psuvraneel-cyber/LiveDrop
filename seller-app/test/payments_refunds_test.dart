@@ -348,7 +348,7 @@ void main() {
         verificationExpiresAt: '2026-10-03T09:00:00+00:00',
         expiresAt: '2026-10-03T09:00:00+00:00',
       ));
-      expect(overdue.verificationDeadline, DateTime.parse('2026-10-03T09:00:00+00:00'));
+      expect(overdue.verificationDeadline!.isAtSameMomentAs(DateTime.parse('2026-10-03T09:00:00+00:00')), isTrue);
       expect(overdue.isOverdue(now), isTrue);
     });
 

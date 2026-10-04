@@ -285,12 +285,12 @@ class SellerDrop {
       freeShippingThresholdPaisa: json['free_shipping_threshold_paisa'] as int?,
       streamUrl: json['stream_url'] as String?,
       liveStartedAt: json['live_started_at'] != null
-          ? DateTime.parse(json['live_started_at'] as String)
+          ? _parseTimestamp(json['live_started_at'] as String)
           : null,
       closedAt: json['closed_at'] != null
-          ? DateTime.parse(json['closed_at'] as String)
+          ? _parseTimestamp(json['closed_at'] as String)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseTimestamp(json['created_at'] as String),
     );
   }
 }
@@ -347,7 +347,7 @@ class SellerProduct {
       imageUrls: parsedImageUrls,
       status: ProductStatus.fromString(json['status'] as String),
       reservedAt: json['reserved_at'] != null
-          ? DateTime.parse(json['reserved_at'] as String)
+          ? _parseTimestamp(json['reserved_at'] as String)
           : null,
       reservedByOrderId: json['reserved_by_order_id'] as String?,
       version: json['version'] as int? ?? 1,
@@ -364,7 +364,7 @@ class SellerProduct {
     'image_url': imageUrl,
     'image_urls': imageUrls.isNotEmpty ? imageUrls : [imageUrl],
     'status': status.toDbValue(),
-    'reserved_at': reservedAt?.toIso8601String(),
+    'reserved_at': reservedAt?.toUtc().toIso8601String(),
     'reserved_by_order_id': reservedByOrderId,
     'version': version,
   };
@@ -434,9 +434,15 @@ class OrderPaymentAttemptSummary {
   }
 }
 
+/// PostgREST returns `timestamptz` in UTC. Every timestamp the app shows or
+/// buckets by day is converted to the device's local time here, at the model
+/// boundary (SA-ORD-001: order times and labels were 5 h 30 min early in IST).
+/// Instants are unchanged, so comparisons and durations are not affected.
+DateTime _parseTimestamp(String value) => DateTime.parse(value).toLocal();
+
 DateTime? _parseOptionalDate(Object? value) {
   if (value is! String || value.isEmpty) return null;
-  return DateTime.tryParse(value);
+  return DateTime.tryParse(value)?.toLocal();
 }
 
 int _parseOptionalInt(Object? value, {int fallback = 0}) {
@@ -578,23 +584,23 @@ class SellerOrder {
       fulfilmentStatus: OrderFulfilmentStatus.fromString(
           json['fulfilment_status'] as String? ?? 'not_ready'),
       advancePaidAt: json['advance_paid_at'] != null
-          ? DateTime.parse(json['advance_paid_at'] as String)
+          ? _parseTimestamp(json['advance_paid_at'] as String)
           : null,
       holdExpiresAt: json['hold_expires_at'] != null
-          ? DateTime.parse(json['hold_expires_at'] as String)
+          ? _parseTimestamp(json['hold_expires_at'] as String)
           : null,
       paidAt: json['paid_at'] != null
-          ? DateTime.parse(json['paid_at'] as String)
+          ? _parseTimestamp(json['paid_at'] as String)
           : null,
       packedAt: json['packed_at'] != null
-          ? DateTime.parse(json['packed_at'] as String)
+          ? _parseTimestamp(json['packed_at'] as String)
           : null,
       shippedAt: json['shipped_at'] != null
-          ? DateTime.parse(json['shipped_at'] as String)
+          ? _parseTimestamp(json['shipped_at'] as String)
           : null,
       trackingNumber: json['tracking_number'] as String?,
       courierPartner: json['courier_partner'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseTimestamp(json['created_at'] as String),
       items: itemsList,
       refundStatus: RefundStatus.fromString(json['refund_status'] as String?),
       refundAmountPaisa: _parseOptionalInt(json['refund_amount_paisa']),
@@ -836,19 +842,19 @@ class PaymentAttempt {
       transactionReference: json['transaction_reference'] as String,
       status: PaymentAttemptStatus.fromString(json['status'] as String),
       buyerClaimedAt: json['buyer_claimed_at'] != null
-          ? DateTime.parse(json['buyer_claimed_at'] as String)
+          ? _parseTimestamp(json['buyer_claimed_at'] as String)
           : null,
       buyerSubmittedUtr: json['buyer_submitted_utr'] as String?,
       sellerVerifiedAt: json['seller_verified_at'] != null
-          ? DateTime.parse(json['seller_verified_at'] as String)
+          ? _parseTimestamp(json['seller_verified_at'] as String)
           : null,
       verifiedBy: json['verified_by'] as String?,
       rejectionReason: json['rejection_reason'] as String?,
       verificationExpiresAt: json['verification_expires_at'] != null
-          ? DateTime.parse(json['verification_expires_at'] as String)
+          ? _parseTimestamp(json['verification_expires_at'] as String)
           : null,
-      expiresAt: DateTime.parse(json['expires_at'] as String),
-      createdAt: DateTime.parse(json['created_at'] as String),
+      expiresAt: _parseTimestamp(json['expires_at'] as String),
+      createdAt: _parseTimestamp(json['created_at'] as String),
       orderCode: orderMap?['order_code'] as String?,
       buyerName: orderMap?['buyer_name'] as String?,
     );

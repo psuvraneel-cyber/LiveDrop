@@ -1,59 +1,63 @@
-   Woah! You appear to be trying to run flutter as root.
-   We strongly recommend running the flutter tool without superuser privileges.
-  /
-📎
-00:00 +0: loading /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart
-00:00 +0: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +0: /opt/ld-work/seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T14 (fixed): default queue location is the app support directory, not the OS temp/cache directory
-AUDIT T14 default baseDir=/tmp/audit_app_support_QLKCSR/livedrop_intake_queue systemTemp=/tmp migrates from=/tmp/livedrop_intake_queue
-00:00 +1: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +2: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +2: /opt/ld-work/seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T16 (fixed): a timeout after the server committed is recognised on retry — 23505 for a product carrying our own uploaded photo marks the piece completed (lost-response idempotency)
-AUDIT T16 afterTimeout=IntakeQueueStatus.failed status=IntakeQueueStatus.completed retries=1 serverProductId=p1 lookups=1 createCalls=2 serverProducts=1
-00:00 +3: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +3: /opt/ld-work/seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T17 (fixed): a code typed without "#" is normalised before it is queued and syncs; an invalid code is refused at entry, and one queued by an older build is held as "needs attention" (no retry loop)
-AUDIT T17 enqueued code=#A05 status=IntakeQueueStatus.completed | entry refusal=LiveDropException[INVALID_PRODUCT_INPUT]: Codes can have at most 6 letters/digits after # (7 entered). | legacy status=IntakeQueueStatus.needsAttention reason="Codes can have at most 6 letters/digits after # (7 entered)." createCalls=0 retryScheduled=false
-00:00 +4: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +4: /opt/ld-work/seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T18 (fixed): an item enqueued while a sync is running is picked up by that same run
-AUDIT T18 second item status after the run finished: IntakeQueueStatus.completed createCalls=2
-00:00 +5: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +5: /opt/ld-work/seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T25 (fixed): re-initialising the shared queue during a sync (camera_intake_screen.dart) is a no-op, so the run keeps its progress and the garment is created exactly once
-AUDIT T25 statusAfterFirstRun=IntakeQueueStatus.completed final=IntakeQueueStatus.completed lastError=null serverProducts=1 createCalls=1
-00:00 +6: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:00 +6: /opt/ld-work/seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T19 (fixed): a corrupt manifest is moved aside and the queue is restored from queue.json.bak
-[OfflineIntakeQueue] Unreadable manifest moved to /tmp/audit_queue_WUOJDC/queue.json.corrupt-1791103329749
-[OfflineIntakeQueue] Restored 1 item(s) from queue.json.bak
-AUDIT T19 reloaded items=[#A01] quarantined=[queue.json.corrupt-1791103329749]
-00:00 +7: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T09: a FULL payment claim is labelled "Advance Payment"
-00:01 +8: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T10: "Remarks" typed by the seller are never sent to the server
-AUDIT T10 verify calls: [[attempt-1, null]]
-00:01 +9: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T11: rejecting a claim always releases the reserved garment (no "keep hold" option)
-AUDIT T11 reject calls: [{id: attempt-1, reason: payment_not_found, releaseHold: true}]
-00:02 +10: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T12: "Screenshot: Tap to view" shows a placeholder, not buyer evidence
-00:02 +11: /opt/ld-work/seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T13: verification queue shows no garment / line items for the claim
-00:05 +12: /opt/ld-work/seller-app/test/audit/audit_order_details_test.dart: SA-AUD-T01: buyer name with two consecutive spaces crashes the order screen (RangeError in _getInitials)
-AUDIT T01 exception: RangeError: RangeError (index): Invalid value: Valid value range is empty: 0
-00:05 +13: /opt/ld-work/seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 1280x720
-00:06 +13: /opt/ld-work/seller-app/test/audit/audit_order_details_test.dart: SA-AUD-T02: WhatsApp contact drops the +91 country code for mobile numbers starting with 91
-AUDIT T02 launched: [whatsapp://send?phone=9123456789&text=Hello%20Riya%20Sen%2C%20regarding%20your%20LiveDrop%20order%20%23LD-AB12CD...]
-00:06 +14: /opt/ld-work/seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 1280x720
-AUDIT T24 input=1280x720 1263KB -> 720x720 552KB image/jpeg in 459 ms (dev host)
-00:06 +15: /opt/ld-work/seller-app/test/audit/audit_order_details_test.dart: SA-AUD-T03: primary button labelled "Mark as Ready" opens the dispatch (ship) dialog, also for shipped orders
-00:06 +16: /opt/ld-work/seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:09 +16: /opt/ld-work/seller-app/test/audit/audit_kanban_test.dart: SA-AUD-T20 (refund part fixed): a verified late payment that needs a refund is listed under Payments → Refunds owed; cancelled/expired orders still have no Kanban tab (SA-ORD-004, open)
-AUDIT T20 refunds section=1 order=1 amount=1
-00:09 +17: /opt/ld-work/seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:09 +18: /opt/ld-work/seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-00:12 +19: /opt/ld-work/seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
-AUDIT T24 input=4000x3000 16427KB -> 1200x1200 1158KB image/jpeg in 3076 ms (dev host)
-00:12 +20: /opt/ld-work/seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T07: approval gate fails OPEN when the profile request fails (offline / RLS / parse error)
-00:12 +21: /opt/ld-work/seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
-AUDIT T08 after Shipping tap: labelScreen=0 readyVisible=1 pendingVisible=0 shipCalls=[]
-00:13 +22: /opt/ld-work/seller-app/test/audit/audit_timezone_test.dart: SA-AUD-T04: PostgREST timestamptz parses as a UTC DateTime
-AUDIT T04 device offset=5:30:00.000000 createdAt.isUtc=true card text=09:00 AM local=02:30 PM
-00:13 +23: /opt/ld-work/seller-app/test/audit/audit_timezone_test.dart: SA-AUD-T05: order card shows the UTC clock time (09:00 AM) instead of IST (02:30 PM)
-00:14 +24: /opt/ld-work/seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T22: EXIF orientation is applied during decode (rotated photos stay upright)
+00:00 +0: loading seller-app/test/audit/audit_home_shell_test.dart
+00:00 +0: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T06: unapproved seller is shown the pending-approval screen (control)
+00:00 +0: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 1280x720
+AUDIT T24 input=1280x720 1263KB -> 720x720 552KB image/jpeg in 310 ms (dev host)
+00:00 +1: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T06: unapproved seller is shown the pending-approval screen (control)
+00:01 +1: seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T22: EXIF orientation is applied during decode (rotated photos stay upright)
 AUDIT T22 out=300x300 bytes=4917 rightPixel=254,0,0 leftPixel=255,255,255
-00:14 +25: /opt/ld-work/seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T23: camera/gallery EXIF (device, GPS) survives compression and is published with the image
+00:01 +2: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T06: unapproved seller is shown the pending-approval screen (control)
+00:01 +3: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:01 +3: seller-app/test/audit/audit_image_service_test.dart: SA-AUD-T23: camera/gallery EXIF (device, GPS) survives compression and is published with the image
 AUDIT T23 make=AuditCam gpsLatitude=22.5726 size=1200x1200 45281B mime=image/jpeg
-00:14 +26: All tests passed!
+00:01 +4: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:01 +5: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +5: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T14 (fixed): default queue location is the app support directory, not the OS temp/cache directory
+AUDIT T14 default baseDir=<TEMP>\audit_app_support_3517b5ce/livedrop_intake_queue systemTemp=<TEMP> migrates from=<TEMP>/livedrop_intake_queue
+00:02 +6: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +7: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +7: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T16 (fixed): a timeout after the server committed is recognised on retry — 23505 for a product carrying our own uploaded photo marks the piece completed (lost-response idempotency)
+AUDIT T16 afterTimeout=IntakeQueueStatus.failed status=IntakeQueueStatus.completed retries=1 serverProductId=p1 lookups=1 createCalls=2 serverProducts=1
+00:02 +8: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +8: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T17 (fixed): a code typed without "#" is normalised before it is queued and syncs; an invalid code is refused at entry, and one queued by an older build is held as "needs attention" (no retry loop)
+AUDIT T17 enqueued code=#A05 status=IntakeQueueStatus.completed | entry refusal=LiveDropException[INVALID_PRODUCT_INPUT]: Codes can have at most 6 letters/digits after # (7 entered). | legacy status=IntakeQueueStatus.needsAttention reason="Codes can have at most 6 letters/digits after # (7 entered)." createCalls=0 retryScheduled=false
+00:02 +8: seller-app/test/audit/audit_home_shell_test.dart: SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call
+AUDIT T08 after Shipping tap: labelScreen=0 readyVisible=1 pendingVisible=0 shipCalls=[]
+00:02 +9: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +10: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +10: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T18 (fixed): an item enqueued while a sync is running is picked up by that same run
+AUDIT T18 second item status after the run finished: IntakeQueueStatus.completed createCalls=2
+00:02 +11: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +11: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T25 (fixed): re-initialising the shared queue during a sync (camera_intake_screen.dart) is a no-op, so the run keeps its progress and the garment is created exactly once
+AUDIT T25 statusAfterFirstRun=IntakeQueueStatus.completed final=IntakeQueueStatus.completed lastError=null serverProducts=1 createCalls=1
+00:02 +12: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:02 +12: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T19 (fixed): a corrupt manifest is moved aside and the queue is restored from queue.json.bak
+[OfflineIntakeQueue] Unreadable manifest moved to <TEMP>\audit_queue_1c03d45e/queue.json.corrupt-1791116989563
+[OfflineIntakeQueue] Restored 1 item(s) from queue.json.bak
+AUDIT T19 reloaded items=[#A01] quarantined=[queue.json.corrupt-1791116989563]
+00:02 +13: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:03 +13: seller-app/test/audit/audit_kanban_test.dart: SA-AUD-T20 (refund part fixed): a verified late payment that needs a refund is listed under Payments → Refunds owed; cancelled/expired orders still have no Kanban tab (SA-ORD-004, open)
+AUDIT T20 refunds section=1 order=1 amount=1
+00:03 +14: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:03 +15: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:03 +15: seller-app/test/audit/audit_order_details_test.dart: SA-AUD-T01: buyer name with two consecutive spaces renders (no RangeError in _getInitials)
+AUDIT T01 exception: Null: null
+00:03 +16: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:03 +16: seller-app/test/audit/audit_order_details_test.dart: SA-AUD-T02: WhatsApp contact keeps +91 for mobile numbers starting with 91
+AUDIT T02 launched: [whatsapp://send?phone=919123456789&text=Hello%20Riya%20Sen%2C%20regarding%20your%20LiveDrop%20order%20%23LD-AB12CD...]
+00:03 +17: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:04 +18: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:04 +18: seller-app/test/audit/audit_timezone_test.dart: SA-AUD-T04: PostgREST timestamptz is converted to local time at the model boundary
+AUDIT T04 device offset=5:30:00.000000 createdAt.isUtc=false card text=02:30 PM local=02:30 PM
+00:04 +19: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:04 +20: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:04 +21: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:04 +21: seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T10: "Remarks" typed by the seller are never sent to the server
+AUDIT T10 verify calls: [[attempt-1, null]]
+00:04 +22: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:05 +22: seller-app/test/audit/audit_payment_queue_test.dart: SA-AUD-T11: rejecting a claim always releases the reserved garment (no "keep hold" option)
+AUDIT T11 reject calls: [{id: attempt-1, reason: payment_not_found, releaseHold: true}]
+00:05 +23: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:05 +24: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+00:05 +25: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
+AUDIT T24 input=4000x3000 16427KB -> 1200x1200 1158KB image/jpeg in 3007 ms (dev host)
+00:06 +26: All tests passed!
