@@ -34,6 +34,23 @@ class EnvConfig {
     return '$base/drop/$cleanSlug';
   }
 
+  /// Path of the hosted page (on the buyer website) where a seller sets a new
+  /// password after following the e-mailed reset link (SA-AUTH-001).
+  static const String sellerPasswordResetPath = '/seller/reset-password';
+
+  /// Absolute `redirectTo` URL for `resetPasswordForEmail`.
+  ///
+  /// [baseUrl] defaults to [buyerBaseUrl]; it is a parameter only so the
+  /// builder can be unit-tested with other bases. Trailing slashes and
+  /// surrounding whitespace are ignored.
+  static String sellerPasswordResetUrl([String baseUrl = buyerBaseUrl]) {
+    var base = baseUrl.trim();
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
+    }
+    return '$base$sellerPasswordResetPath';
+  }
+
   /// Generates the direct product flash link for buyers.
   static String getProductUrl(String dropSlug, String productCode) {
     final cleanCode = productCode.replaceAll('#', '');

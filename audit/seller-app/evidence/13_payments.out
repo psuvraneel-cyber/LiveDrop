@@ -7,45 +7,59 @@ BEGIN
 CREATE FUNCTION
 CREATE FUNCTION
 CREATE FUNCTION
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  INFO 13.1a after claim: order status=pending payment=unpaid hold_expires_in=1 day
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  INFO 13.1a after claim: order status=pending payment=unpaid hold_expires_in=00:30:00
 psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  PASS 13.1b verify -> success=true order=paid/paid/not_ready total_paid=58000 ledger_rows=1 product=sold
 psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:67: NOTICE:  PASS 13.1c second verify -> idempotent=true ledger_rows=1
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:85: NOTICE:  FINDING 13.2 fabricated UTR "NOTAREALUTR" moved hold from 00:15:00 to 1 day (piece unavailable to other buyers until seller acts)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:86: NOTICE:  PASS 13.2 fabricated UTR "NOTAREALUTR" moved hold from 00:15:00 to 00:30:00 (piece unavailable to other buyers until seller acts)
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:106: NOTICE:  INFO 13.3a second order accepted the same UTR at claim time: true
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:106: NOTICE:  PASS 13.3b verify first=true second=REFERENCE_USED_ON_ANOTHER_ORDER
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:106: NOTICE:  FINDING 13.3c lower-case variant of an already verified UTR verified on a different order: true
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:107: NOTICE:  INFO 13.3a second order accepted the same UTR at claim time: true
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:107: NOTICE:  PASS 13.3b verify first=true second=REFERENCE_USED_ON_ANOTHER_ORDER
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:107: NOTICE:  FINDING 13.3c lower-case variant of an already verified UTR verified on a different order: true
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:122: NOTICE:  INFO 13.4 reject(payment_not_found) -> hold_released=true order=cancelled piece=available (UI offers no "keep hold" choice)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:123: NOTICE:  INFO 13.4 reject(payment_not_found) -> hold_released=true order=cancelled piece=available (UI offers no "keep hold" choice)
 DO
 UPDATE 1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:157: NOTICE:  INFO 13.5a advance order total=250000 advance_required=25000 attempt_amount=25000
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:157: NOTICE:  INFO 13.5b after reaper + late UTR: order=cancelled attempt=late_claim_pending_review
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:157: NOTICE:  PASS 13.5c late advance verified -> order confirmed/advance_paid total=250000 total_paid=25000 advance_paid=25000 balance_due=225000 hold_left=30 days piece=reserved/this-order | ledger records advance=25000 paisa | rpc late=true inventory=true refund=false
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:158: NOTICE:  INFO 13.5a advance order total=258000 advance_required=25000 attempt_amount=25000
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:158: NOTICE:  INFO 13.5b after reaper + late UTR: order=cancelled attempt=late_claim_pending_review
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:158: NOTICE:  PASS 13.5c late advance verified -> order confirmed/advance_paid total=258000 total_paid=25000 advance_paid=25000 balance_due=233000 hold_left=30 days piece=reserved/this-order | ledger records advance=25000 paisa | rpc late=true inventory=true refund=false
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:191: NOTICE:  PASS 13.6 late full payment, piece gone -> rpc success=true refund_required=true refund_amount=158000 | order status=cancelled payment=paid total_paid=158000 ledger=158000 refund_status=required refund_amount=158000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE | piece=reserved held by other buyer=t
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:192: NOTICE:  PASS 13.6 late full payment, piece gone -> rpc success=true refund_required=true refund_amount=158000 | order status=cancelled payment=paid total_paid=158000 ledger=158000 refund_status=required refund_amount=158000 reason=LATE_PAYMENT_INVENTORY_UNAVAILABLE | piece=reserved held by other buyer=t
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:223: NOTICE:  PASS 13.7 late advance, piece gone -> success=true Late payment verified, but items are no longer available. Seller refund or resolution requ | order=cancelled/advance_paid total=250000 total_paid=25000 advance_paid=25000 balance_due=225000 ledger=25000 refund=required/25000
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:224: NOTICE:  PASS 13.7 late advance, piece gone -> success=true Late payment verified, but items are no longer available. Seller refund or resolution requ | order=cancelled/advance_paid total=258000 total_paid=25000 advance_paid=25000 balance_due=233000 ledger=25000 refund=required/25000
 DO
 UPDATE 3
 UPDATE 1
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:254: NOTICE:  PASS 13.8 buyer-claimed payment after 24h without seller action -> order=pending attempt=awaiting_seller_verification piece=reserved held by order=t still in seller queue=1 | verify afterwards -> success=true (order=paid)
-DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:262: NOTICE:  FINDING 13.9 generate_upi_payment_uri -> upi://pay?pa=aarohi@okaxis&pn=Aarohi%20#1%20Boutique%20%26%20Co%20100%&am=1500.00&cu=INR&tr=LD-ABC123-FUL-1A2B&tn=LiveDrop%20LD-ABC123
-DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:278: NOTICE:  FINDING 13.10a drop threshold=299900 profile threshold=200000 subtotal=250000 -> shipping charged=0 (drop banner promises shipping until 299900)
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:278: NOTICE:  FINDING 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=8000 (drop banner promised free shipping)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:260: NOTICE:  PASS 13.8 buyer-claimed payment past its window, reaper ran -> order=cancelled attempt=late_claim_pending_review utr kept=t piece=available still in seller queue=1 | verify afterwards -> success=true late=true (order=paid)
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:290: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-WOF2MT-FUL-5172 (internal reference, not a bank UTR)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:285: NOTICE:  PASS 13.8b lapsed claim, piece resold -> other buyer checkout=true | verify -> success=true refund_required=true | order=cancelled refund=required/158000 | piece held by other buyer=t
 DO
 UPDATE 3
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:304: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:295: NOTICE:  FINDING 13.9 generate_upi_payment_uri -> upi://pay?pa=aarohi@okaxis&pn=Aarohi%20#1%20Boutique%20%26%20Co%20100%&am=1500.00&cu=INR&tr=LD-ABC123-FUL-1A2B&tn=LiveDrop%20LD-ABC123
 DO
-psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:318: NOTICE:  INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
+UPDATE 1
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:312: NOTICE:  PASS 13.10a drop threshold=299900 profile threshold=200000 subtotal=250000 -> shipping charged=8000 (drop banner promises shipping until 299900)
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:312: NOTICE:  PASS 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=0 (drop banner promised free shipping)
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:348: NOTICE:  PASS 13.10c drop 299900 vs shop 100000, subtotal 250000 -> shipping 8000 (resolved 299900) | drop NULL, shop 100000, subtotal 150000 -> shipping 0 | drop NULL, shop NULL, subtotal 450000 -> shipping 8000 (resolved NULL) | anon EXECUTE=t
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:358: NOTICE:  PASS 13.10d column defaults: drops=none profiles=none
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:370: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-D2X6CH-FUL-F0CD (internal reference, not a bank UTR)
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:384: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
+DO
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:398: NOTICE:  INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
+DO
+UPDATE 3
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:440: NOTICE:  PASS 13.14a claim during a live -> hold in 00:30:00 / window in 00:30:00 | re-claim with another UTR -> success=true window unchanged=t
+psql:/home/user/LiveDrop/audit/seller-app/tests/sql/13_payments.sql:440: NOTICE:  PASS 13.14b claim when the drop is not live -> hold in 1 day / window in 1 day
 DO
 ROLLBACK

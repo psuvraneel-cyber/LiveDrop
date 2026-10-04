@@ -64,6 +64,25 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Seller account recovery (/seller/reset-password): the URL carries a one-time token.
+        // Listed last so these values win over the catch-all above.
+        source: "/seller/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "no-referrer",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-store, max-age=0",
+          },
+        ],
+      },
     ];
   },
 };

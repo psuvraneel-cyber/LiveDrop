@@ -8,6 +8,21 @@ import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
 import 'order_card.dart';
 
+/// Asks the Orders board to show one pipeline tab. The home shell uses it so
+/// the dashboard "Shipping" shortcut opens the Ready-to-ship list instead of
+/// acting on an order by itself (SA-SHIP-001).
+class OrdersTabRequest extends ChangeNotifier {
+  int? _tab;
+
+  /// The most recently requested tab index, if any.
+  int? get tab => _tab;
+
+  void show(int tab) {
+    _tab = tab;
+    notifyListeners();
+  }
+}
+
 /// Screen 6: Luxury Boutique Orders Kanban Pipeline Screen
 /// 4 Pipeline Tabs: Pending, Paid, Ready, Shipped
 ///
@@ -18,10 +33,19 @@ class KanbanBoardScreen extends StatefulWidget {
   final SellerRepository repository;
   final SellerLiveStore? liveStore;
 
+  /// Optional external tab switching (see [OrdersTabRequest]).
+  final OrdersTabRequest? tabRequest;
+
+  static const int pendingTabIndex = 0;
+  static const int paidTabIndex = 1;
+  static const int readyTabIndex = 2;
+  static const int shippedTabIndex = 3;
+
   const KanbanBoardScreen({
     super.key,
     required this.repository,
     this.liveStore,
+    this.tabRequest,
   });
 
   @override
@@ -51,14 +75,38 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    final requested = widget.tabRequest?.tab;
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: (requested != null && requested >= 0 && requested < 4) ? requested : 0,
+    );
+    widget.tabRequest?.addListener(_onTabRequested);
     _loadInitialData();
   }
 
   @override
+  void didUpdateWidget(covariant KanbanBoardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tabRequest != widget.tabRequest) {
+      oldWidget.tabRequest?.removeListener(_onTabRequested);
+      widget.tabRequest?.addListener(_onTabRequested);
+    }
+  }
+
+  @override
   void dispose() {
+    widget.tabRequest?.removeListener(_onTabRequested);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onTabRequested() {
+    final tab = widget.tabRequest?.tab;
+    if (!mounted || tab == null || tab < 0 || tab >= _tabController.length) return;
+    _tabController.animateTo(tab);
+    // Show fresh data for the requested list (e.g. orders just marked ready).
+    _refreshOrders();
   }
 
   Future<void> _loadInitialData() async {

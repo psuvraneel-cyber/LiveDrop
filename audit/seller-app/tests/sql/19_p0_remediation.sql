@@ -1,5 +1,5 @@
 -- =============================================================================
--- Suite 19 — P0 remediation regression checks (migrations 034, 035, 036)
+-- Suite 19 — P0 remediation regression checks (migrations 034, 035, 036, 037)
 -- AUDIT-ONLY. Runs inside a transaction that is rolled back.
 -- Result lines: PASS / FAIL (behaviour required by the P0 contract), FINDING (a fixed
 -- defect has come back), INFO (behaviour recorded, no verdict).
@@ -7,12 +7,17 @@
 -- Every case creates its own pieces in seller A's live drop, so cases do not depend on
 -- each other except where a case id is read from t_ctx (refund / deletion cases).
 -- Prices: 120000 paisa -> total 128000 (8000 shipping); 240000 paisa -> total 240000
--- (seller A free-shipping threshold 200000). Advance: 25000 paisa; hold: 30 days.
+-- (seller A free-shipping threshold 200000, drop threshold unset so the shop threshold applies
+-- — migration 037 rule). Advance: 25000 paisa; hold: 30 days.
+-- Claim windows (037): a claim on a pending order holds 30 minutes during a live, else 24 hours;
+-- after hold and window lapse the order is released and the claim moves to late review.
 -- =============================================================================
 \set ON_ERROR_STOP 1
 BEGIN;
 SELECT audit.seed();
-UPDATE profiles SET advance_confirmation_enabled = true, advance_amount_paisa = 25000 WHERE id = audit.seller_a();
+UPDATE profiles SET advance_confirmation_enabled = true, advance_amount_paisa = 25000,
+                    free_shipping_threshold_paisa = 200000 WHERE id = audit.seller_a();
+UPDATE drops SET free_shipping_threshold_paisa = NULL WHERE id = audit.drop_a_live();
 
 CREATE TEMP TABLE t_ctx (k text PRIMARY KEY, v text);
 GRANT ALL ON t_ctx TO anon, authenticated, service_role;
@@ -191,21 +196,24 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- 19.2 lazy expiry never releases a hold whose buyer has CLAIMED payment
+-- 19.2 lazy expiry and claims (SA-PAY-003 / SA-PAY-007, migration 037)
+--  a) hold lapsed but the claim's verification window is still open -> nothing is released
+--  b) hold AND window lapsed -> released to the next buyer; the claim moves to late review
+--     (UTR kept) instead of expiring
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE p uuid; x jsonb; y jsonb; before_v text; after_v text; o text; a record; c record;
 BEGIN
   p := pg_temp.piece('#L03', 120000);
   x := pg_temp.buy(ARRAY[p], 'full_payment', '719000000001');
-  PERFORM pg_temp.expire((x->>'order_id')::uuid, (x->>'attempt_id')::uuid);
+  UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = (x->>'order_id')::uuid;
   before_v := pg_temp.rowvers((x->>'order_id')::uuid, (x->>'attempt_id')::uuid, p);
   y := pg_temp.buy(ARRAY[p], 'full_payment');
   after_v := pg_temp.rowvers((x->>'order_id')::uuid, (x->>'attempt_id')::uuid, p);
   SELECT status INTO o FROM orders WHERE id = (x->>'order_id')::uuid;
   SELECT status, buyer_submitted_utr INTO a FROM payment_attempts WHERE id = (x->>'attempt_id')::uuid;
   SELECT status, reserved_by_order_id INTO c FROM products WHERE id = p;
-  RAISE NOTICE '% 19.2 checkout of a piece behind an expired but CLAIMED hold -> % | order=% attempt=% utr=% piece=% held by claimant=% rows unchanged=%',
+  RAISE NOTICE '% 19.2a checkout of a piece behind an expired hold whose claim window is still open -> % | order=% attempt=% utr=% piece=% held by claimant=% rows unchanged=%',
     CASE WHEN (y->>'success')::boolean THEN 'FINDING'
          WHEN y->>'error' = 'STOCK_UNAVAILABLE' AND o = 'pending' AND a.status = 'awaiting_seller_verification'
               AND a.buyer_submitted_utr = '719000000001' AND c.status = 'reserved'
@@ -213,6 +221,21 @@ BEGIN
          ELSE 'FAIL' END,
     coalesce(y->>'error', 'success=' || (y->>'success')), o, a.status, a.buyer_submitted_utr, c.status,
     (c.reserved_by_order_id = (x->>'order_id')::uuid), (before_v = after_v);
+
+  -- b) now the window has lapsed too
+  PERFORM pg_temp.expire((x->>'order_id')::uuid, (x->>'attempt_id')::uuid);
+  y := pg_temp.buy(ARRAY[p], 'full_payment');
+  SELECT status INTO o FROM orders WHERE id = (x->>'order_id')::uuid;
+  SELECT status, buyer_submitted_utr, buyer_claimed_at INTO a FROM payment_attempts WHERE id = (x->>'attempt_id')::uuid;
+  SELECT status, reserved_by_order_id INTO c FROM products WHERE id = p;
+  RAISE NOTICE '% 19.2b checkout of a piece behind an expired hold whose claim window lapsed -> % | claimant order=% attempt=% utr=% | piece=% held by new buyer=%',
+    CASE WHEN a.status = 'expired' THEN 'FINDING'
+         WHEN (y->>'success')::boolean AND o = 'cancelled' AND a.status = 'late_claim_pending_review'
+              AND a.buyer_submitted_utr = '719000000001' AND a.buyer_claimed_at IS NOT NULL
+              AND c.status = 'reserved' AND c.reserved_by_order_id = (y->>'order_id')::uuid THEN 'PASS'
+         ELSE 'FAIL' END,
+    coalesce(y->>'error', 'success=' || (y->>'success')), o, a.status, a.buyer_submitted_utr, c.status,
+    (c.reserved_by_order_id = (y->>'order_id')::uuid);
 EXCEPTION WHEN OTHERS THEN
   PERFORM audit.as_postgres();
   RAISE NOTICE 'FAIL 19.2 unexpected error: % %', SQLSTATE, SQLERRM;
@@ -225,6 +248,7 @@ DO $$
 DECLARE f text; granted text := ''; anon_call text; seller_call text;
 BEGIN
   FOREACH f IN ARRAY ARRAY['public.release_stale_hold(uuid)',
+                           'public.order_has_open_payment_claim(uuid)',
                            'public.apply_upi_payment_transition(uuid,uuid,text,text,uuid)',
                            'public.upi_verification_response(uuid,uuid,uuid,boolean,boolean,boolean,text)'] LOOP
     IF has_function_privilege('anon', f, 'EXECUTE') THEN granted := granted || ' anon:' || f; END IF;
@@ -245,7 +269,7 @@ BEGIN
     seller_call := 'permission denied';
   END;
   PERFORM audit.as_postgres();
-  RAISE NOTICE '% 19.3 release_stale_hold / apply_upi_payment_transition / upi_verification_response not executable by anon or authenticated -> grants:% | anon call: % | seller call: %',
+  RAISE NOTICE '% 19.3 release_stale_hold / order_has_open_payment_claim / apply_upi_payment_transition / upi_verification_response not executable by anon or authenticated -> grants:% | anon call: % | seller call: %',
     CASE WHEN granted = '' AND anon_call = 'permission denied' AND seller_call = 'permission denied' THEN 'PASS' ELSE 'FINDING' END,
     CASE WHEN granted = '' THEN ' none' ELSE granted END, anon_call, seller_call;
 EXCEPTION WHEN OTHERS THEN
@@ -567,8 +591,10 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- 19.11 SA-PAY-003 reaper: claimed orders stay (overdue) while unclaimed holds are released
--- 19.12 claimed attempts past their window are still verifiable; unclaimed ones expire
+-- 19.11 SA-PAY-003 / SA-PAY-007 reaper (037): pending orders whose hold AND claim window lapsed are
+--       released and their claims move to late review (never expired); a confirmed order with a
+--       balance claim stays; unclaimed holds are released
+-- 19.12 lapsed claims are still verifiable (late path); unclaimed attempts past their window expire
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE pc_a uuid; pc_b uuid; pc_c uuid; pc_d uuid; pc_e uuid; pc_f uuid;
@@ -577,7 +603,7 @@ DECLARE pc_a uuid; pc_b uuid; pc_c uuid; pc_d uuid; pc_e uuid; pc_f uuid;
         a_before text; c_before text; e_before text; a_after text; c_after text; e_after text;
         sA text; sB text; sC text; sD text; sE text; ok_a boolean; ok_c boolean; ok_e boolean; ok_b boolean; ok_d boolean;
 BEGIN
-  -- A: on-time claim, 24 h window and hold both past
+  -- A: on-time claim, window and hold both past
   pc_a := pg_temp.piece('#L20', 120000);
   a := pg_temp.buy(ARRAY[pc_a], 'full_payment', '819000000020');
   PERFORM pg_temp.expire((a->>'order_id')::uuid, (a->>'attempt_id')::uuid);
@@ -625,16 +651,19 @@ BEGIN
   SELECT o.status || '/' || pa.status || '/' || p.status INTO sE FROM orders o, payment_attempts pa, products p
    WHERE o.id = (e->>'order_id')::uuid AND pa.id = (eb->>'payment_attempt_id')::uuid AND p.id = pc_e;
 
-  ok_a := sA = 'pending/awaiting_seller_verification/reserved' AND a_before = a_after;
+  ok_a := sA = 'cancelled/late_claim_pending_review/available'
+          AND (SELECT buyer_submitted_utr FROM payment_attempts WHERE id = (a->>'attempt_id')::uuid) = '819000000020';
   ok_b := sB = 'cancelled/expired/available';
-  ok_c := cc->>'status' = 'late_claim_pending_review' AND sC = 'pending/late_claim_pending_review/reserved' AND c_before = c_after;
+  ok_c := cc->>'status' = 'late_claim_pending_review' AND sC = 'cancelled/late_claim_pending_review/available'
+          AND (SELECT buyer_submitted_utr FROM payment_attempts WHERE id = (c->>'attempt_id')::uuid) = '819000000022';
   ok_d := sD = 'expired/advance_paid/25000/available';
   ok_e := sE = 'confirmed/awaiting_seller_verification/reserved' AND e_before = e_after;
-  RAISE NOTICE '% 19.11 one reaper run -> overdue claim A=% (untouched=%) | late claim on pending C=% (untouched=%) | overdue balance claim E=% (untouched=%) | unclaimed B=% | lapsed advance D=%',
-    CASE WHEN sA LIKE 'cancelled%' OR sC LIKE 'cancelled%' OR sE LIKE 'expired%' THEN 'FINDING'
+  RAISE NOTICE '% 19.11 one reaper run -> lapsed claim A=% (changed=%) | late claim on pending C=% (changed=%) | overdue balance claim E=% (untouched=%) | unclaimed B=% | lapsed advance D=%',
+    CASE WHEN sA LIKE '%/expired/%' OR sC LIKE '%/expired/%' OR sE LIKE 'expired%' OR sE LIKE '%/expired/%' THEN 'FINDING'
+         WHEN sA LIKE 'pending/%/reserved' THEN 'FINDING'
          WHEN ok_a AND ok_b AND ok_c AND ok_d AND ok_e THEN 'PASS'
          ELSE 'FAIL' END,
-    sA, (a_before = a_after), sC, (c_before = c_after), sE, (e_before = e_after), sB, sD;
+    sA, (a_before <> a_after), sC, (c_before <> c_after), sE, (e_before = e_after), sB, sD;
 
   -- 19.12 the overdue claims are still verifiable; an unclaimed attempt past its window is not
   va_ := pg_temp.verify_as(audit.seller_a(), (a->>'attempt_id')::uuid);
@@ -644,15 +673,15 @@ BEGIN
   f := pg_temp.buy(ARRAY[pc_f], 'full_payment');
   UPDATE payment_attempts SET expires_at = now() - interval '1 minute' WHERE id = (f->>'attempt_id')::uuid;
   vf_ := pg_temp.verify_as(audit.seller_a(), (f->>'attempt_id')::uuid);
-  RAISE NOTICE '% 19.12 verify after the window: claim A -> %/% | late claim C -> %/% (late=%) | balance claim E -> %/% | control: unclaimed attempt past expiry -> % (attempt=%)',
-    CASE WHEN (va_->>'success')::boolean AND va_->>'order_status' = 'paid'
+  RAISE NOTICE '% 19.12 verify after the window: claim A -> %/% (late=%) | late claim C -> %/% (late=%) | balance claim E -> %/% | control: unclaimed attempt past expiry -> % (attempt=%)',
+    CASE WHEN (va_->>'success')::boolean AND va_->>'order_status' = 'paid' AND (va_->>'is_late_claim')::boolean
               AND (vc_->>'success')::boolean AND vc_->>'order_status' = 'paid' AND (vc_->>'is_late_claim')::boolean
               AND (ve_->>'success')::boolean AND ve_->>'order_status' = 'paid'
               AND vf_->>'error' = 'PAYMENT_ATTEMPT_EXPIRED'
               AND (SELECT status FROM payment_attempts WHERE id = (f->>'attempt_id')::uuid) = 'expired' THEN 'PASS'
          WHEN NOT coalesce((va_->>'success')::boolean, false) OR NOT coalesce((ve_->>'success')::boolean, false) THEN 'FINDING'
          ELSE 'FAIL' END,
-    coalesce(va_->>'error', 'ok'), va_->>'order_status', coalesce(vc_->>'error', 'ok'), vc_->>'order_status', vc_->>'is_late_claim',
+    coalesce(va_->>'error', 'ok'), va_->>'order_status', va_->>'is_late_claim', coalesce(vc_->>'error', 'ok'), vc_->>'order_status', vc_->>'is_late_claim',
     coalesce(ve_->>'error', 'ok'), ve_->>'order_status', coalesce(vf_->>'error', 'success=' || (vf_->>'success')),
     (SELECT status FROM payment_attempts WHERE id = (f->>'attempt_id')::uuid);
 EXCEPTION WHEN OTHERS THEN
@@ -879,6 +908,108 @@ BEGIN
     CASE WHEN bad_new = '' THEN 'PASS' ELSE 'FINDING' END, coalesce(nullif(bad_new, ''), ' none');
   DROP VIEW public.s19_future_view;
   DROP TABLE public.s19_future_table;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 19.22 SA-PAY-007 claim window and lapsed-claim recovery (migration 037)
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE p1 uuid; p2 uuid; p3 uuid; p4 uuid; x jsonb; y jsonb; z jsonb; w jsonb; other jsonb;
+        h1 interval; v1 interval; h2 interval; v2 interval; q int; vz jsonb; vw jsonb; oz record; ow record; pz record; pw record;
+        a_status text; dl0 timestamptz; dl1 timestamptz; rc jsonb;
+BEGIN
+  -- a) claim during a live -> hold and window 30 minutes
+  p1 := pg_temp.piece('#L40', 120000);
+  x := pg_temp.buy(ARRAY[p1], 'full_payment', '819000000040');
+  SELECT o.hold_expires_at - now(), pa.verification_expires_at - now(), pa.verification_expires_at INTO h1, v1, dl0
+    FROM orders o JOIN payment_attempts pa ON pa.order_id = o.id WHERE pa.id = (x->>'attempt_id')::uuid;
+  rc := pg_temp.claim(x, (x->>'attempt_id')::uuid, '819000000041');   -- re-claim with another UTR
+  SELECT verification_expires_at INTO dl1 FROM payment_attempts WHERE id = (x->>'attempt_id')::uuid;
+  RAISE NOTICE '% 19.22a claim during a live -> hold in % window in % (claim response window=%) | re-claim keeps the window=%',
+    CASE WHEN h1 > interval '30 minutes' THEN 'FINDING'
+         WHEN h1 BETWEEN interval '29 minutes' AND interval '30 minutes' AND v1 BETWEEN interval '29 minutes' AND interval '30 minutes'
+              AND (x->'claim'->>'verification_expires_at')::timestamptz = dl0 AND dl0 = dl1 AND (rc->>'success')::boolean THEN 'PASS'
+         ELSE 'FAIL' END,
+    date_trunc('second', h1), date_trunc('second', v1), x->'claim'->>'verification_expires_at', (dl0 = dl1);
+
+  -- b) claim when the drop is not live (flipped directly with triggers off) -> 24 hours
+  p2 := pg_temp.piece('#L41', 120000);
+  y := pg_temp.buy(ARRAY[p2], 'full_payment');
+  SET LOCAL session_replication_role = replica;
+  UPDATE drops SET status = 'closed', closed_at = now() WHERE id = audit.drop_a_live();
+  SET LOCAL session_replication_role = origin;
+  PERFORM pg_temp.claim(y, (y->>'attempt_id')::uuid, '819000000042');
+  SET LOCAL session_replication_role = replica;
+  UPDATE drops SET status = 'live', closed_at = NULL WHERE id = audit.drop_a_live();
+  SET LOCAL session_replication_role = origin;
+  SELECT o.hold_expires_at - now(), pa.verification_expires_at - now() INTO h2, v2
+    FROM orders o JOIN payment_attempts pa ON pa.order_id = o.id WHERE pa.id = (y->>'attempt_id')::uuid;
+  RAISE NOTICE '% 19.22b claim on a drop that is not live -> hold in % window in %',
+    CASE WHEN h2 BETWEEN interval '23 hours 59 minutes' AND interval '24 hours'
+              AND v2 BETWEEN interval '23 hours 59 minutes' AND interval '24 hours' THEN 'PASS' ELSE 'FAIL' END,
+    date_trunc('second', h2), date_trunc('second', v2);
+
+  -- c) ADVANCE claim lapses -> reaper -> order cancelled, piece free, claim in late review and still
+  --    selected by the seller queue filter -> verify -> order restored as confirmed/advance_paid
+  p3 := pg_temp.piece('#L42', 240000);
+  z := pg_temp.buy(ARRAY[p3], 'advance', '819000000043');
+  PERFORM pg_temp.expire((z->>'order_id')::uuid, (z->>'attempt_id')::uuid);
+  PERFORM pg_temp.reap();
+  SELECT o.status || '/' || pa.status || '/' || pr.status INTO a_status
+    FROM orders o, payment_attempts pa, products pr
+   WHERE o.id = (z->>'order_id')::uuid AND pa.id = (z->>'attempt_id')::uuid AND pr.id = p3;
+  PERFORM audit.as_seller(audit.seller_a());
+  SELECT count(*) INTO q FROM payment_attempts pa JOIN orders o ON o.id = pa.order_id
+   WHERE pa.id = (z->>'attempt_id')::uuid
+     AND pa.status IN ('buyer_claimed', 'awaiting_seller_verification', 'late_claim_pending_review');
+  PERFORM audit.as_postgres();
+  vz := pg_temp.verify_as(audit.seller_a(), (z->>'attempt_id')::uuid);
+  SELECT * INTO oz FROM orders WHERE id = (z->>'order_id')::uuid;
+  SELECT status, reserved_by_order_id INTO pz FROM products WHERE id = p3;
+  RAISE NOTICE '% 19.22c lapsed ADVANCE claim after reaper -> % (seller queue rows=%) | verify -> % late=% | order=%/% advance_paid=% ledger=% piece=% held=%',
+    CASE WHEN a_status LIKE '%/expired/%' OR q = 0 THEN 'FINDING'
+         WHEN a_status = 'cancelled/late_claim_pending_review/available' AND q = 1
+              AND (vz->>'success')::boolean AND (vz->>'is_late_claim')::boolean AND NOT (vz->>'refund_required')::boolean
+              AND oz.status = 'confirmed' AND oz.payment_status = 'advance_paid' AND oz.advance_paid_paisa = 25000
+              AND pg_temp.ledger(oz.id) = 25000 AND pz.status = 'reserved' AND pz.reserved_by_order_id = oz.id THEN 'PASS'
+         ELSE 'FAIL' END,
+    a_status, q, coalesce(vz->>'error', 'success=' || (vz->>'success')), vz->>'is_late_claim',
+    oz.status, oz.payment_status, oz.advance_paid_paisa, pg_temp.ledger(oz.id), pz.status, (pz.reserved_by_order_id = oz.id);
+
+  -- d) FULL claim lapses -> reaper -> another buyer takes the piece -> verify -> refund obligation
+  p4 := pg_temp.piece('#L43', 120000);
+  w := pg_temp.buy(ARRAY[p4], 'full_payment', '819000000044');
+  PERFORM pg_temp.expire((w->>'order_id')::uuid, (w->>'attempt_id')::uuid);
+  PERFORM pg_temp.reap();
+  other := pg_temp.buy(ARRAY[p4], 'full_payment');
+  vw := pg_temp.verify_as(audit.seller_a(), (w->>'attempt_id')::uuid);
+  SELECT * INTO ow FROM orders WHERE id = (w->>'order_id')::uuid;
+  SELECT status, reserved_by_order_id INTO pw FROM products WHERE id = p4;
+  RAISE NOTICE '% 19.22d lapsed FULL claim, piece resold -> other checkout=% | verify -> % refund_required=% | order=%/% refund=%/% ledger=% | other buyer keeps piece=%',
+    CASE WHEN (SELECT status FROM payment_attempts WHERE id = (w->>'attempt_id')::uuid) = 'expired' THEN 'FINDING'
+         WHEN (other->>'success')::boolean AND (vw->>'success')::boolean AND (vw->>'refund_required')::boolean
+              AND ow.status = 'cancelled' AND ow.refund_status = 'required' AND ow.refund_amount_paisa = 128000
+              AND pg_temp.ledger(ow.id) = 128000 AND ow.total_paid_paisa = 128000
+              AND pw.status = 'reserved' AND pw.reserved_by_order_id = (other->>'order_id')::uuid THEN 'PASS'
+         ELSE 'FAIL' END,
+    other->>'success', coalesce(vw->>'error', 'success=' || (vw->>'success')), vw->>'refund_required',
+    ow.status, ow.payment_status, ow.refund_status, ow.refund_amount_paisa, pg_temp.ledger(ow.id),
+    (pw.reserved_by_order_id = (other->>'order_id')::uuid);
+EXCEPTION WHEN OTHERS THEN
+  PERFORM audit.as_postgres();
+  RAISE NOTICE 'FAIL 19.22 unexpected error: % %', SQLSTATE, SQLERRM;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 19.23 money in flight: no claimed attempt (UTR submitted) was ever set to 'expired' in this suite
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE n int; ids text;
+BEGIN
+  SELECT count(*), string_agg(id::text, ', ') INTO n, ids
+    FROM payment_attempts WHERE status = 'expired' AND buyer_submitted_utr IS NOT NULL;
+  RAISE NOTICE '% 19.23 expired attempts carrying a buyer UTR: % (%)',
+    CASE WHEN n = 0 THEN 'PASS' ELSE 'FINDING' END, n, coalesce(ids, 'none');
 END $$;
 
 -- ---------------------------------------------------------------------------

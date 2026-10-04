@@ -29,7 +29,7 @@ function maskUtr(utr: string | null | undefined): string {
 }
 
 function formatDeadline(isoString: string | null | undefined): string {
-  if (!isoString) return '24 hours from submission';
+  if (!isoString) return 'the verification deadline';
   try {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
@@ -527,7 +527,7 @@ export function DirectUpiPaymentView({
         </div>
         <h3 className="ld-payment-headline">Verification Window Elapsed</h3>
         <p className="ld-payment-subtext">
-          This order could not be confirmed because the payment was not verified within the 24-hour verification window. The product reservation has been released.
+          This order could not be confirmed because the payment was not verified within the verification window. The product reservation has been released.
         </p>
         <p className="ld-payment-subtext" style={{ marginTop: '8px', fontSize: '13px', color: '#64748B' }}>
           If money was debited from your bank account, please contact the boutique directly with your UPI UTR reference for out-of-band resolution.

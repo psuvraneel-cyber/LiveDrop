@@ -43,6 +43,12 @@ dependencies:
   url_launcher: ^6.3.1
   intl: ^0.19.0
   flutter_animate: ^4.5.2
+  # Durable app-support directory for the offline intake queue (SA-OFF-001).
+  path_provider: ^2.1.5
+  # Keep the platform implementations on the method-channel (pigeon) lines:
+  # newer ones switch to JNI / objective_c FFI with native build hooks.
+  path_provider_android: ">=2.2.0 <2.3.0"
+  path_provider_foundation: ">=2.4.0 <2.5.0"
 
 dev_dependencies:
   flutter_test:

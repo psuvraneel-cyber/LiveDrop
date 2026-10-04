@@ -9,6 +9,12 @@
 #         (opposite lock order before migration 035)  -> no deadlock
 #   14.5  N buyers race for a piece behind an expired, unclaimed hold (lazy expiry)
 #         -> exactly one order, stale hold cancelled
+#   14.7  N buyers race the seller's verification of a claim whose window lapsed (037)
+#         -> no deadlock, one owner of the piece, the claim is never expired (paid, or
+#            late review + refund obligation if a racer won)
+#   14.7  N buyers race the seller's verification of a claim whose window lapsed (037)
+#         -> no deadlock, one owner of the piece, the claim is never expired (paid, or
+#            late review + refund obligation if a racer won)
 # Creates database ${CONC_DB:-livedrop_conc} from the migrated audit database.
 # Result lines: PASS / FAIL (expected behaviour), FINDING (defect reproduced),
 # INCONCLUSIVE (setup did not complete).
@@ -269,6 +275,60 @@ elif [ "$WINS" = "1" ] && [ "$V_STATE" = "cancelled/expired" ] && [ "$HOLDER" = 
   echo "PASS 14.5 lazy expiry released the stale hold once; exactly one racer reserved the piece"
 else
   echo "FAIL 14.5 successes=$WINS stale=$V_STATE holder=$HOLDER pending=$LIVE"
+fi
+
+echo "== 14.7 $N checkouts race the seller's verification of a claim whose window lapsed (#B03, migration 037)"
+P_B03='b1000000-0000-0000-0000-000000000003'
+Q -c "INSERT INTO products (id, drop_id, code, title, price_paisa, size, image_url) VALUES ('$P_B03', '$DROP_B', '#B03', 'Lapsed Claim Test', 100000, 'Free Size', 'https://x.supabase.co/b3.jpg');" >/dev/null
+read -r U_ORDER U_TOKEN U_ATTEMPT < <(Q -F ' ' <<SQL | grep -E '^[0-9a-f-]{36} ' | tail -1
+BEGIN;
+SELECT audit.as_anon();
+WITH o AS (SELECT create_order_with_reservation('$DROP_B', ARRAY['$P_B03']::uuid[], 'Lapsed Claimant', '9830033333', '4 Elgin Road, Kolkata', '700020', 'full_payment', 'lapsed-u') r),
+     a AS (SELECT initiate_payment_attempt((r->>'order_id')::uuid, r->>'order_token', NULL) j, r FROM o)
+SELECT r->>'order_id', r->>'order_token', j->>'payment_attempt_id' FROM a;
+COMMIT;
+SQL
+)
+Q >/dev/null <<SQL
+BEGIN;
+SELECT audit.as_anon(); SELECT submit_buyer_payment_claim('$U_ORDER', '$U_TOKEN', '$U_ATTEMPT', '616161616161');
+SELECT audit.as_postgres();
+UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = '$U_ORDER';
+UPDATE payment_attempts SET verification_expires_at = now() - interval '1 minute', expires_at = now() - interval '1 minute' WHERE id = '$U_ATTEMPT';
+COMMIT;
+SQL
+( seq 1 "$N" | xargs -P "$N" -I{} psql -X -q -t -A -d "$DB" -c \
+  "SELECT audit.as_anon(); SELECT create_order_with_reservation('$DROP_B', ARRAY['$P_B03']::uuid[], 'Lapsed Racer {}', '96' || lpad('{}', 8, '0'), '5 Race Course Road, Kolkata', '700027', 'full_payment', 'lapsed-{}')->>'success';" \
+  2>&1 | grep -oE "^(true|false)$|deadlock detected" | sort | uniq -c > "$TMP/r7.out" ) &
+X_PID=$!
+U_OUT=$(Q <<SQL 2>&1
+BEGIN;
+SELECT audit.as_seller('$SELLER_B');
+SELECT verify_manual_upi_payment('$U_ATTEMPT')::text;
+COMMIT;
+SQL
+)
+wait $X_PID
+cat "$TMP/r7.out"
+WINS=$(awk '$2=="true"{print $1}' "$TMP/r7.out"); WINS=${WINS:-0}
+DL=$(( $(grep -c deadlock "$TMP/r7.out") + $(echo "$U_OUT" | grep -c "deadlock detected") ))
+U_STATE=$(Q -c "SELECT o.status || '/' || a.status || '/' || o.refund_status FROM orders o, payment_attempts a WHERE o.id='$U_ORDER' AND a.id='$U_ATTEMPT'")
+U_PIECE=$(Q -c "SELECT p.status || '/' || CASE WHEN p.reserved_by_order_id IS NULL THEN 'none' WHEN p.reserved_by_order_id = '$U_ORDER' THEN 'claimant' ELSE 'racer' END FROM products p WHERE p.id='$P_B03'")
+OWNERS=$(Q -c "SELECT count(*) FROM orders o JOIN order_items oi ON oi.order_id=o.id WHERE oi.product_id='$P_B03' AND o.status IN ('pending','confirmed','paid') AND o.refund_status <> 'required'")
+U_OK=$(echo "$U_OUT" | grep -o '"success": [a-z]*' | head -1)
+echo "   racer successes=$WINS ; claimant order/attempt/refund = $U_STATE ; piece = $U_PIECE ; live owners = $OWNERS ; verify -> $U_OK ; deadlocks=$DL"
+if [ -z "${U_ORDER:-}" ]; then
+  echo "INCONCLUSIVE 14.7 setup failed"
+elif [ "$DL" -gt 0 ]; then
+  echo "FINDING 14.7 deadlock between lazy expiry and the seller's verification of a lapsed claim"
+elif echo "$U_STATE" | grep -q "/expired/"; then
+  echo "FINDING 14.7 a claimed payment was expired (money in flight lost from the seller's queue): $U_STATE"
+elif [ "$WINS" = "0" ] && [ "$U_STATE" = "paid/verified/none" ] && [ "$U_PIECE" = "sold/none" ] && [ "$OWNERS" = "1" ]; then
+  echo "PASS 14.7 seller verified first: claimant's order paid, piece sold once, no racer got it"
+elif [ "$WINS" = "1" ] && [ "$U_STATE" = "cancelled/verified/required" ] && [ "$U_PIECE" = "reserved/racer" ] && [ "$OWNERS" = "1" ]; then
+  echo "PASS 14.7 lazy expiry first: claim moved to late review, one racer holds the piece, the verified payment is a refund obligation"
+else
+  echo "FAIL 14.7 successes=$WINS claimant=$U_STATE piece=$U_PIECE owners=$OWNERS verify=$U_OK"
 fi
 
 MISMATCH=$(ledger_mismatches)

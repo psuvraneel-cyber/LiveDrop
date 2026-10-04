@@ -75,9 +75,15 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
   }
 
   Future<void> _initialize() async {
-    await _queue.initialize();
-    if (mounted) {
-      unawaited(_queue.processQueue(widget.repository));
+    try {
+      await _queue.initialize();
+      if (mounted) {
+        unawaited(_queue.processQueue(widget.repository));
+      }
+    } catch (e) {
+      // Storage unavailable: capture still opens; saving a piece reports the
+      // problem to the seller.
+      debugPrint('[CameraIntake] Intake queue could not be opened: $e');
     }
 
     if (_resolvedDrop == null && widget.dropId != null) {

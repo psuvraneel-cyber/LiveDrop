@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/services/password_reset_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,7 +18,14 @@ import 'seller_registration_screen.dart';
 class SellerLoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
 
-  const SellerLoginScreen({super.key, required this.onLoginSuccess});
+  /// Injected in tests; defaults to the Supabase-backed reset flow.
+  final PasswordResetService? passwordResetService;
+
+  const SellerLoginScreen({
+    super.key,
+    required this.onLoginSuccess,
+    this.passwordResetService,
+  });
 
   @override
   State<SellerLoginScreen> createState() => _SellerLoginScreenState();
@@ -29,7 +37,10 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
   bool _isLoading = false;
   bool _rememberMe = true;
   bool _obscurePassword = true;
+  bool _isSendingReset = false;
   String? _errorMessage;
+  late final PasswordResetService _passwordResetService =
+      widget.passwordResetService ?? PasswordResetService();
 
   @override
   void dispose() {
@@ -122,28 +133,41 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
   }
 
   Future<void> _handleForgotPassword() async {
+    if (_isSendingReset) return;
     final email = _emailController.text.trim();
-    if (email.isEmpty) {
+    final emailProblem = PasswordResetService.validateEmail(email);
+    if (emailProblem != null) {
       setState(() {
-        _errorMessage = 'Please enter your email address first.';
+        _errorMessage = emailProblem;
       });
       return;
     }
-    
+
+    setState(() {
+      _isSendingReset = true;
+      _errorMessage = null;
+    });
     try {
-      await SupabaseService.instance.client.auth.resetPasswordForEmail(email);
+      await _passwordResetService.sendResetEmail(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Password reset link sent to $email'),
-          backgroundColor: const Color(0xFF10B981), // emerald
+        const SnackBar(
+          content: Text(PasswordResetService.sentMessage),
+          backgroundColor: Color(0xFF10B981), // emerald
+          duration: Duration(seconds: 6),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Failed to send reset email. Please try again.';
+        _errorMessage = PasswordResetService.friendlyError(e);
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingReset = false;
+        });
+      }
     }
   }
 
@@ -285,7 +309,7 @@ class _SellerLoginScreenState extends State<SellerLoginScreen> {
                               ),
                             ),
                             TextButton(
-                              onPressed: _handleForgotPassword,
+                              onPressed: _isSendingReset ? null : _handleForgotPassword,
                               child: const Text(
                                 'Forgot password?',
                                 style: TextStyle(

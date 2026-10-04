@@ -19,7 +19,6 @@ import 'presentation/drops/create_drop_screen.dart';
 import 'presentation/drops/drops_list_screen.dart';
 import 'presentation/intake/camera_intake_screen.dart';
 import 'presentation/orders/kanban_board_screen.dart';
-import 'presentation/orders/shipping_label_screen.dart';
 import 'presentation/pending_verifications_screen.dart';
 import 'presentation/products/products_inventory_screen.dart';
 import 'presentation/settings/seller_settings_screen.dart';
@@ -182,22 +181,35 @@ class SellerHomeScreen extends StatefulWidget {
   /// Injected store (tests). When null the shell creates and owns one.
   final SellerLiveStore? liveStore;
 
-  const SellerHomeScreen({super.key, required this.repository, this.liveStore});
+  /// Injected intake queue (tests). When null the shell creates and owns one.
+  final OfflineIntakeQueue? intakeQueue;
+
+  const SellerHomeScreen({
+    super.key,
+    required this.repository,
+    this.liveStore,
+    this.intakeQueue,
+  });
 
   @override
   State<SellerHomeScreen> createState() => _SellerHomeScreenState();
 }
 
-class _SellerHomeScreenState extends State<SellerHomeScreen> {
+class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   SellerProfile? _profile;
-  final OfflineIntakeQueue _sharedIntakeQueue = OfflineIntakeQueue();
+  late final OfflineIntakeQueue _sharedIntakeQueue;
+  late final bool _ownsIntakeQueue;
+  final OrdersTabRequest _ordersTabRequest = OrdersTabRequest();
   late final SellerLiveStore _liveStore;
   late final bool _ownsLiveStore;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _ownsIntakeQueue = widget.intakeQueue == null;
+    _sharedIntakeQueue = widget.intakeQueue ?? OfflineIntakeQueue();
     _ownsLiveStore = widget.liveStore == null;
     _liveStore = widget.liveStore ??
         SellerLiveStore(
@@ -205,16 +217,50 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
           source: SellerLiveStore.defaultSource(),
         );
     unawaited(_liveStore.start());
-    _sharedIntakeQueue.initialize();
-    _loadProfile();
+    unawaited(_startUp());
+  }
+
+  /// The shell only exists while a seller is signed in: load the profile,
+  /// then resume any intake pieces queued on this phone (SA-OFF-001) instead
+  /// of waiting for the camera screen to be reopened.
+  Future<void> _startUp() async {
+    await _loadProfile();
+    await _syncIntakeQueue();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncIntakeQueue());
+    }
+  }
+
+  /// Uploads queued intake pieces. Skipped for a seller known to be awaiting
+  /// approval; the queue itself classifies failures (transient vs. needs
+  /// attention) and never throws here.
+  Future<void> _syncIntakeQueue() async {
+    if (!mounted) return;
+    final profile = _profile;
+    if (profile != null && !profile.isApproved) return;
+    try {
+      await _sharedIntakeQueue.initialize();
+      if (!mounted) return;
+      await _sharedIntakeQueue.processQueue(widget.repository);
+    } catch (e) {
+      debugPrint('[LiveDrop Seller] Intake queue sync skipped: $e');
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_ownsLiveStore) {
       _liveStore.dispose();
     }
-    _sharedIntakeQueue.dispose();
+    if (_ownsIntakeQueue) {
+      _sharedIntakeQueue.dispose();
+    }
+    _ordersTabRequest.dispose();
     super.dispose();
   }
 
@@ -300,31 +346,12 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
     );
   }
 
-  void _openShipping() async {
-    try {
-      final orders = await widget.repository.getAllOrders();
-      final profile = await widget.repository.getProfile();
-      final paidOrShipped = orders.firstOrNull;
-
-      if (!mounted) return;
-
-      if (paidOrShipped != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => ShippingLabelScreen(
-              order: paidOrShipped,
-              profile: profile,
-              repository: widget.repository,
-            ),
-          ),
-        );
-      } else {
-        _navigateToTab(2); // Orders tab
-      }
-    } catch (_) {
-      _navigateToTab(2);
-    }
+  /// Dashboard "Shipping" shortcut (SA-SHIP-001): never ships anything by
+  /// itself. It opens the Orders tab on the "Ready" (ready-to-ship) list,
+  /// where each order is dispatched with the seller's real tracking number.
+  void _openShipping() {
+    _ordersTabRequest.show(KanbanBoardScreen.readyTabIndex);
+    _navigateToTab(2); // Orders tab
   }
 
   @override
@@ -369,7 +396,11 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> {
           // Tab 2: Orders Kanban (Screen 6)
           LiveTabVisibility(
             visible: _currentIndex == 2,
-            child: KanbanBoardScreen(repository: widget.repository, liveStore: _liveStore),
+            child: KanbanBoardScreen(
+              repository: widget.repository,
+              liveStore: _liveStore,
+              tabRequest: _ordersTabRequest,
+            ),
           ),
           // Tab 3: Payment Verifications (Screen 7)
           LiveTabVisibility(

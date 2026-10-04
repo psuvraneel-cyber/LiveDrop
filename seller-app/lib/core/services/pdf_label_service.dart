@@ -21,8 +21,16 @@ class PdfLabelService {
   }) async {
     final pdf = pw.Document();
 
-    final courier = courierPartner ?? order.courierPartner ?? 'DELHIVERY EXPRESS';
-    final tracking = trackingNumber ?? order.trackingNumber ?? 'TRK-${order.orderCode}';
+    // Never invent a courier or AWB (SA-SHIP-001): a label printed before the
+    // seller has the courier's tracking number says so and carries the order
+    // reference instead.
+    String? nonEmpty(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+    final courier = nonEmpty(courierPartner) ?? nonEmpty(order.courierPartner) ?? 'Courier';
+    final realTracking = nonEmpty(trackingNumber) ?? nonEmpty(order.trackingNumber);
+    final tracking = realTracking ?? order.orderCode;
+    final trackingLine = realTracking != null
+        ? 'AWB / TRACKING: $realTracking'
+        : 'AWB: NOT YET ASSIGNED  •  REF ${order.orderCode}';
     final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt);
     final totalRupees = (order.totalPaisa / 100).toStringAsFixed(2);
 
@@ -98,7 +106,7 @@ class PdfLabelService {
                       ),
                       pw.SizedBox(height: 3),
                       pw.Text(
-                        'AWB / TRACKING: $tracking',
+                        trackingLine,
                         style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,

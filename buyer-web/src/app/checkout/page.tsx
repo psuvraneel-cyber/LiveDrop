@@ -46,6 +46,7 @@ import {
 import { EmptyCheckoutState } from '../../components/checkout/EmptyCheckoutState';
 import { CheckoutForm } from '../../components/checkout/CheckoutForm';
 import { CheckoutReview } from '../../components/checkout/CheckoutReview';
+import { useDropShippingRules } from '../../lib/checkout/use-drop-shipping-rules';
 import { CheckoutSuccessView } from '../../components/checkout/CheckoutSuccessView';
 import { CartItem } from '../../types/cart';
 
@@ -55,6 +56,7 @@ function CheckoutPageContent() {
   const urlToken = searchParams.get('token') || searchParams.get('order_token');
 
   const { items, subtotalPaisa, dropId, isHydrated, removeItem, clearCart, getReconciledItems } = useCart();
+  const shippingRulesDrop = useDropShippingRules(dropId);
 
   // Existing receipt lookup state (token-gated)
   const [existingOrder, setExistingOrder] = useState<OrderReceipt | null>(null);
@@ -546,7 +548,7 @@ function CheckoutPageContent() {
             <CheckoutReview
               items={reconciledItems}
               subtotalPaisa={subtotalPaisa}
-              drop={null}
+              drop={shippingRulesDrop}
               isSubmitting={submissionStatus === 'submitting'}
               hasUnavailableItems={hasUnavailableItems}
               onRemoveItem={removeItem}

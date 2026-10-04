@@ -3,11 +3,16 @@ import '../../core/services/pdf_label_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/validation/shipping_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 
 /// Screen 9: Luxury Boutique Shipping & Fulfilment Screen
 /// Displays 4×6" vector thermal label preview, courier partner selection, and label generation.
+///
+/// SA-SHIP-001: printing/sharing a label never ships the order. "Mark as
+/// Shipped" requires the courier's real tracking number (no placeholder, no
+/// generated numbers) and an explicit confirmation.
 class ShippingLabelScreen extends StatefulWidget {
   final SellerOrder order;
   final SellerProfile profile;
@@ -27,9 +32,11 @@ class ShippingLabelScreen extends StatefulWidget {
 }
 
 class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
-  String _selectedCourier = 'Delhivery';
+  String? _selectedCourier;
   late final TextEditingController _trackingController;
   bool _isGenerating = false;
+  String? _trackingError;
+  String? _courierError;
 
   final List<String> _courierPartners = [
     'Delhivery',
@@ -43,9 +50,11 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
   @override
   void initState() {
     super.initState();
-    _trackingController = TextEditingController(
-      text: widget.order.trackingNumber ?? 'DVA123456789',
-    );
+    final existingCourier = widget.order.courierPartner;
+    if (existingCourier != null && _courierPartners.contains(existingCourier)) {
+      _selectedCourier = existingCourier;
+    }
+    _trackingController = TextEditingController(text: widget.order.trackingNumber ?? '');
   }
 
   @override
@@ -54,12 +63,34 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
     super.dispose();
   }
 
-  void _generateAutoTracking() {
-    final prefix = _selectedCourier.substring(0, 3).toUpperCase();
-    final randomDigits = DateTime.now().millisecondsSinceEpoch.toString().substring(5);
-    setState(() {
-      _trackingController.text = '$prefix$randomDigits';
-    });
+  String? get _typedTracking {
+    final t = ShippingRules.normalizeTracking(_trackingController.text);
+    return t.isEmpty ? null : t;
+  }
+
+  Future<void> _handleShare() async {
+    setState(() => _isGenerating = true);
+    try {
+      await widget.pdfLabelService.shareLabel(
+        order: widget.order,
+        profile: widget.profile,
+        courierPartner: _selectedCourier,
+        trackingNumber: _typedTracking,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Share error: $e'),
+            backgroundColor: AppColors.crimson,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
   }
 
   Future<void> _handlePrintOrShare() async {
@@ -68,6 +99,8 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
       await widget.pdfLabelService.printLabel(
         order: widget.order,
         profile: widget.profile,
+        courierPartner: _selectedCourier,
+        trackingNumber: _typedTracking,
       );
     } catch (e) {
       if (mounted) {
@@ -86,28 +119,44 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
   }
 
   Future<void> _handleMarkDispatched() async {
-    final tracking = _trackingController.text.trim();
-    if (tracking.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide or generate a tracking number.'),
-          backgroundColor: AppColors.crimson,
+    final tracking = ShippingRules.normalizeTracking(_trackingController.text);
+    final courierError = ShippingRules.validateCourier(_selectedCourier);
+    final trackingError = ShippingRules.validateTracking(tracking);
+    setState(() {
+      _courierError = courierError;
+      _trackingError = trackingError;
+    });
+    if (courierError != null || trackingError != null) return;
+    final courier = _selectedCourier!;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.obsidianSurface,
+        title: const Text('Mark as shipped?'),
+        content: Text(
+          'Order #${widget.order.orderCode} will be marked shipped via $courier '
+          'with tracking number $tracking. The buyer will see this tracking number.',
         ),
-      );
-      return;
-    }
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Mark Shipped')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
 
     setState(() => _isGenerating = true);
     try {
       await widget.repository.markOrderShipped(
         orderId: widget.order.id,
         trackingNumber: tracking,
-        courierPartner: _selectedCourier,
+        courierPartner: courier,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Order #${widget.order.orderCode} dispatched via $_selectedCourier!'),
+            content: Text('Order #${widget.order.orderCode} dispatched via $courier!'),
             backgroundColor: AppColors.emerald,
           ),
         );
@@ -319,6 +368,7 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _selectedCourier,
+                  hint: const Text('Select courier', style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
                   isExpanded: true,
                   dropdownColor: AppColors.obsidianSurface,
                   style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
@@ -327,60 +377,67 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
                       .toList(),
                   onChanged: (val) {
                     if (val != null) {
-                      setState(() => _selectedCourier = val);
-                      _generateAutoTracking();
+                      setState(() {
+                        _selectedCourier = val;
+                        _courierError = null;
+                      });
                     }
                   },
                 ),
               ),
             ),
+            if (_courierError != null) ...[
+              const SizedBox(height: 6),
+              Text(_courierError!, style: const TextStyle(color: AppColors.crimson, fontSize: 12)),
+            ],
             const SizedBox(height: 16),
 
-            // Tracking Number Field with Auto Button
+            // Tracking Number Field (entered by the seller — never generated)
             const Text(
               'Tracking Number',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _trackingController,
-                    style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                    decoration: const InputDecoration(
-                      hintText: 'e.g. DVA123456789',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                BounceableButton(
-                  onPressed: _generateAutoTracking,
-                  variant: ButtonVariant.darkCard,
-                  height: 48,
-                  text: 'Auto',
-                ),
-              ],
+            TextField(
+              controller: _trackingController,
+              style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+              onChanged: (_) {
+                if (_trackingError != null) setState(() => _trackingError = null);
+              },
+              decoration: InputDecoration(
+                hintText: 'From your courier receipt',
+                errorText: _trackingError,
+              ),
             ),
             const SizedBox(height: 24),
 
-            // Primary Generate & Share Label Button
+            // Primary: print the label (does NOT ship the order)
             BounceableButton(
-              onPressed: _isGenerating ? null : _handleMarkDispatched,
+              onPressed: _isGenerating ? null : _handlePrintOrShare,
               isLoading: _isGenerating,
               variant: ButtonVariant.goldGradient,
               height: 52,
-              text: 'Generate & Share Label',
+              text: 'Print Label',
+              icon: Icons.print_outlined,
+            ),
+            const SizedBox(height: 12),
+
+            // Explicit, confirmed dispatch with the seller's tracking number
+            BounceableButton(
+              onPressed: _isGenerating ? null : _handleMarkDispatched,
+              variant: ButtonVariant.darkCard,
+              height: 48,
+              text: 'Mark as Shipped',
               icon: Icons.local_shipping,
             ),
             const SizedBox(height: 16),
 
-            // Secondary Actions: Share, Print, Download
+            // Secondary Actions: Share / Save the label PDF
             Row(
               children: [
                 Expanded(
                   child: BounceableButton(
-                    onPressed: _handlePrintOrShare,
+                    onPressed: _isGenerating ? null : _handleShare,
                     variant: ButtonVariant.darkCard,
                     height: 44,
                     icon: Icons.share_outlined,
@@ -390,21 +447,11 @@ class _ShippingLabelScreenState extends State<ShippingLabelScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: BounceableButton(
-                    onPressed: _handlePrintOrShare,
-                    variant: ButtonVariant.darkCard,
-                    height: 44,
-                    icon: Icons.print_outlined,
-                    text: 'Print',
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: BounceableButton(
-                    onPressed: _handlePrintOrShare,
+                    onPressed: _isGenerating ? null : _handleShare,
                     variant: ButtonVariant.darkCard,
                     height: 44,
                     icon: Icons.download_outlined,
-                    text: 'Download',
+                    text: 'Save PDF',
                   ),
                 ),
               ],

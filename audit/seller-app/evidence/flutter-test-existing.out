@@ -1,106 +1,102 @@
-   Woah! You appear to be trying to run flutter as root.
-   We strongly recommend running the flutter tool without superuser privileges.
-  /
-📎
 00:00 +0: loading /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart
 00:00 +0: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed the section lists amount, buyer, order code and reason at the top
-00:01 +1: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed the section lists amount, buyer, order code and reason at the top
-00:01 +2: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed the section lists amount, buyer, order code and reason at the top
-00:01 +3: /home/user/LiveDrop/seller-app/test/order_card_release_test.dart: the release dialog says the piece returns to sale; PAYMENT_CLAIM_PENDING becomes a friendly message
+00:01 +1: /home/user/LiveDrop/seller-app/test/order_card_release_test.dart: Release is hidden while the buyer has a payment claim; the card points to Payments
+00:01 +2: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
+00:01 +3: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
 00:01 +4: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
 00:01 +5: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
 00:01 +6: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed "Mark refunded" validates the reference like the RPC and records the refund
-00:02 +7: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed a record_refund error is shown as a friendly message
-00:02 +8: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed refund reference rule matches the record_refund RPC (4–64 chars, [A-Za-z0-9_./ -])
-00:02 +9: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed OwedRefund parses the contract §11 projection and tolerates missing fields
-00:02 +10: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
-00:02 +11: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
-00:02 +12: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
-00:02 +13: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify an on-time verify shows the usual success snackbar
+00:01 +7: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed a record_refund error is shown as a friendly message
+00:01 +8: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed refund reference rule matches the record_refund RPC (4–64 chars, [A-Za-z0-9_./ -])
+00:01 +9: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Refunds owed OwedRefund parses the contract §11 projection and tolerates missing fields
+00:01 +10: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify response with refund_required=true shows a blocking refund dialog, not a success snackbar
+00:02 +11: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify an on-time verify shows the usual success snackbar
+00:02 +12: /home/user/LiveDrop/seller-app/test/realtime_test.dart: TASK-1.4: Seller Realtime Event Deserialization Tests SellerOrder parses incoming realtime record accurately
+00:02 +13: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify errors are mapped to friendly text
 00:02 +14: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Verify verify errors are mapped to friendly text
 00:02 +15: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) an overdue claim is labelled "Overdue — verify or reject" and sorted first
 00:02 +16: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) PaymentAttempt.isOverdue uses verification_expires_at and never applies to settled attempts
 00:02 +17: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a fresh late claim (verification_expires_at NULL, expires_at past) is not overdue
-00:03 +18: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) an older claim row without verification_expires_at is never overdue via expires_at
-00:03 +19: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim keeping a window from an earlier claim (ended before this claim) is not overdue
-00:03 +20: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim whose own verification window has passed is overdue
-00:03 +21: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim submitted a minute ago is not labelled overdue nor sorted first
-00:03 +22: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: Image Processing Service Tests ImageService crops non-square image to 1:1 square and compresses to <= 1200px
-00:04 +23: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
-00:04 +24: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:02 +18: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) an older claim row without verification_expires_at is never overdue via expires_at
+00:02 +19: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim keeping a window from an earlier claim (ended before this claim) is not overdue
+00:02 +20: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim whose own verification window has passed is overdue
+00:02 +21: /home/user/LiveDrop/seller-app/test/payments_refunds_test.dart: Overdue claims (SA-PAY-003) a late claim submitted a minute ago is not labelled overdue nor sorted first
+00:03 +22: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Settings → Order & Shipping Defaults shows the current shop threshold and saves an edit
+00:04 +23: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Settings → Order & Shipping Defaults shows the current shop threshold and saves an edit
+00:04 +24: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Settings → Order & Shipping Defaults shows the current shop threshold and saves an edit
 00:04 +24: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: 4×6 Thermal PDF Shipping Label Generator Tests PdfLabelService generates standard 4×6" vector PDF with Code-128 barcode and prepaid badge
 Helvetica-Bold has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
 Helvetica has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
 Courier has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts-Management
-00:04 +25: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:04 +25: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Settings → Order & Shipping Defaults shows the current shop threshold and saves an edit
 00:04 +26: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: OrderCard & Kanban UI Widget Tests OrderCard renders Pending countdown and WhatsApp button for unpaid order
 00:05 +27: /home/user/LiveDrop/seller-app/test/sprint2_seller_operations_test.dart: SPRINT 2: OrderCard & Kanban UI Widget Tests OrderCard renders Pending countdown and WhatsApp button for unpaid order
-00:05 +28: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:05 +29: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests SellerAnalyticsScreen displays real calculated metrics, peak tag, and top products
-00:05 +30: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests ProductDetailsScreen renders authentic garment attributes and no mock Banarasi copy
-00:06 +31: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: SellerLiveStore a payment_attempts event bumps the revision and the payment counts without a manual refresh
-00:06 +32: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +33: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +34: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +35: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +36: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +37: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +38: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +39: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +40: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:06 +41: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
-00:07 +42: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
-00:07 +43: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
-00:07 +44: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:05 +28: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Settings → Order & Shipping Defaults an invalid amount is refused and nothing is saved
+00:05 +29: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Settings → Order & Shipping Defaults an invalid amount is refused and nothing is saved
+00:05 +30: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Create / edit drop threshold does not prefill the shop value into the drop field
+00:05 +31: /home/user/LiveDrop/seller-app/test/free_shipping_settings_test.dart: Create / edit drop threshold clearing a drop threshold saves null (= use shop setting)
+00:05 +32: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +33: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +34: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +35: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +36: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +37: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +38: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +39: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +40: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +41: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +42: /home/user/LiveDrop/seller-app/test/seller_ui_verification_test.dart: LiveDrop Seller UI Verification & Real Data Tests Dashboard renders authentic zeros (0, 0, 0, ₹0) when drop is empty
+00:06 +43: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:06 +44: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
 00:07 +45: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
-00:08 +46: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +47: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +48: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +49: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +50: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +51: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +52: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Orders (All Drops) reloads on a live order event; hidden tabs wait until shown
-00:08 +53: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store verifying a payment invalidates every tab immediately (no waiting for realtime)
-00:09 +54: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store a stand-alone Payments screen reloads when the revision changes
-00:09 +55: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 23514 check violation from the server
-00:09 +56: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
-00:09 +57: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
-00:09 +58: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer a 23505 for a product that is NOT ours is a real duplicate → needs attention
-00:09 +59: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer a missing local photo is held for the seller instead of looping
-00:09 +60: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: transient failures → backoff retries a network error keeps the piece retrying with a scheduled retry
-00:09 +61: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: transient failures → backoff retries timeouts, 5xx and expired sessions are transient
-00:09 +62: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: 23505 idempotency (lost response) 23505 for an existing identical product (same uploaded photo) → completed
-00:09 +63: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: 23505 idempotency (lost response) a raw PostgrestException 23505 is handled the same way
-00:09 +64: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.normalizeCode (trim, drop spaces, uppercase, add #) '101' becomes '#101'
-00:09 +65: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.normalizeCode (trim, drop spaces, uppercase, add #) '101' becomes '#101'
-00:09 +66: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +67: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +68: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +69: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +70: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +71: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +72: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +73: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
-00:09 +74: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.validateCode mirrors CHECK (code ~ ^#[A-Z0-9]{1,6}$) duplicate codes inside the drop are reported (RULE-PRD-02)
-00:09 +75: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules title / size / price title longer than 100 characters is rejected; 100 is accepted; empty is optional
-00:09 +76: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
-00:09 +77: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
-00:09 +78: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
-00:09 +79: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
-00:09 +80: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
-00:09 +81: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can discard a piece; its photos are deleted
-00:09 +82: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard concurrent edits and discards leave a complete, parseable manifest
-00:09 +83: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard initialize is idempotent (a second call never reloads over in-memory progress)
-00:10 +84: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue persists raw image bytes to disk and writes manifest
-00:10 +85: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests reloading queue from disk recovers persisted state after simulated restart
-00:10 +86: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue successfully uploads image and creates product in database
-00:10 +87: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue handles network failure gracefully and survives retry
-00:10 +88: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue with multiple angles persists all images and uploads them in sequence
-00:10 +89: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +90: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +91: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +92: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:11 +93: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:07 +46: /home/user/LiveDrop/seller-app/test/seller_live_store_test.dart: screens follow the live store Payments tab badge and queue update from a payment_attempts event without a refresh
+00:08 +47: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:08 +48: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:08 +49: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:08 +50: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: refunds owed and overdue claims are shown on Home and open Payments
+00:08 +51: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: nothing extra is shown when no refund is owed and no claim is overdue
+00:09 +52: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: a late claim submitted a minute ago does not raise the overdue alert on Home
+00:09 +53: /home/user/LiveDrop/seller-app/test/dashboard_money_alerts_test.dart: Home follows the live store counts without reloading
+00:09 +54: /home/user/LiveDrop/seller-app/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl generates canonical storefront URL matching production free Vercel domain
+00:09 +55: /home/user/LiveDrop/seller-app/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles leading slash in store slug correctly
+00:09 +56: /home/user/LiveDrop/seller-app/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles clean store slugs without leading slash
+00:09 +57: /home/user/LiveDrop/seller-app/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles trailing slashes in store slug correctly
+00:09 +58: /home/user/LiveDrop/seller-app/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles multiple leading and trailing slashes correctly
+00:09 +59: /home/user/LiveDrop/seller-app/test/storefront_url_test.dart: EnvConfig.getStorefrontUrl handles whitespace surrounding store slug correctly
+00:10 +60: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 23514 check violation from the server
+00:10 +61: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules.normalizeCode (trim, drop spaces, uppercase, add #) '101' becomes '#101'
+00:10 +62: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +63: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +64: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +65: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +66: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +67: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +68: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +69: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +70: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer 22001, 23502, 22P02 and 42501 (as PostgrestException or LiveDropException) are permanent
+00:10 +71: /home/user/LiveDrop/seller-app/test/product_rules_test.dart: ProductRules title / size / price title longer than 100 characters is rejected; 100 is accepted; empty is optional
+00:10 +72: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
+00:10 +73: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
+00:10 +74: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
+00:10 +75: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
+00:10 +76: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer storage rejections (413 too large, 403 RLS) are permanent
+00:10 +77: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer a 23505 for a product that is NOT ours is a real duplicate → needs attention
+00:10 +78: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: permanent failures → needs attention, no retry timer a missing local photo is held for the seller instead of looping
+00:10 +79: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: transient failures → backoff retries a network error keeps the piece retrying with a scheduled retry
+00:10 +80: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: transient failures → backoff retries timeouts, 5xx and expired sessions are transient
+00:10 +81: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: 23505 idempotency (lost response) 23505 for an existing identical product (same uploaded photo) → completed
+00:10 +82: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: 23505 idempotency (lost response) a raw PostgrestException 23505 is handled the same way
+00:10 +83: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard enqueue normalises the code and refuses invalid pieces
+00:10 +84: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard a piece queued by an older app version with an invalid code needs attention without any network call
+00:10 +85: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can fix a piece that needs attention and it syncs
+00:10 +86: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard the seller can discard a piece; its photos are deleted
+00:10 +87: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard concurrent edits and discards leave a complete, parseable manifest
+00:10 +88: /home/user/LiveDrop/seller-app/test/intake_queue_classification_test.dart: entry validation, edit and discard initialize is idempotent (a second call never reloads over in-memory progress)
+00:10 +89: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue persists raw image bytes to disk and writes manifest
+00:11 +90: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests reloading queue from disk recovers persisted state after simulated restart
+00:11 +91: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue successfully uploads image and creates product in database
+00:11 +92: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests processQueue handles network failure gracefully and survives retry
+00:11 +93: /home/user/LiveDrop/seller-app/test/offline_intake_queue_test.dart: Blocker 1G: Offline Intake Queue Reliability Tests enqueue with multiple angles persists all images and uploads them in sequence
 00:11 +94: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
 00:11 +95: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
 00:11 +96: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
@@ -111,21 +107,91 @@ Courier has no Unicode support see https://github.com/DavBfr/dart_pdf/wiki/Fonts
 00:11 +101: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
 00:11 +102: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
 00:11 +103: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
-00:12 +104: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp renders controlled ConfigurationErrorScreen when initializationError is present
-00:12 +105: /home/user/LiveDrop/seller-app/test/seller_auth_registration_test.dart: Seller Auth & Registration Flow Tests SellerLoginScreen renders Create Account and Contact Admin WhatsApp buttons
-00:13 +106: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
-00:13 +107: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
-00:13 +108: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
-00:13 +109: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
-00:14 +110: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:15 +111: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:15 +112: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
-00:16 +113: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
-00:16 +114: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
-00:17 +115: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
-00:17 +116: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
-00:17 +117: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS Skeleton Loaders render structured placeholder geometries
-00:17 +118: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: a title over 100 characters and a zero price are refused
-00:17 +119: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS AnimatedSplashScreen renders brand monogram and launches countdown
-00:17 +120: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS SellerDashboardScreen renders Live Drop Card, 4 Metrics, and 6 Quick Actions
-00:18 +121: All tests passed!
+00:11 +104: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +105: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +106: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +107: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:11 +108: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +109: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +110: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +111: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +112: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +113: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +114: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +115: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +116: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +117: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +118: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +119: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp initial smoke test renders login gate
+00:12 +120: /home/user/LiveDrop/seller-app/test/widget_test.dart: LiveDropSellerApp renders controlled ConfigurationErrorScreen when initializationError is present
+00:13 +121: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: EnvConfig.sellerPasswordResetUrl appends /seller/reset-password to the buyer base URL
+00:13 +122: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: EnvConfig.sellerPasswordResetUrl ignores trailing slashes and whitespace
+00:13 +123: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: EnvConfig.sellerPasswordResetUrl defaults to the configured BUYER_BASE_URL
+00:13 +124: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: PasswordResetService sends the trimmed e-mail with the reset redirect
+00:13 +125: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: PasswordResetService validateEmail
+00:13 +126: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: PasswordResetService friendlyError maps failures to plain text
+00:13 +127: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: SellerLoginScreen "Forgot password?" sends the reset e-mail with redirectTo and explains what happens next
+00:14 +128: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: SellerLoginScreen "Forgot password?" sends the reset e-mail with redirectTo and explains what happens next
+00:14 +129: /home/user/LiveDrop/seller-app/test/seller_auth_registration_test.dart: Seller Auth & Registration Flow Tests SellerRegistrationScreen renders Step 1 (Account Credentials)
+00:14 +130: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: SellerLoginScreen "Forgot password?" asks for an e-mail first and does not call the server
+00:14 +131: /home/user/LiveDrop/seller-app/test/seller_auth_registration_test.dart: Seller Auth & Registration Flow Tests SellerPendingApprovalScreen renders pending review and action buttons
+00:14 +132: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: SellerLoginScreen "Forgot password?" shows friendly text when sending fails
+00:14 +133: /home/user/LiveDrop/seller-app/test/password_reset_test.dart: SellerLoginScreen "Forgot password?" shows friendly text when sending fails
+00:15 +134: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: queued, retrying and needs-attention pieces are never rendered as "Available"
+00:17 +135: /home/user/LiveDrop/seller-app/test/seller_settings_screen_test.dart: SellerSettingsScreen opens Storefront Settings and displays canonical Vercel URL
+00:17 +136: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: the banner opens the fix sheet; the editor blocks invalid input and re-queues a fixed piece
+00:17 +137: /home/user/LiveDrop/seller-app/test/inventory_queue_status_test.dart: a piece that needs attention can be discarded after confirmation
+00:18 +138: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +139: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +140: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +141: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +142: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +142: /home/user/LiveDrop/seller-app/test/offline_intake_queue_durability_test.dart: corrupt manifest recovery restores from queue.json.bak and moves the corrupt file aside (not overwritten)
+[OfflineIntakeQueue] Unreadable manifest moved to /tmp/ld_queue_durability_IVDDBX/q/queue.json.corrupt-1791103377960
+[OfflineIntakeQueue] Restored 1 item(s) from queue.json.bak
+00:19 +143: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +143: /home/user/LiveDrop/seller-app/test/offline_intake_queue_durability_test.dart: corrupt manifest recovery when both files are unreadable, both are kept aside and the queue starts empty
+[OfflineIntakeQueue] Unreadable manifest moved to /tmp/ld_queue_durability_KHOZEV/q/queue.json.corrupt-1791103378005
+[OfflineIntakeQueue] Unreadable manifest moved to /tmp/ld_queue_durability_KHOZEV/q/queue.json.bak.corrupt-1791103378007
+00:19 +144: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: invalid codes show an inline reason and block saving
+00:19 +145: /home/user/LiveDrop/seller-app/test/offline_intake_queue_durability_test.dart: migration from the old temp location moves the manifest and photos, rewrites photo paths and removes the old folder
+00:19 +146: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: a title over 100 characters and a zero price are refused
+00:19 +147: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: a title over 100 characters and a zero price are refused
+00:19 +147: /home/user/LiveDrop/seller-app/test/offline_intake_queue_durability_test.dart: migration from the old temp location an unreadable legacy manifest is preserved in the new folder, photos are copied
+[OfflineIntakeQueue] Legacy manifest was unreadable; kept a copy in /tmp/ld_queue_durability_NVPFBG/durable
+00:19 +148: /home/user/LiveDrop/seller-app/test/intake_form_validation_test.dart: a title over 100 characters and a zero price are refused
+00:20 +149: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingRules tracking number is required, trimmed and sanity-checked
+00:20 +150: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingRules courier is required
+00:20 +151: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen has no placeholder tracking number and no "Auto" generator
+00:20 +152: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen has no placeholder tracking number and no "Auto" generator
+00:21 +153: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen has no placeholder tracking number and no "Auto" generator
+00:21 +154: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen has no placeholder tracking number and no "Auto" generator
+00:21 +155: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS Skeleton Loaders render structured placeholder geometries
+00:21 +156: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen "Mark as Shipped" without courier / tracking ships nothing
+00:21 +157: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen "Mark as Shipped" without courier / tracking ships nothing
+00:21 +158: /home/user/LiveDrop/seller-app/test/luxury_ui_and_motion_test.dart: LUXURY BOUTIQUE NOIR DESIGN SYSTEM & MOTION TESTS SellerDashboardScreen renders Live Drop Card, 4 Metrics, and 6 Quick Actions
+00:21 +158: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen ships only after the seller enters a tracking number, picks a courier and confirms
+
+Warning: A call to tap() with finder "Found 1 widget with text "Select courier": [
+  Text("Select courier", inherit: true, color: Color(alpha: 0.4000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB), size: 14.0, dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(133.0, 448.0)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+The finder corresponds to this RenderBox: RenderParagraph#de3c0 relayoutBoundary=up30
+The hit test result at that offset is: HitTestResult(RenderPointerListener#195d3@Offset(98.0, 24.0), RenderSemanticsAnnotations#db9a5@Offset(98.0, 24.0), RenderMouseRegion#66318@Offset(98.0, 24.0), RenderSemanticsAnnotations#3b2c1@Offset(98.0, 24.0), RenderSemanticsAnnotations#4661b@Offset(98.0, 24.0), RenderPadding#65429@Offset(113.0, 25.0), RenderDecoratedBox#c20eb@Offset(113.0, 25.0), RenderFlex#bd095@Offset(113.0, 372.0), RenderPadding#ffa90@Offset(133.0, 392.0), _RenderSingleChildViewport#860ab@Offset(133.0, 392.0), RenderIgnorePointer#31b81@Offset(133.0, 392.0), RenderSemanticsAnnotations#09ddb@Offset(133.0, 392.0), RenderPointerListener#06164@Offset(133.0, 392.0), RenderSemanticsGestureHandler#0a2da@Offset(133.0, 392.0), RenderPointerListener#19d9a@Offset(133.0, 392.0), _RenderScrollSemantics#06ed8@Offset(133.0, 392.0), RenderClipRect#62ace@Offset(133.0, 392.0), RenderCustomMultiChildLayoutBox#87398@Offset(133.0, 448.0), _RenderInkFeatures#cb8c5@Offset(133.0, 448.0), RenderPhysicalModel#d21c7@Offset(133.0, 448.0), RenderSemanticsAnnotations#2e1da@Offset(133.0, 448.0), RenderRepaintBoundary#e46cb@Offset(133.0, 448.0), RenderIgnorePointer#991c9@Offset(133.0, 448.0), RenderAnimatedOpacity#c57af@Offset(133.0, 448.0), RenderAnimatedOpacity#f7594@Offset(133.0, 448.0), _RenderColoredBox#a9bea@Offset(133.0, 448.0), RenderAnimatedOpacity#0c734@Offset(133.0, 448.0), RenderIgnorePointer#9de88@Offset(133.0, 448.0), RenderAnimatedOpacity#8355b@Offset(133.0, 448.0), RenderRepaintBoundary#fa2d9@Offset(133.0, 448.0), RenderSemanticsAnnotations#a43c2@Offset(133.0, 448.0), RenderOffstage#47758@Offset(133.0, 448.0), RenderSemanticsAnnotations#464d2@Offset(133.0, 448.0), _RenderTheater#76998@Offset(133.0, 448.0), RenderAbsorbPointer#6d2a0@Offset(133.0, 448.0), RenderPointerListener#956f4@Offset(133.0, 448.0), RenderSemanticsAnnotations#86ab0@Offset(133.0, 448.0), RenderCustomPaint#127d4@Offset(133.0, 448.0), RenderSemanticsAnnotations#38f1e@Offset(133.0, 448.0), RenderSemanticsAnnotations#316db@Offset(133.0, 448.0), RenderSemanticsAnnotations#aa8fb@Offset(133.0, 448.0), RenderTapRegionSurface#7c97f@Offset(133.0, 448.0), RenderSemanticsAnnotations#50c15@Offset(133.0, 448.0), RenderSemanticsAnnotations#63049@Offset(133.0, 448.0), HitTestEntry<HitTestTarget>#26c28(_ReusableRenderView#cc43a), HitTestEntry<HitTestTarget>#3390f(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2158:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1942:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1075:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart:123:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1682:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+00:22 +159: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingLabelScreen ships only after the seller enters a tracking number, picks a courier and confirms
+00:22 +160: /home/user/LiveDrop/seller-app/test/shipping_dispatch_test.dart: ShippingDialog requires a courier and a valid tracking number before dispatch
+00:23 +161: All tests passed!
