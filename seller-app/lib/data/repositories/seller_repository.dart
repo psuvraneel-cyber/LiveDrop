@@ -261,12 +261,17 @@ class SellerRepository {
   }
 
   /// Updates core boutique profile fields (store name, phone, return address, default shipping fee, advance rules).
+  ///
+  /// [freeShippingThresholdPaisa] sets the shop's free-shipping threshold;
+  /// pass [clearFreeShippingThreshold] = true to remove it (no free shipping
+  /// unless a drop sets its own threshold — SA-PAY-008).
   Future<SellerProfile> updateProfile({
     String? storeName,
     String? phoneNumber,
     String? returnAddress,
     int? defaultShippingFeePaisa,
     int? freeShippingThresholdPaisa,
+    bool clearFreeShippingThreshold = false,
     bool? advanceConfirmationEnabled,
     int? advanceAmountPaisa,
     int? holdDurationDays,
@@ -287,7 +292,15 @@ class SellerRepository {
     if (defaultShippingFeePaisa != null) {
       updates['default_shipping_fee_paisa'] = defaultShippingFeePaisa;
     }
-    if (freeShippingThresholdPaisa != null) {
+    if (clearFreeShippingThreshold) {
+      updates['free_shipping_threshold_paisa'] = null;
+    } else if (freeShippingThresholdPaisa != null) {
+      if (freeShippingThresholdPaisa <= 0) {
+        throw const LiveDropException(
+          'Free-shipping threshold must be more than ₹0.',
+          code: 'INVALID_FREE_SHIPPING_THRESHOLD',
+        );
+      }
       updates['free_shipping_threshold_paisa'] = freeShippingThresholdPaisa;
     }
     if (advanceConfirmationEnabled != null) {

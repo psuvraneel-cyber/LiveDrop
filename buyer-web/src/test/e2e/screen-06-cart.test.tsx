@@ -19,6 +19,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import CartPage from '../../app/cart/page';
 import * as buyerCatalog from '../../lib/data/buyer-catalog';
 import {
+  mockLiveDrop,
   mockProducts,
 } from './fixtures/mock-catalog-data';
 import { renderWithProviders, seedCartStorage } from './fixtures/test-providers';
@@ -33,6 +34,12 @@ describe('Tier 1: Screen 06 — Cart With Items', () => {
     vi.clearAllMocks();
 
     vi.spyOn(buyerCatalog, 'getPublicProductsForDrop').mockResolvedValue(mockProducts);
+    // The cart loads its drop's shipping rules (drop fee Rs 80, drop threshold Rs 2,000).
+    vi.spyOn(buyerCatalog, 'getLiveDropById').mockResolvedValue({
+      ...mockLiveDrop,
+      shipping_fee_paisa: 8000,
+      free_shipping_threshold_paisa: 200000,
+    });
 
     // Pre-populate cart with item #A01
     seedCartStorage([
@@ -132,9 +139,11 @@ describe('Tier 1: Screen 06 — Cart With Items', () => {
     const subtotalEl = screen.getByTestId('cart-page-subtotal');
     expect(subtotalEl).toHaveTextContent('₹1,850');
 
-    // Total: ₹1,930 (₹1,850 + ₹80 standard shipping since below ₹2,000 threshold)
-    const totalEl = screen.getByTestId('cart-page-total');
-    expect(totalEl).toHaveTextContent('₹1,930');
+    // Total: ₹1,930 (₹1,850 + ₹80 drop shipping fee since below the drop's ₹2,000 threshold)
+    await waitFor(() => {
+      expect(screen.getByTestId('cart-page-total')).toHaveTextContent('₹1,930');
+    });
+    expect(screen.getByTestId('cart-page-shipping')).toHaveTextContent('₹80');
 
     // Checkout button
     const checkoutBtn = screen.getByTestId('cart-page-checkout-btn');
@@ -157,5 +166,45 @@ describe('Tier 1: Screen 06 — Cart With Items', () => {
     await waitFor(() => {
       expect(screen.getByTestId('cart-empty-state')).toBeInTheDocument();
     });
+  });
+
+  it('uses the drop threshold over the shop threshold (SA-PAY-008)', async () => {
+    vi.spyOn(buyerCatalog, 'getLiveDropById').mockResolvedValue({
+      ...mockLiveDrop,
+      shipping_fee_paisa: 8000,
+      free_shipping_threshold_paisa: 150000,
+      profiles: { ...mockLiveDrop.profiles, default_shipping_fee_paisa: 8000, free_shipping_threshold_paisa: 300000 },
+    });
+    renderWithProviders(<CartPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cart-page-shipping')).toHaveTextContent('FREE');
+    });
+    expect(screen.getByTestId('cart-page-total')).toHaveTextContent('₹1,850');
+  });
+
+  it('charges shipping when neither the drop nor the shop sets a threshold (no hidden ₹2,000 default)', async () => {
+    vi.spyOn(buyerCatalog, 'getLiveDropById').mockResolvedValue({
+      ...mockLiveDrop,
+      shipping_fee_paisa: 8000,
+      free_shipping_threshold_paisa: null,
+      profiles: { ...mockLiveDrop.profiles, default_shipping_fee_paisa: 8000, free_shipping_threshold_paisa: null },
+    });
+    renderWithProviders(<CartPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cart-page-shipping')).toHaveTextContent('₹80');
+    });
+    expect(screen.getByTestId('cart-page-total')).toHaveTextContent('₹1,930');
+  });
+
+  it('shows shipping as calculated at checkout while the drop rules are unknown', async () => {
+    vi.spyOn(buyerCatalog, 'getLiveDropById').mockResolvedValue(null);
+    renderWithProviders(<CartPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('cart-page-shipping')).toHaveTextContent(/Calculated at checkout/i);
+    });
+    expect(screen.getByTestId('cart-page-total')).toHaveTextContent('₹1,850');
   });
 });

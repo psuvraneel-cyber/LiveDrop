@@ -1,14 +1,16 @@
 // AUDIT-ONLY tests for OfflineIntakeQueue (seller-app/lib/core/services/offline_intake_queue.dart)
 //
-// T16, T17, T18 and T25 were inverted after the SA-INT-001 / SA-OFF-003 fix:
-// they now assert the FIXED behaviour (IDs kept). T14, T15 and T19 still
-// document open findings (SA-OFF-001).
+// T16, T17, T18 and T25 were inverted after the SA-INT-001 / SA-OFF-003 fix,
+// and T14 / T19 after the SA-OFF-001 fix: they now assert the FIXED behaviour
+// (IDs kept). T15 (pruning, P2) still documents an open finding.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:seller_app/core/errors/exceptions.dart';
 import 'package:seller_app/core/services/offline_intake_queue.dart';
 import 'package:seller_app/data/repositories/seller_repository.dart';
@@ -71,6 +73,15 @@ class ServerLikeRepo extends Fake implements SellerRepository {
   }
 }
 
+/// Stands in for the platform plugin: the app support directory.
+class _FakePathProvider extends Fake with MockPlatformInterfaceMixin implements PathProviderPlatform {
+  _FakePathProvider(this.supportPath);
+  final String supportPath;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => supportPath;
+}
+
 Uint8List _jpeg() => Uint8List.fromList(List<int>.filled(64, 7));
 
 void main() {
@@ -80,11 +91,27 @@ void main() {
     if (await dir.exists()) await dir.delete(recursive: true);
   });
 
-  test('SA-AUD-T14: default queue location is the OS temp/cache directory', () {
-    final q = OfflineIntakeQueue();
+  test('SA-AUD-T14 (fixed): default queue location is the app support directory, not the OS temp/cache directory',
+      () async {
+    final support = await Directory.systemTemp.createTemp('audit_app_support_');
+    final previous = PathProviderPlatform.instance;
+    PathProviderPlatform.instance = _FakePathProvider(support.path);
+    addTearDown(() async {
+      PathProviderPlatform.instance = previous;
+      if (await support.exists()) await support.delete(recursive: true);
+    });
+
+    // Default storage; only the legacy (migration source) folder is redirected
+    // so the test does not touch a real queue in the machine's temp folder.
+    final q = OfflineIntakeQueue(legacyDir: Directory('${dir.path}/no_legacy_queue'));
+    await q.initialize();
     // ignore: avoid_print
-    print('AUDIT T14 default baseDir=${q.baseDir.path} systemTemp=${Directory.systemTemp.path}');
-    expect(q.baseDir.path, startsWith(Directory.systemTemp.path));
+    print('AUDIT T14 default baseDir=${q.baseDir.path} systemTemp=${Directory.systemTemp.path} '
+        'migrates from=${OfflineIntakeQueue.legacyTempDir.path}');
+    expect(q.baseDir.path, '${support.path}/livedrop_intake_queue');
+    expect(q.baseDir.path, isNot(startsWith('${Directory.systemTemp.path}/livedrop_intake_queue')));
+    expect(OfflineIntakeQueue.legacyTempDir.path, '${Directory.systemTemp.path}/livedrop_intake_queue');
+    q.dispose();
   });
 
   test('SA-AUD-T15: completed items and their photos are never removed from disk or manifest', () async {
@@ -218,14 +245,27 @@ void main() {
     expect(repo.createCalls, 1);
   });
 
-  test('SA-AUD-T19: a corrupt manifest silently drops every queued garment', () async {
+  test('SA-AUD-T19 (fixed): a corrupt manifest is moved aside and the queue is restored from queue.json.bak',
+      () async {
     final q = OfflineIntakeQueue(storageDir: dir);
     await q.initialize();
     await q.enqueue(dropId: 'd1', code: '#A01', title: 't', pricePaisa: 1000, size: 'M', imageBytes: _jpeg());
-    File('${dir.path}/queue.json').writeAsStringSync('[{"id": "trunc'); // e.g. power loss mid-write
+    q.dispose();
+    File('${dir.path}/queue.json').writeAsStringSync('[{"id": "trunc'); // e.g. disk corruption
     final reloaded = OfflineIntakeQueue(storageDir: dir);
     await reloaded.initialize();
-    expect(reloaded.items, isEmpty);
-    expect(Directory('${dir.path}/images').listSync(), isNotEmpty); // photos orphaned on disk
+    final quarantined = dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.uri.pathSegments.last.startsWith('queue.json.corrupt-'))
+        .toList();
+    // ignore: avoid_print
+    print('AUDIT T19 reloaded items=${reloaded.items.map((i) => i.code).toList()} '
+        'quarantined=${quarantined.map((f) => f.uri.pathSegments.last).toList()}');
+    reloaded.dispose();
+    expect(reloaded.items.map((i) => i.code), ['#A01']); // nothing lost
+    expect(quarantined, hasLength(1)); // corrupt file kept for inspection, not overwritten
+    expect(quarantined.single.readAsStringSync(), '[{"id": "trunc');
+    expect(jsonDecode(File('${dir.path}/queue.json').readAsStringSync()), hasLength(1)); // healthy again
   });
 }

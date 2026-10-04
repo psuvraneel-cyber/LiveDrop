@@ -4,6 +4,7 @@ import React from 'react';
 import { ReconciledCartItem } from '../../types/cart';
 import { formatPaisaToINR } from '../../lib/utils/currency';
 import { PublicDropCatalog } from '../../types/domain';
+import { estimateShipping } from '../../lib/checkout/shipping';
 
 export interface CheckoutReviewProps {
   items: ReconciledCartItem[];
@@ -24,23 +25,11 @@ export function CheckoutReview({
   onRemoveItem,
   onSubmit,
 }: CheckoutReviewProps) {
-  // Estimated shipping based on drop rules (informational only; database computes authoritative value)
-  let estimatedShippingPaisa = 0;
-  let hasFreeShipping = false;
-
-  if (drop) {
-    const threshold = drop.free_shipping_threshold_paisa ?? drop.profiles?.free_shipping_threshold_paisa;
-    const fee = drop.shipping_fee_paisa ?? drop.profiles?.default_shipping_fee_paisa ?? 8000;
-
-    if (threshold !== null && threshold !== undefined && subtotalPaisa >= threshold) {
-      estimatedShippingPaisa = 0;
-      hasFreeShipping = true;
-    } else {
-      estimatedShippingPaisa = fee;
-    }
-  }
-
-  const estimatedTotalPaisa = subtotalPaisa + estimatedShippingPaisa;
+  // Estimated shipping from the drop's rules (informational only; the database computes the
+  // authoritative value with the same rule — see lib/checkout/shipping.ts).
+  const shipping = estimateShipping(drop, subtotalPaisa, items.length);
+  const hasFreeShipping = shipping.known && shipping.isFree;
+  const estimatedTotalPaisa = subtotalPaisa + (shipping.shippingPaisa ?? 0);
 
   return (
     <section className="ld-checkout-section ld-checkout-review" aria-labelledby="order-summary-title">
@@ -164,8 +153,8 @@ export function CheckoutReview({
           <span className="ld-summary-value" data-testid="checkout-shipping">
             {hasFreeShipping ? (
               <span className="ld-free-shipping-tag">FREE</span>
-            ) : drop ? (
-              formatPaisaToINR(estimatedShippingPaisa)
+            ) : shipping.known ? (
+              formatPaisaToINR(shipping.shippingPaisa)
             ) : (
               'Calculated at confirmation'
             )}

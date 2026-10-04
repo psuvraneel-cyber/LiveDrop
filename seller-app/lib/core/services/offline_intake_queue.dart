@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import '../errors/exceptions.dart';
@@ -167,8 +168,31 @@ class IntakeQueueItem {
 /// backoff; permanent ones (validation, duplicate code, permission) move the
 /// piece to [IntakeQueueStatus.needsAttention] with a human-readable reason and
 /// are never retried automatically.
+///
+/// Storage (SA-OFF-001):
+/// * lives in the app *support* directory (not the OS cache/temp directory,
+///   which Android may purge or the seller may clear with "Clear cache");
+/// * a queue left in the old temp location by an earlier build is migrated on
+///   first start (manifest + photos), so nothing queued is lost;
+/// * `queue.json` is written atomically (temp file, flush, rename) and a copy
+///   of the last good manifest is kept in `queue.json.bak`;
+/// * an unreadable manifest is moved aside to `queue.json.corrupt-<millis>`
+///   (never overwritten) and the queue is restored from the backup.
 class OfflineIntakeQueue {
-  final Directory baseDir;
+  /// Folder name under the app support directory (and the old temp location).
+  static const String storageFolderName = 'livedrop_intake_queue';
+  static const String manifestName = 'queue.json';
+  static const String backupName = 'queue.json.bak';
+
+  /// Where builds before SA-OFF-001 kept the queue.
+  static Directory get legacyTempDir =>
+      Directory('${Directory.systemTemp.path}/$storageFolderName');
+
+  final Directory? _injectedDir;
+  final Future<Directory> Function() _supportDirProvider;
+  final Directory? _legacyDir;
+  Directory? _resolvedDir;
+
   final List<IntakeQueueItem> _items = [];
   final ValueNotifier<int> pendingCountNotifier = ValueNotifier<int>(0);
 
@@ -181,10 +205,31 @@ class OfflineIntakeQueue {
   Future<void>? _initFuture;
   Future<void> _manifestWrites = Future<void>.value();
 
-  OfflineIntakeQueue({Directory? storageDir})
-    : baseDir =
-          storageDir ??
-          Directory('${Directory.systemTemp.path}/livedrop_intake_queue');
+  /// [storageDir] pins the queue folder (tests). Otherwise the folder is
+  /// `<app support dir>/livedrop_intake_queue`, resolved by [initialize] via
+  /// [supportDirProvider] (defaults to `getApplicationSupportDirectory`).
+  ///
+  /// [legacyDir] is an old queue folder to migrate from; it defaults to the
+  /// pre-SA-OFF-001 temp location when [storageDir] is not given.
+  OfflineIntakeQueue({
+    Directory? storageDir,
+    Future<Directory> Function()? supportDirProvider,
+    Directory? legacyDir,
+  })  : _injectedDir = storageDir,
+        _supportDirProvider = supportDirProvider ?? getApplicationSupportDirectory,
+        _legacyDir = legacyDir ?? (storageDir == null ? legacyTempDir : null);
+
+  /// The queue folder. Known after [initialize] unless injected.
+  Directory get baseDir {
+    final dir = _injectedDir ?? _resolvedDir;
+    if (dir == null) {
+      throw StateError('OfflineIntakeQueue.initialize() must complete before the storage folder is known.');
+    }
+    return dir;
+  }
+
+  File get _manifestFile => File('${baseDir.path}/$manifestName');
+  File get _backupFile => File('${baseDir.path}/$backupName');
 
   List<IntakeQueueItem> get items => List.unmodifiable(_items);
 
@@ -221,6 +266,9 @@ class OfflineIntakeQueue {
   }
 
   Future<void> _loadFromDisk() async {
+    _resolvedDir ??= _injectedDir ??
+        Directory('${(await _supportDirProvider()).path}/$storageFolderName');
+
     if (!await baseDir.exists()) {
       await baseDir.create(recursive: true);
     }
@@ -229,25 +277,155 @@ class OfflineIntakeQueue {
       await imagesDir.create(recursive: true);
     }
 
-    final manifestFile = File('${baseDir.path}/queue.json');
-    if (await manifestFile.exists()) {
-      try {
-        final content = await manifestFile.readAsString();
-        final List<dynamic> list = jsonDecode(content) as List<dynamic>;
-        _items.clear();
-        for (final entry in list) {
-          _items.add(IntakeQueueItem.fromJson(entry as Map<String, dynamic>));
-        }
-      } catch (_) {
-        // Safe fallback if manifest unreadable
-      }
+    final loaded = await _readManifestWithRecovery();
+    _items
+      ..clear()
+      ..addAll(loaded.items);
+
+    final migrated = await _migrateLegacyQueue(); // saves when it adds items
+    if (loaded.restoredFromBackup && !migrated) {
+      // Persist the recovered queue right away so the next start reads a
+      // healthy manifest.
+      await _saveManifest();
     }
     _updateNotifier();
   }
 
-  /// Seller edits / discards can now happen while a sync is saving progress,
-  /// so manifest writes are serialised (each write snapshots the latest
-  /// in-memory state) and atomic (temp file + rename), never interleaved.
+  static List<IntakeQueueItem> _decodeManifest(String content) {
+    final list = jsonDecode(content) as List<dynamic>;
+    return [for (final entry in list) IntakeQueueItem.fromJson(entry as Map<String, dynamic>)];
+  }
+
+  /// Moves an unreadable file aside so it is never overwritten.
+  Future<void> _quarantine(File file) async {
+    if (!await file.exists()) return;
+    final target = '${file.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      await file.rename(target);
+    } catch (_) {
+      await file.copy(target);
+      await file.delete();
+    }
+    debugPrint('[OfflineIntakeQueue] Unreadable manifest moved to $target');
+  }
+
+  Future<({List<IntakeQueueItem> items, bool restoredFromBackup})> _readManifestWithRecovery() async {
+    final manifest = _manifestFile;
+    if (await manifest.exists()) {
+      try {
+        return (items: _decodeManifest(await manifest.readAsString()), restoredFromBackup: false);
+      } catch (_) {
+        await _quarantine(manifest);
+      }
+    }
+
+    final backup = _backupFile;
+    if (await backup.exists()) {
+      try {
+        final items = _decodeManifest(await backup.readAsString());
+        debugPrint('[OfflineIntakeQueue] Restored ${items.length} item(s) from $backupName');
+        return (items: items, restoredFromBackup: true);
+      } catch (_) {
+        await _quarantine(backup);
+      }
+    }
+    return (items: <IntakeQueueItem>[], restoredFromBackup: false);
+  }
+
+  /// Moves a queue left by an older build (temp/cache directory) into the
+  /// durable folder: photos are copied, items not yet known are merged with
+  /// their photo paths rewritten, then the old folder is removed. Returns
+  /// true when items were added.
+  Future<bool> _migrateLegacyQueue() async {
+    final legacy = _legacyDir;
+    if (legacy == null) return false;
+    if (!await legacy.exists()) return false;
+    if (_samePath(legacy.path, baseDir.path)) return false;
+
+    try {
+      // 1. Photos (copy, do not overwrite).
+      final legacyImages = Directory('${legacy.path}/images');
+      final newImagesPath = '${baseDir.path}/images';
+      if (await legacyImages.exists()) {
+        await for (final entity in legacyImages.list(followLinks: false)) {
+          if (entity is! File) continue;
+          final target = File('$newImagesPath/${_basename(entity.path)}');
+          if (!await target.exists()) {
+            await entity.copy(target.path);
+          }
+        }
+      }
+
+      // 2. Manifest (main file, else its backup). An unreadable legacy
+      //    manifest is preserved next to the new one, never dropped.
+      List<IntakeQueueItem> legacyItems = const [];
+      var legacyReadable = true;
+      for (final name in [manifestName, backupName]) {
+        final file = File('${legacy.path}/$name');
+        if (!await file.exists()) continue;
+        try {
+          legacyItems = _decodeManifest(await file.readAsString());
+          legacyReadable = true;
+          break;
+        } catch (_) {
+          legacyReadable = false;
+          await file.copy(
+            '${baseDir.path}/$name.legacy.corrupt-${DateTime.now().millisecondsSinceEpoch}',
+          );
+        }
+      }
+
+      final known = {for (final i in _items) i.id};
+      var added = false;
+      for (final item in legacyItems) {
+        if (known.contains(item.id)) continue;
+        final rewritten = [
+          for (final path in item.localImagePaths)
+            _isUnder(path, legacy.path) ? '$newImagesPath/${_basename(path)}' : path,
+        ];
+        item.localImagePaths
+          ..clear()
+          ..addAll(rewritten);
+        _items.add(item);
+        added = true;
+      }
+
+      // 3. Persist before removing the old copy.
+      if (added) await _saveManifest();
+      await legacy.delete(recursive: true);
+      if (!legacyReadable) {
+        debugPrint('[OfflineIntakeQueue] Legacy manifest was unreadable; kept a copy in ${baseDir.path}');
+      }
+      return added;
+    } catch (e) {
+      // Leave the legacy folder in place; the next start tries again.
+      debugPrint('[OfflineIntakeQueue] Legacy queue migration failed: $e');
+      return false;
+    }
+  }
+
+  static String _normalizePath(String p) {
+    var out = p.replaceAll('\\', '/');
+    while (out.length > 1 && out.endsWith('/')) {
+      out = out.substring(0, out.length - 1);
+    }
+    return out;
+  }
+
+  static bool _samePath(String a, String b) => _normalizePath(a) == _normalizePath(b);
+
+  static bool _isUnder(String path, String dir) =>
+      _normalizePath(path).startsWith('${_normalizePath(dir)}/');
+
+  static String _basename(String path) {
+    final normalized = _normalizePath(path);
+    return normalized.substring(normalized.lastIndexOf('/') + 1);
+  }
+
+  /// Seller edits / discards can happen while a sync is saving progress, so
+  /// manifest writes are serialised (each write snapshots the latest
+  /// in-memory state) and atomic (temp file + flush + rename), never
+  /// interleaved.
   Future<void> _saveManifest() {
     final write = _manifestWrites.then((_) => _writeManifestNow());
     _manifestWrites = write.then<void>((_) {}, onError: (Object _) {});
@@ -255,12 +433,27 @@ class OfflineIntakeQueue {
   }
 
   Future<void> _writeManifestNow() async {
-    final manifestFile = File('${baseDir.path}/queue.json');
-    final tempFile = File('${baseDir.path}/queue.json.tmp');
     final data = jsonEncode(_items.map((i) => i.toJson()).toList());
-    await tempFile.writeAsString(data, flush: true);
-    await tempFile.rename(manifestFile.path);
+    await _atomicWrite(_manifestFile, data);
+    // Backup of the last good manifest (also written atomically).
+    try {
+      await _atomicWrite(_backupFile, data);
+    } catch (e) {
+      debugPrint('[OfflineIntakeQueue] Could not refresh $backupName: $e');
+    }
     _updateNotifier();
+  }
+
+  static Future<void> _atomicWrite(File target, String data) async {
+    final temp = File('${target.path}.tmp');
+    final raf = await temp.open(mode: FileMode.write);
+    try {
+      await raf.writeString(data);
+      await raf.flush();
+    } finally {
+      await raf.close();
+    }
+    await temp.rename(target.path);
   }
 
   void _updateNotifier() {
@@ -291,6 +484,7 @@ class OfflineIntakeQueue {
     Uint8List? imageBytes,
     List<Uint8List>? imageBytesList,
   }) async {
+    await initialize();
     final list = imageBytesList ??
         (imageBytes != null ? [imageBytes] : <Uint8List>[]);
     if (list.isEmpty) {
@@ -431,6 +625,14 @@ class OfflineIntakeQueue {
   /// skipped until the seller edits or retries them. Items added or edited
   /// while a run is in progress are picked up by the same run.
   Future<void> processQueue(SellerRepository repository) async {
+    if (_disposed) return;
+    // Callers at app start / resume may run before the manifest was loaded.
+    try {
+      await initialize();
+    } catch (e) {
+      debugPrint('[OfflineIntakeQueue] Cannot open the queue storage: $e');
+      return;
+    }
     if (_disposed) return;
     if (_isProcessing) {
       // e.g. the retry timer fired during a long run: run again afterwards so
@@ -611,6 +813,7 @@ class OfflineIntakeQueue {
   /// Manually trigger retry for all items waiting on a transient failure.
   /// Pieces that need attention are not touched (they need an edit first).
   Future<void> retryFailed(SellerRepository repository) async {
+    await initialize();
     for (final item in _items) {
       if (item.status == IntakeQueueStatus.failed) {
         item.status = IntakeQueueStatus.pending;

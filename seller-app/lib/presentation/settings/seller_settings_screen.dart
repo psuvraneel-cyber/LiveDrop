@@ -12,6 +12,7 @@ import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import '../payment_settings_screen.dart';
+import '../../core/validation/free_shipping_rules.dart';
 
 /// Screen 11: Luxury Boutique Settings & Preferences Screen
 /// Fully interactive operational control center for boutique owners.
@@ -374,6 +375,12 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
     final advanceAmountCtrl = TextEditingController(
       text: ((_profile?.advanceAmountPaisa ?? 25000) ~/ 100).toString(),
     );
+    // Shop free-shipping threshold (SA-PAY-008). Blank = no free shipping
+    // unless a drop sets its own threshold.
+    final freeShippingCtrl = TextEditingController(
+      text: FreeShippingRules.toRupeesInput(_profile?.freeShippingThresholdPaisa),
+    );
+    String? freeShippingError;
     bool advanceEnabled = _profile?.advanceConfirmationEnabled ?? false;
     int holdDays = _profile?.holdDurationDays ?? 30;
     bool isSaving = false;
@@ -420,6 +427,49 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                   controller: shippingFeeCtrl,
                   icon: Icons.local_shipping_outlined,
                   keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 14),
+
+                // Shop Free-Shipping Threshold (view / edit / clear)
+                _buildModalTextField(
+                  label: 'Free Shipping Above (₹, optional)',
+                  controller: freeShippingCtrl,
+                  icon: Icons.card_giftcard_outlined,
+                  keyboardType: TextInputType.number,
+                  hintText: 'Leave blank for no free shipping',
+                  onChanged: (_) => setModalState(() => freeShippingError = null),
+                  suffix: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: freeShippingCtrl,
+                    builder: (_, value, _) => value.text.isEmpty
+                        ? const SizedBox.shrink()
+                        : IconButton(
+                            key: const ValueKey('clear-shop-free-shipping'),
+                            tooltip: 'Clear (no free shipping)',
+                            icon: const Icon(Icons.clear, size: 18, color: AppColors.textMuted),
+                            onPressed: () {
+                              freeShippingCtrl.clear();
+                              setModalState(() => freeShippingError = null);
+                            },
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: freeShippingCtrl,
+                  builder: (_, value, _) {
+                    final error = freeShippingError ?? FreeShippingRules.validateRupeesInput(value.text);
+                    final text = error ??
+                        'Shop setting: ${FreeShippingRules.describe(FreeShippingRules.parseRupeesInput(value.text))}. '
+                            'A drop can set its own threshold.';
+                    return Text(
+                      text,
+                      key: const ValueKey('shop-free-shipping-summary'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: error != null ? AppColors.crimson : AppColors.textMuted,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
 
@@ -473,11 +523,22 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                           final feeInRupees = int.tryParse(shippingFeeCtrl.text.trim()) ?? 80;
                           final advanceInRupees = int.tryParse(advanceAmountCtrl.text.trim()) ?? 250;
                           final messenger = ScaffoldMessenger.of(context);
+                          final thresholdProblem =
+                              FreeShippingRules.validateRupeesInput(freeShippingCtrl.text);
+                          if (thresholdProblem != null) {
+                            BoutiqueHaptics.heavy();
+                            setModalState(() => freeShippingError = thresholdProblem);
+                            return;
+                          }
+                          final thresholdPaisa =
+                              FreeShippingRules.parseRupeesInput(freeShippingCtrl.text);
 
                           setModalState(() => isSaving = true);
                           try {
                             final updated = await widget.repository.updateProfile(
                               defaultShippingFeePaisa: feeInRupees * 100,
+                              freeShippingThresholdPaisa: thresholdPaisa,
+                              clearFreeShippingThreshold: thresholdPaisa == null,
                               advanceConfirmationEnabled: advanceEnabled,
                               advanceAmountPaisa: advanceInRupees * 100,
                               holdDurationDays: holdDays,
@@ -855,7 +916,8 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                         _buildSettingTile(
                           icon: Icons.local_shipping_outlined,
                           title: 'Order & Shipping Defaults',
-                          subtitle: 'Default shipping fee, advance deposit rules',
+                          subtitle:
+                              'Default shipping fee, ${FreeShippingRules.describe(_profile?.freeShippingThresholdPaisa).toLowerCase()}, advance deposit rules',
                           onTap: _openOrderDefaults,
                         ),
                         const Divider(color: AppColors.cardBorder, height: 1),
@@ -961,6 +1023,9 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
     required IconData icon,
     TextInputType? keyboardType,
     int maxLines = 1,
+    String? hintText,
+    Widget? suffix,
+    ValueChanged<String>? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -974,8 +1039,12 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          onChanged: onChanged,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            suffixIcon: suffix,
             filled: true,
             fillColor: AppColors.obsidianElevated,
             prefixIcon: Icon(icon, color: AppColors.goldPrimary, size: 18),

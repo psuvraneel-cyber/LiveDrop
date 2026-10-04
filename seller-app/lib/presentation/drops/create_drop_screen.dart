@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/errors/exceptions.dart';
+import '../../core/validation/free_shipping_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 
@@ -29,6 +30,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
   late TextEditingController _streamUrlController;
   bool _isLoading = false;
   bool _autoSlug = true;
+  SellerProfile? _profile;
 
   bool get _isEditing => widget.existingDrop != null;
 
@@ -45,18 +47,56 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
     final defaultShipping = (drop?.shippingFeePaisa ?? profile?.defaultShippingFeePaisa ?? 8000) ~/ 100;
     _shippingFeeController = TextEditingController(text: defaultShipping.toString());
 
-    final threshold = (drop?.freeShippingThresholdPaisa ?? profile?.freeShippingThresholdPaisa);
+    // Only the drop's OWN threshold goes in the field. Blank means "use the
+    // shop setting" (SA-PAY-008) — the shop value is shown as help text, never
+    // prefilled as if it belonged to the drop.
     _freeShippingThresholdController = TextEditingController(
-      text: threshold != null ? (threshold ~/ 100).toString() : '',
+      text: FreeShippingRules.toRupeesInput(drop?.freeShippingThresholdPaisa),
     );
+    _freeShippingThresholdController.addListener(_onThresholdChanged);
+
+    _profile = profile;
+    if (_profile == null) {
+      _loadProfile();
+    }
 
     if (_isEditing) {
       _autoSlug = false;
     }
   }
 
+  Future<void> _loadProfile() async {
+    try {
+      final loaded = await widget.repository.getProfile();
+      if (mounted) setState(() => _profile = loaded);
+    } catch (_) {
+      // The help text falls back to a neutral wording without the shop value.
+    }
+  }
+
+  void _onThresholdChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Help text under the threshold field: what applies right now.
+  String get _thresholdHelperText {
+    final typed = FreeShippingRules.validateRupeesInput(_freeShippingThresholdController.text) == null
+        ? FreeShippingRules.parseRupeesInput(_freeShippingThresholdController.text)
+        : null;
+    if (typed != null) {
+      return 'This drop: ${FreeShippingRules.describe(typed)}';
+    }
+    final profile = _profile;
+    if (profile == null) {
+      return 'Leave blank to use your shop setting';
+    }
+    final shop = FreeShippingRules.resolve(shopThresholdPaisa: profile.freeShippingThresholdPaisa);
+    return 'Blank uses your shop setting: ${shop.label}';
+  }
+
   @override
   void dispose() {
+    _freeShippingThresholdController.removeListener(_onThresholdChanged);
     _titleController.dispose();
     _slugController.dispose();
     _streamUrlController.dispose();
@@ -85,9 +125,9 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
       final title = _titleController.text.trim();
       final slug = _slugController.text.trim().toLowerCase();
       final shippingFeePaisa = (int.parse(_shippingFeeController.text.trim())) * 100;
-      final thresholdText = _freeShippingThresholdController.text.trim();
+      // Blank clears the drop's own threshold (the shop setting then applies).
       final freeShippingThresholdPaisa =
-          thresholdText.isNotEmpty ? (int.parse(thresholdText)) * 100 : null;
+          FreeShippingRules.parseRupeesInput(_freeShippingThresholdController.text);
 
       final streamUrlText = _streamUrlController.text.trim();
       final streamUrl = streamUrlText.isNotEmpty ? streamUrlText : null;
@@ -284,8 +324,18 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
                   prefixText: '₹ ',
                   prefixStyle: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold),
                   labelText: 'Free Shipping Threshold (₹ INR, Optional)',
-                  hintText: 'e.g. 2999 (Leave blank for no free shipping)',
+                  hintText: 'e.g. 2999 (blank = shop setting)',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
+                  helperText: _thresholdHelperText,
+                  helperMaxLines: 2,
+                  helperStyle: TextStyle(color: Colors.grey.shade500),
+                  suffixIcon: _freeShippingThresholdController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Clear (use shop setting)',
+                          icon: Icon(Icons.clear, size: 18, color: Colors.grey.shade500),
+                          onPressed: () => _freeShippingThresholdController.clear(),
+                        ),
                   labelStyle: TextStyle(color: Colors.grey.shade400),
                   filled: true,
                   fillColor: const Color(0xFF1E1E24),
@@ -294,15 +344,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                validator: (val) {
-                  if (val != null && val.trim().isNotEmpty) {
-                    final parsed = int.tryParse(val.trim());
-                    if (parsed == null || parsed <= 0) {
-                      return 'Please enter a valid positive integer amount';
-                    }
-                  }
-                  return null;
-                },
+                validator: FreeShippingRules.validateRupeesInput,
               ),
               const SizedBox(height: 32),
 

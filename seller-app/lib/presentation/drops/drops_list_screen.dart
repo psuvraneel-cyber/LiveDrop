@@ -8,6 +8,7 @@ import '../../domain/models/models.dart';
 import '../../core/services/offline_intake_queue.dart';
 import '../intake/camera_intake_screen.dart';
 import 'create_drop_screen.dart';
+import '../../core/validation/free_shipping_rules.dart';
 
 /// LiveDrop Seller Mobile App — Drops List & Drop Lifecycle Management Screen
 class DropsListScreen extends StatefulWidget {
@@ -468,11 +469,17 @@ class _DropsListScreenState extends State<DropsListScreen> {
                 ),
               ),
             ),
-            if (drop.freeShippingThresholdPaisa != null)
-              Text(
-                'Free shipping on orders above ₹${drop.freeShippingThresholdPaisa! ~/ 100}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF10B981)),
-              ),
+            Builder(builder: (_) {
+              final policy = FreeShippingRules.forDrop(drop, _profile);
+              final suffix = policy.source == FreeShippingSource.shop ? ' (shop setting)' : '';
+              return Text(
+                '${policy.label}$suffix',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: policy.offersFreeShipping ? const Color(0xFF10B981) : Colors.grey.shade500,
+                ),
+              );
+            }),
             const SizedBox(height: 16),
             const Divider(color: Colors.white10),
             const SizedBox(height: 8),

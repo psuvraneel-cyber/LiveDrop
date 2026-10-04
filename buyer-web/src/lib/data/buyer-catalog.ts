@@ -41,7 +41,29 @@ export async function getLiveDropBySlug(
   if (!slug || slug.trim() === '') {
     return null;
   }
+  return fetchLiveDrop(client, 'slug', slug);
+}
 
+/**
+ * Retrieves an active live drop (with its seller's public shipping/advance rules) by id.
+ * Used by the cart and checkout screens to show the same shipping rule the server applies.
+ * Returns null if the drop does not exist or is not currently in 'live' status.
+ */
+export async function getLiveDropById(
+  client: SupabaseClient,
+  dropId: string
+): Promise<PublicDropCatalog | null> {
+  if (!dropId || dropId.trim() === '') {
+    return null;
+  }
+  return fetchLiveDrop(client, 'id', dropId);
+}
+
+async function fetchLiveDrop(
+  client: SupabaseClient,
+  column: 'slug' | 'id',
+  value: string
+): Promise<PublicDropCatalog | null> {
   try {
     const { data: dropData, error: dropError } = await client
       .from('drops')
@@ -64,7 +86,7 @@ export async function getLiveDropBySlug(
         updated_at
       `
       )
-      .eq('slug', slug)
+      .eq(column, value)
       .eq('status', 'live')
       .maybeSingle();
 

@@ -27,6 +27,7 @@ keywords = ["password", "passwd", "pwd"]
   regexes = [
     '''(?i)^(?:<[^>]*>|\{\{.*\}\}|\$\{.*\}|x{6,}|\*{6,}|\.{6,})$''',
     '''(?i)^(?:change[-_]?me|placeholder|example|your[-_a-z]*|password|redacted|dummy|not[-_]?set)$''',
+    '''^/[a-z0-9/_-]*$''',  # URL paths such as /seller/reset-password
   ]
 
 [[rules]]

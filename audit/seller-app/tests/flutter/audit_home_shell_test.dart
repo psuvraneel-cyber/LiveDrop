@@ -48,31 +48,37 @@ void main() {
     expect(find.text('Verify Payments'), findsWidgets);
   });
 
-  testWidgets('SA-AUD-T08: dashboard "Shipping" opens the label for whatever order is first and ships it with placeholder AWB',
-      (tester) async {
+  testWidgets('SA-AUD-T08 (fixed): dashboard "Shipping" never ships anything — it opens Orders on the '
+      'Ready-to-ship list; no label screen, no placeholder AWB, no mark_order_shipped call', (tester) async {
     final pendingUnpaid = auditOrder(code: 'LD-PEND01');
-    final repo = AuditRepo(drops: [_draftDrop], orders: [pendingUnpaid]);
+    final readyPaid = auditOrder(
+      id: 'order-2',
+      code: 'LD-READY1',
+      status: OrderStatus.paid,
+      paymentStatus: OrderPaymentStatus.paid,
+      fulfilmentStatus: OrderFulfilmentStatus.readyToShip,
+      totalPaidPaisa: 158000,
+    );
+    final repo = AuditRepo(drops: [_draftDrop], orders: [pendingUnpaid, readyPaid]);
     await tester.pumpWidget(auditApp(SellerHomeScreen(repository: repo)));
     await _settle(tester);
 
-    final shippingTile = find.text('Shipping').hitTestable();
-    // ignore: avoid_print
-    print('AUDIT T08 Shipping finders: all=${find.text('Shipping').evaluate().length} hittable=${shippingTile.evaluate().length}');
     await tester.ensureVisible(find.text('Shipping'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Shipping').hitTestable().first);
     await _settle(tester);
-    expect(find.text('Shipping Label'), findsOneWidget);
-    expect(find.text('Order #LD-PEND01'), findsOneWidget); // an unpaid, pending order
-    expect(find.text('PREPAID'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Generate & Share Label'));
-    await tester.tap(find.text('Generate & Share Label'));
-    await _settle(tester);
+    final readyVisible = find.text('#LD-READY1').hitTestable().evaluate().length;
+    final pendingVisible = find.text('#LD-PEND01').hitTestable().evaluate().length;
     // ignore: avoid_print
-    print('AUDIT T08 markOrderShipped calls: ${repo.shipCalls}');
-    expect(repo.shipCalls, hasLength(1));
-    expect(repo.shipCalls.first['orderId'], pendingUnpaid.id);
-    expect(repo.shipCalls.first['tracking'], 'DVA123456789');
+    print('AUDIT T08 after Shipping tap: labelScreen=${find.text('Shipping Label').evaluate().length} '
+        'readyVisible=$readyVisible pendingVisible=$pendingVisible shipCalls=${repo.shipCalls}');
+    expect(find.text('Shipping Label'), findsNothing); // no label screen for an arbitrary order
+    expect(find.text('DVA123456789'), findsNothing);
+    expect(find.text('Generate & Share Label'), findsNothing);
+    expect(find.text('Ready (1)').hitTestable(), findsOneWidget); // Orders tab, Ready pipeline
+    expect(readyVisible, 1); // the ready-to-ship order is listed
+    expect(pendingVisible, 0); // the unpaid pending order is not offered for shipping
+    expect(repo.shipCalls, isEmpty); // nothing shipped by the shortcut
   });
 }

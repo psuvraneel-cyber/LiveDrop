@@ -34,4 +34,5 @@ PASS  033_hide_seller_upi_from_public_storefronts.sql
 PASS  034_lock_down_public_view_privileges.sql
 PASS  035_payment_claim_safety_and_refunds.sql
 PASS  036_schedule_reaper_in_database.sql
+PASS  037_claim_hold_and_shipping_quote.sql
 Migration apply exit status: 0

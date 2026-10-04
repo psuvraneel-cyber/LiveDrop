@@ -66,7 +66,8 @@ BEGIN
   RAISE NOTICE '% 13.1c second verify -> idempotent=% ledger_rows=%', CASE WHEN led=1 THEN 'PASS' ELSE 'FAIL' END, v->>'idempotent', led;
 END $$;
 
--- 13.2 any syntactically valid UTR extends the inventory hold from 15 minutes to 24 hours
+-- 13.2 a syntactically valid (possibly fake) UTR during a live may extend the hold only to the
+--      30-minute claim window, never to 24 hours (SA-PAY-007, migration 037)
 DO $$
 DECLARE b jsonb; before_h interval; after_h interval;
 BEGIN
@@ -77,7 +78,7 @@ BEGIN
   PERFORM audit.as_postgres();
   SELECT hold_expires_at - now() INTO after_h FROM orders WHERE id = (b->>'order_id')::uuid;
   RAISE NOTICE '% 13.2 fabricated UTR "NOTAREALUTR" moved hold from % to % (piece unavailable to other buyers until seller acts)',
-    CASE WHEN after_h > interval '23 hours' THEN 'FINDING' ELSE 'PASS' END, date_trunc('minute', before_h), date_trunc('minute', after_h);
+    CASE WHEN after_h > interval '30 minutes' THEN 'FINDING' ELSE 'PASS' END, date_trunc('minute', before_h), date_trunc('minute', after_h);
   -- release it for later tests
   PERFORM audit.as_seller(audit.seller_a());
   PERFORM reject_manual_upi_payment((b->>'attempt_id')::uuid, 'test cleanup', true);
@@ -225,19 +226,21 @@ END $$;
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
 UPDATE profiles SET advance_confirmation_enabled = false WHERE id = audit.seller_a();
 
--- 13.8 a claimed-but-unverified payment must not expire after 24h (SA-PAY-003)
---      Expected: the reaper leaves order, attempt and piece untouched; the claim stays in the
---      seller queue (overdue) and can still be verified.
+-- 13.8 a claimed-but-unverified payment whose window lapsed (SA-PAY-003 + SA-PAY-007, migration 037)
+--      Expected: the reaper cancels the order and frees the piece (no 24h lock), but the claim is
+--      never expired: it moves to late_claim_pending_review with its UTR, stays in the seller
+--      queue, and verifying it re-secures the piece (still free) -> order paid.
 DO $$
-DECLARE b jsonb; o text; a text; p text; p_by uuid; queue int; v jsonb; o_after text;
+DECLARE b jsonb; o text; a record; p text; p_by uuid; queue int; v jsonb; o_after text; claimed_before timestamptz;
 BEGIN
   b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a3()], 'full_payment', '102345678901');
   UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = (b->>'order_id')::uuid;
   UPDATE payment_attempts SET verification_expires_at = now() - interval '1 minute', expires_at = now() - interval '1 minute'
    WHERE id = (b->>'attempt_id')::uuid;
+  SELECT buyer_claimed_at INTO claimed_before FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid;
   PERFORM pg_temp.reap();
   SELECT status INTO o FROM orders WHERE id = (b->>'order_id')::uuid;
-  SELECT status INTO a FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid;
+  SELECT status, buyer_submitted_utr, buyer_claimed_at INTO a FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid;
   SELECT status, reserved_by_order_id INTO p, p_by FROM products WHERE id = audit.p_a3();
   PERFORM audit.as_seller(audit.seller_a());
   SELECT count(*) INTO queue FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid
@@ -245,13 +248,43 @@ BEGIN
   PERFORM audit.as_postgres();
   v := pg_temp.verify_as_a((b->>'attempt_id')::uuid);
   SELECT status INTO o_after FROM orders WHERE id = (b->>'order_id')::uuid;
-  RAISE NOTICE '% 13.8 buyer-claimed payment after 24h without seller action -> order=% attempt=% piece=% held by order=% still in seller queue=% | verify afterwards -> % (order=%)',
-    CASE WHEN o='cancelled' AND queue=0 THEN 'FINDING'
-         WHEN o='pending' AND a='awaiting_seller_verification' AND p='reserved' AND p_by = (b->>'order_id')::uuid
-              AND queue=1 AND (v->>'success')::boolean AND o_after='paid' THEN 'PASS'
+  RAISE NOTICE '% 13.8 buyer-claimed payment past its window, reaper ran -> order=% attempt=% utr kept=% piece=% still in seller queue=% | verify afterwards -> % late=% (order=%)',
+    CASE WHEN a.status = 'expired' OR queue = 0 THEN 'FINDING'
+         WHEN o = 'pending' AND p = 'reserved' THEN 'FINDING'
+         WHEN o = 'cancelled' AND a.status = 'late_claim_pending_review' AND a.buyer_submitted_utr = '102345678901'
+              AND a.buyer_claimed_at = claimed_before AND p = 'available' AND p_by IS NULL
+              AND queue = 1 AND (v->>'success')::boolean AND (v->>'is_late_claim')::boolean AND o_after = 'paid' THEN 'PASS'
          ELSE 'FAIL' END,
-    o, a, p, (p_by = (b->>'order_id')::uuid), queue, coalesce(v->>'error', 'success=' || (v->>'success')), o_after;
+    o, a.status, (a.buyer_submitted_utr = '102345678901'), p, queue,
+    coalesce(v->>'error', 'success=' || (v->>'success')), v->>'is_late_claim', o_after;
 END $$;
+
+UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
+
+-- 13.8b same, but another buyer bought the piece after the release -> refund obligation, other buyer keeps it
+DO $$
+DECLARE b jsonb; other jsonb; v jsonb; o record; piece record;
+BEGIN
+  b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1()], 'full_payment', '102345678902');
+  UPDATE orders SET hold_expires_at = now() - interval '1 minute' WHERE id = (b->>'order_id')::uuid;
+  UPDATE payment_attempts SET verification_expires_at = now() - interval '1 minute', expires_at = now() - interval '1 minute'
+   WHERE id = (b->>'attempt_id')::uuid;
+  PERFORM pg_temp.reap();
+  other := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1()], 'full_payment', NULL);
+  v := pg_temp.verify_as_a((b->>'attempt_id')::uuid);
+  SELECT * INTO o FROM orders WHERE id = (b->>'order_id')::uuid;
+  SELECT status, reserved_by_order_id INTO piece FROM products WHERE id = audit.p_a1();
+  RAISE NOTICE '% 13.8b lapsed claim, piece resold -> other buyer checkout=% | verify -> % refund_required=% | order=% refund=%/% | piece held by other buyer=%',
+    CASE WHEN (SELECT status FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid) = 'expired' THEN 'FINDING'
+         WHEN (other->>'success')::boolean AND (v->>'success')::boolean AND (v->>'refund_required')::boolean
+              AND o.status = 'cancelled' AND o.refund_status = 'required' AND o.refund_amount_paisa = (b->>'attempt_amount')::int
+              AND piece.status = 'reserved' AND piece.reserved_by_order_id = (other->>'order_id')::uuid THEN 'PASS'
+         ELSE 'FAIL' END,
+    other->>'success', coalesce(v->>'error', 'success=' || (v->>'success')), v->>'refund_required',
+    o.status, o.refund_status, o.refund_amount_paisa, (piece.reserved_by_order_id = (other->>'order_id')::uuid);
+END $$;
+
+UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
 
 -- 13.9 UPI deep link built from seller-controlled display name
 DO $$
@@ -261,9 +294,10 @@ BEGIN
   RAISE NOTICE '% 13.9 generate_upi_payment_uri -> %', CASE WHEN u LIKE '%#1%' OR u LIKE '%100%%' THEN 'FINDING' ELSE 'PASS' END, u;
 END $$;
 
--- 13.10 free-shipping threshold configured on the drop vs the threshold the RPC applies
+-- 13.10 free-shipping threshold: drop threshold, else shop threshold, else none (SA-PAY-008, migration 037)
+UPDATE profiles SET free_shipping_threshold_paisa = 200000 WHERE id = audit.seller_a();
 DO $$
-DECLARE b jsonb; d int; s int;
+DECLARE b jsonb; d int; s int; r int;
 BEGIN
   SELECT free_shipping_threshold_paisa INTO d FROM drops WHERE id = audit.drop_a_live();
   SELECT free_shipping_threshold_paisa INTO s FROM profiles WHERE id = audit.seller_a();
@@ -275,6 +309,52 @@ BEGIN
   b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1()], 'full_payment', NULL);
   RAISE NOTICE '% 13.10b drop threshold=100000 subtotal=% -> shipping charged=% (drop banner promised free shipping)',
     CASE WHEN (b->>'shipping_paisa')::int > 0 THEN 'FINDING' ELSE 'PASS' END, b->>'subtotal_paisa', b->>'shipping_paisa';
+END $$;
+
+UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
+
+-- 13.10c drop threshold beats the shop threshold in both directions; NULL/NULL charges shipping;
+--        resolve_free_shipping_threshold returns the same value checkout applies and is callable by anon.
+DO $$
+DECLARE b jsonb; c jsonb; n jsonb; r_beats int; r_none int; anon_ok boolean;
+BEGIN
+  -- shop 100000 (would make Rs 2,500 free), drop 299900 -> shipping charged
+  UPDATE profiles SET free_shipping_threshold_paisa = 100000 WHERE id = audit.seller_a();
+  UPDATE drops SET free_shipping_threshold_paisa = 299900 WHERE id = audit.drop_a_live();
+  PERFORM audit.as_anon();
+  r_beats := resolve_free_shipping_threshold(audit.drop_a_live());
+  PERFORM audit.as_postgres();
+  b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a2()], 'full_payment', NULL);
+  -- drop NULL -> the shop threshold applies (100000 <= 150000 -> free)
+  UPDATE drops SET free_shipping_threshold_paisa = NULL WHERE id = audit.drop_a_live();
+  c := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1()], 'full_payment', NULL);
+  UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
+  -- drop NULL and shop NULL -> no free shipping at any subtotal
+  UPDATE profiles SET free_shipping_threshold_paisa = NULL WHERE id = audit.seller_a();
+  PERFORM audit.as_anon();
+  r_none := resolve_free_shipping_threshold(audit.drop_a_live());
+  PERFORM audit.as_postgres();
+  n := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1(), audit.p_a2(), audit.p_a3()], 'full_payment', NULL);
+  anon_ok := has_function_privilege('anon', 'public.resolve_free_shipping_threshold(uuid)', 'EXECUTE');
+  RAISE NOTICE '% 13.10c drop 299900 vs shop 100000, subtotal % -> shipping % (resolved %) | drop NULL, shop 100000, subtotal % -> shipping % | drop NULL, shop NULL, subtotal % -> shipping % (resolved %) | anon EXECUTE=%',
+    CASE WHEN (b->>'shipping_paisa')::int = 8000 AND r_beats = 299900
+              AND (c->>'shipping_paisa')::int = 0
+              AND (n->>'shipping_paisa')::int = 8000 AND r_none IS NULL AND anon_ok THEN 'PASS'
+         WHEN (n->>'shipping_paisa')::int = 0 OR (b->>'shipping_paisa')::int = 0 THEN 'FINDING'
+         ELSE 'FAIL' END,
+    b->>'subtotal_paisa', b->>'shipping_paisa', r_beats, c->>'subtotal_paisa', c->>'shipping_paisa',
+    n->>'subtotal_paisa', n->>'shipping_paisa', coalesce(r_none::text, 'NULL'), anon_ok;
+  UPDATE drops SET free_shipping_threshold_paisa = 299900 WHERE id = audit.drop_a_live();
+END $$;
+
+-- 13.10d no hidden Rs 2,000 default on the threshold columns
+DO $$
+DECLARE dd text; pd text;
+BEGIN
+  SELECT column_default INTO dd FROM information_schema.columns WHERE table_schema='public' AND table_name='drops' AND column_name='free_shipping_threshold_paisa';
+  SELECT column_default INTO pd FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='free_shipping_threshold_paisa';
+  RAISE NOTICE '% 13.10d column defaults: drops=% profiles=%',
+    CASE WHEN dd IS NULL AND pd IS NULL THEN 'PASS' ELSE 'FINDING' END, coalesce(dd, 'none'), coalesce(pd, 'none');
 END $$;
 
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
@@ -315,6 +395,48 @@ BEGIN
   RAISE NOTICE 'INFO 13.13 upi_enabled=false: checkout success=% (piece reserved) but initiate_payment_attempt -> %',
     o->>'success', a->>'error';
   UPDATE profiles SET upi_enabled = true WHERE id = audit.seller_a();
+END $$;
+
+UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
+
+-- 13.14 claim window (SA-PAY-007): 30 minutes while the drop is live, 24 hours otherwise;
+--       a re-claim with another UTR keeps the original window.
+DO $$
+DECLARE b jsonb; c jsonb; r jsonb; live_h interval; live_v interval; v1 timestamptz; v2 timestamptz; off_h interval; off_v interval;
+BEGIN
+  b := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a1()], 'full_payment', '131400000001');
+  SELECT o.hold_expires_at - now(), pa.verification_expires_at - now(), pa.verification_expires_at INTO live_h, live_v, v1
+    FROM orders o JOIN payment_attempts pa ON pa.order_id = o.id WHERE o.id = (b->>'order_id')::uuid;
+  PERFORM audit.as_anon();
+  r := submit_buyer_payment_claim((b->>'order_id')::uuid, b->>'order_token', (b->>'attempt_id')::uuid, '131400000002');
+  PERFORM audit.as_postgres();
+  SELECT verification_expires_at INTO v2 FROM payment_attempts WHERE id = (b->>'attempt_id')::uuid;
+  RAISE NOTICE '% 13.14a claim during a live -> hold in % / window in % | re-claim with another UTR -> success=% window unchanged=%',
+    CASE WHEN live_h > interval '23 hours' THEN 'FINDING'
+         WHEN live_h BETWEEN interval '29 minutes' AND interval '30 minutes' AND live_v BETWEEN interval '29 minutes' AND interval '30 minutes'
+              AND (r->>'success')::boolean AND v1 = v2 THEN 'PASS'
+         ELSE 'FAIL' END,
+    date_trunc('second', live_h), date_trunc('second', live_v), r->>'success', (v1 = v2);
+
+  -- the same claim after the live ended (drop no longer live, order still pending). The drop's
+  -- status is flipped directly with triggers disabled (close_drop would also cancel the order).
+  c := pg_temp.buy(audit.drop_a_live(), ARRAY[audit.p_a2()], 'full_payment', NULL);
+  SET LOCAL session_replication_role = replica;
+  UPDATE drops SET status = 'closed', closed_at = now() WHERE id = audit.drop_a_live();
+  SET LOCAL session_replication_role = origin;
+  PERFORM audit.as_anon();
+  PERFORM submit_buyer_payment_claim((c->>'order_id')::uuid, c->>'order_token', (c->>'attempt_id')::uuid, '131400000003');
+  PERFORM audit.as_postgres();
+  SET LOCAL session_replication_role = replica;
+  UPDATE drops SET status = 'live', closed_at = NULL WHERE id = audit.drop_a_live();
+  SET LOCAL session_replication_role = origin;
+  SELECT o.hold_expires_at - now(), pa.verification_expires_at - now() INTO off_h, off_v
+    FROM orders o JOIN payment_attempts pa ON pa.order_id = o.id WHERE o.id = (c->>'order_id')::uuid;
+  RAISE NOTICE '% 13.14b claim when the drop is not live -> hold in % / window in %',
+    CASE WHEN off_h BETWEEN interval '23 hours 59 minutes' AND interval '24 hours'
+              AND off_v BETWEEN interval '23 hours 59 minutes' AND interval '24 hours' THEN 'PASS'
+         ELSE 'FAIL' END,
+    date_trunc('second', off_h), date_trunc('second', off_v);
 END $$;
 
 ROLLBACK;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/services/pdf_label_service.dart';
+import '../../core/validation/shipping_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 
@@ -48,8 +49,9 @@ class _ShippingDialogState extends State<ShippingDialog> {
     _trackingController = TextEditingController(
       text: widget.order.trackingNumber ?? '',
     );
+    // The seller picks the courier explicitly (SA-SHIP-001).
     _courierController = TextEditingController(
-      text: widget.order.courierPartner ?? 'Delhivery Express',
+      text: widget.order.courierPartner ?? '',
     );
     _notesController = TextEditingController();
   }
@@ -65,14 +67,14 @@ class _ShippingDialogState extends State<ShippingDialog> {
   Future<void> _printLabel() async {
     setState(() => _isPrinting = true);
     try {
-      final tracking = _trackingController.text.trim().isNotEmpty
-          ? _trackingController.text.trim()
-          : 'TRK-${widget.order.orderCode}';
+      // No invented AWB: an empty field prints "AWB: not yet assigned".
+      final typed = ShippingRules.normalizeTracking(_trackingController.text);
+      final tracking = typed.isNotEmpty ? typed : null;
 
       await widget.pdfLabelService.printLabel(
         order: widget.order,
         profile: widget.profile,
-        courierPartner: _courierController.text.trim(),
+        courierPartner: _courierController.text.trim().isNotEmpty ? _courierController.text.trim() : null,
         trackingNumber: tracking,
       );
     } catch (e) {
@@ -91,14 +93,14 @@ class _ShippingDialogState extends State<ShippingDialog> {
 
   Future<void> _shareLabel() async {
     try {
-      final tracking = _trackingController.text.trim().isNotEmpty
-          ? _trackingController.text.trim()
-          : 'TRK-${widget.order.orderCode}';
+      // No invented AWB: an empty field prints "AWB: not yet assigned".
+      final typed = ShippingRules.normalizeTracking(_trackingController.text);
+      final tracking = typed.isNotEmpty ? typed : null;
 
       await widget.pdfLabelService.shareLabel(
         order: widget.order,
         profile: widget.profile,
-        courierPartner: _courierController.text.trim(),
+        courierPartner: _courierController.text.trim().isNotEmpty ? _courierController.text.trim() : null,
         trackingNumber: tracking,
       );
     } catch (e) {
@@ -119,7 +121,7 @@ class _ShippingDialogState extends State<ShippingDialog> {
     setState(() => _isDispatching = true);
 
     try {
-      final tracking = _trackingController.text.trim();
+      final tracking = ShippingRules.normalizeTracking(_trackingController.text);
       final courier = _courierController.text.trim();
       final notes = _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null;
 
@@ -256,8 +258,7 @@ class _ShippingDialogState extends State<ShippingDialog> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                validator: (val) =>
-                    val == null || val.trim().isEmpty ? 'Courier partner is required' : null,
+                validator: ShippingRules.validateCourier,
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -282,7 +283,7 @@ class _ShippingDialogState extends State<ShippingDialog> {
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
                   labelText: 'Tracking / AWB Number *',
-                  hintText: 'e.g. 142129849204 or TRK-DEL-889',
+                  hintText: 'From your courier receipt',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   labelStyle: TextStyle(color: Colors.grey.shade400),
                   filled: true,
@@ -292,8 +293,7 @@ class _ShippingDialogState extends State<ShippingDialog> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                validator: (val) =>
-                    val == null || val.trim().isEmpty ? 'Tracking number is required' : null,
+                validator: ShippingRules.validateTracking,
               ),
               const SizedBox(height: 16),
 

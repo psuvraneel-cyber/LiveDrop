@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: ${{ inputs.mode }} migrations 034–036
+    name: ${{ inputs.mode }} migrations 034–037
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: supabase-production
@@ -77,6 +77,10 @@ jobs:
         if: inputs.mode == 'apply'
         run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/036_schedule_reaper_in_database.sql
 
+      - name: Apply 037 (claim hold and shipping quote; idempotent)
+        if: inputs.mode == 'apply'
+        run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/037_claim_hold_and_shipping_quote.sql
+
       - name: Record migrations in Supabase history (if present)
         if: inputs.mode == 'apply'
         run: |
@@ -87,17 +91,19 @@ jobs:
               IF EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations m
                          JOIN (VALUES ('034', 'lock_down_public_view_privileges'),
                                       ('035', 'payment_claim_safety_and_refunds'),
-                                      ('036', 'schedule_reaper_in_database')) AS e(version, name)
+                                      ('036', 'schedule_reaper_in_database'),
+                                      ('037', 'claim_hold_and_shipping_quote')) AS e(version, name)
                            ON e.version = m.version
                          WHERE m.name IS DISTINCT FROM e.name) THEN
-                RAISE EXCEPTION 'migration history already has 034/035/036 rows with different names; resolve manually';
+                RAISE EXCEPTION 'migration history already has 034-037 rows with different names; resolve manually';
               END IF;
               INSERT INTO supabase_migrations.schema_migrations (version, name)
               VALUES ('034', 'lock_down_public_view_privileges'),
                      ('035', 'payment_claim_safety_and_refunds'),
-                     ('036', 'schedule_reaper_in_database')
+                     ('036', 'schedule_reaper_in_database'),
+                     ('037', 'claim_hold_and_shipping_quote')
               ON CONFLICT (version) DO NOTHING;
-              RAISE NOTICE 'recorded 034–036 in supabase_migrations.schema_migrations';
+              RAISE NOTICE 'recorded 034–037 in supabase_migrations.schema_migrations';
             ELSE
               RAISE NOTICE 'no supabase_migrations.schema_migrations table; nothing recorded';
             END IF;

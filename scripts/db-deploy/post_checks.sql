@@ -69,6 +69,13 @@ BEGIN
   IF has_function_privilege('anon', 'public.record_refund(uuid,text,text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'CHECK FAILED (H16): anon can execute record_refund';
   END IF;
+  IF to_regprocedure('public.resolve_free_shipping_threshold(uuid)') IS NULL THEN
+    RAISE NOTICE 'migration 037 not applied yet (resolve_free_shipping_threshold missing)';
+  ELSIF NOT has_function_privilege('anon', 'public.resolve_free_shipping_threshold(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (037): buyers cannot execute resolve_free_shipping_threshold';
+  ELSE
+    RAISE NOTICE 'PASS 037 present (free-shipping rule + 30-minute live claim hold)';
+  END IF;
   RAISE NOTICE 'PASS security checks (H1/H14/H16)';
 END $$;
 

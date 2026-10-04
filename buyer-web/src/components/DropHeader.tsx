@@ -1,6 +1,7 @@
 import React from 'react';
 import { PublicDropCatalog } from '../types/domain';
 import { formatPaisaToINR } from '../lib/utils/currency';
+import { resolveFreeShippingThresholdPaisa, resolveShippingFeePaisa } from '../lib/checkout/shipping';
 import { useOptionalCart } from '../lib/cart/cart-context';
 
 export type RealtimeStatus = 'connected' | 'connecting' | 'polling' | 'disconnected';
@@ -13,8 +14,10 @@ export interface DropHeaderProps {
 
 export function DropHeader({ drop, realtimeStatus, onOpenCart }: DropHeaderProps) {
   const storeName = drop.profiles?.store_name || 'LiveDrop Boutique';
-  const shippingFeePaisa = drop.shipping_fee_paisa;
-  const freeShippingThresholdPaisa = drop.free_shipping_threshold_paisa;
+  const hasShippingInfo = drop.shipping_fee_paisa !== undefined;
+  const shippingFeePaisa = resolveShippingFeePaisa(drop);
+  // Same rule as checkout: drop threshold, else the shop's threshold, else none.
+  const freeShippingThresholdPaisa = resolveFreeShippingThresholdPaisa(drop);
 
   const cart = useOptionalCart();
   const itemCount = cart?.itemCount ?? 0;
@@ -92,7 +95,7 @@ export function DropHeader({ drop, realtimeStatus, onOpenCart }: DropHeaderProps
         </div>
 
         {/* Shipping Notice Banner (if configured) */}
-        {shippingFeePaisa !== undefined && (
+        {hasShippingInfo && (
           <div className="ld-shipping-notice" data-testid="shipping-notice">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
@@ -102,10 +105,10 @@ export function DropHeader({ drop, realtimeStatus, onOpenCart }: DropHeaderProps
               <circle cx="17" cy="18" r="2" />
             </svg>
             <span>
-              {freeShippingThresholdPaisa && freeShippingThresholdPaisa > 0 ? (
-                <>Shipping: {formatPaisaToINR(shippingFeePaisa)} • <strong>Free above {formatPaisaToINR(freeShippingThresholdPaisa)}</strong></>
-              ) : shippingFeePaisa === 0 ? (
+              {shippingFeePaisa === 0 || freeShippingThresholdPaisa === 0 ? (
                 <strong>Free Shipping on all orders!</strong>
+              ) : freeShippingThresholdPaisa !== null ? (
+                <>Shipping: {formatPaisaToINR(shippingFeePaisa)} • <strong>Free above {formatPaisaToINR(freeShippingThresholdPaisa)}</strong></>
               ) : (
                 <>Standard Shipping: {formatPaisaToINR(shippingFeePaisa)}</>
               )}

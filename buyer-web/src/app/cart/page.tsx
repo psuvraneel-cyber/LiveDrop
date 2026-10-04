@@ -20,6 +20,8 @@ import { getPublicProductsForDrop } from '../../lib/data/buyer-catalog';
 import { PublicProductView } from '../../types/domain';
 import { MobileBottomDock } from '../../components/navigation/MobileBottomDock';
 import { GlobalBuyerHeader } from '../../components/navigation/GlobalBuyerHeader';
+import { estimateShipping } from '../../lib/checkout/shipping';
+import { useDropShippingRules } from '../../lib/checkout/use-drop-shipping-rules';
 
 function CartPageContent() {
   const router = useRouter();
@@ -36,6 +38,7 @@ function CartPageContent() {
   } = useCart();
 
   const [catalogProducts, setCatalogProducts] = useState<PublicProductView[]>([]);
+  const shippingRulesDrop = useDropShippingRules(dropId);
   const [isNoteOpen, setIsNoteOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState(orderNote);
   const [prevOrderNote, setPrevOrderNote] = useState(orderNote);
@@ -87,11 +90,9 @@ function CartPageContent() {
     0
   );
 
-  const freeThreshold = 200000;
-  const standardFee = 8000;
-  const isFreeShipping = payableSubtotalPaisa >= freeThreshold;
-  const shippingFeePaisa = isFreeShipping || availableItems.length === 0 ? 0 : standardFee;
-  const totalPaisa = payableSubtotalPaisa + shippingFeePaisa;
+  // Shipping estimate from the drop's rules (same rule as the server; display only)
+  const shipping = estimateShipping(shippingRulesDrop, payableSubtotalPaisa, availableItems.length);
+  const totalPaisa = payableSubtotalPaisa + (shipping.shippingPaisa ?? 0);
 
   const handleSaveNote = () => {
     setOrderNote(noteDraft.trim());
@@ -276,8 +277,12 @@ function CartPageContent() {
                     </div>
                     <div className="flex justify-between">
                       <span>Shipping</span>
-                      <span className="font-mono text-[#D4AF37] font-medium">
-                        {isFreeShipping ? 'FREE' : formatPaisaToINR(shippingFeePaisa)}
+                      <span className="font-mono text-[#D4AF37] font-medium" data-testid="cart-page-shipping">
+                        {!shipping.known
+                          ? 'Calculated at checkout'
+                          : shipping.isFree
+                            ? 'FREE'
+                            : formatPaisaToINR(shipping.shippingPaisa)}
                       </span>
                     </div>
                   </div>

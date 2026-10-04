@@ -19,9 +19,10 @@
  reject_manual_upi_payment        | t      | search_path=public, pg_temp
  release_expired_holds            | t      | search_path=public, pg_temp
  release_stale_hold               | t      | search_path=public, pg_temp
+ resolve_free_shipping_threshold  | t      | search_path=public, pg_temp
  submit_buyer_payment_claim       | t      | search_path=public, pg_temp
  submit_buyer_payment_claim       | t      | search_path=public, pg_temp
  update_product                   | t      | search_path=public, pg_temp
  verify_manual_upi_payment        | t      | search_path=public, pg_temp
-(23 rows)
+(24 rows)
 

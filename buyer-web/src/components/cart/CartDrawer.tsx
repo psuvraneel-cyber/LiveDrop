@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '../../lib/cart/cart-context';
 import { PublicDropCatalog, PublicProductView } from '../../types/domain';
 import { formatPaisaToINR } from '../../lib/utils/currency';
+import { estimateShipping } from '../../lib/checkout/shipping';
 import { CartEmptyState } from './CartEmptyState';
 import { CartItemRow } from './CartItemRow';
 
@@ -139,12 +140,9 @@ export function CartDrawer({
     0
   );
 
-  // Compute shipping fee based on drop or seller thresholds
-  const freeThreshold = drop?.profiles?.free_shipping_threshold_paisa ?? 200000;
-  const standardFee = drop?.profiles?.default_shipping_fee_paisa ?? 8000;
-  const isFreeShipping = payableSubtotalPaisa >= freeThreshold;
-  const shippingFeePaisa = isFreeShipping || availableItems.length === 0 ? 0 : standardFee;
-  const totalPaisa = payableSubtotalPaisa + shippingFeePaisa;
+  // Shipping estimate from the drop's rules (same rule as the server; display only)
+  const shipping = estimateShipping(drop, payableSubtotalPaisa, availableItems.length);
+  const totalPaisa = payableSubtotalPaisa + (shipping.shippingPaisa ?? 0);
 
   const handleProceedToCheckout = () => {
     onClose();
@@ -374,8 +372,12 @@ export function CartDrawer({
                     </div>
                     <div className="flex justify-between">
                       <span>Shipping</span>
-                      <span className="font-mono text-[#D4AF37]">
-                        {isFreeShipping ? 'FREE' : formatPaisaToINR(shippingFeePaisa)}
+                      <span className="font-mono text-[#D4AF37]" data-testid="cart-shipping">
+                        {!shipping.known
+                          ? 'Calculated at checkout'
+                          : shipping.isFree
+                            ? 'FREE'
+                            : formatPaisaToINR(shipping.shippingPaisa)}
                       </span>
                     </div>
                   </div>
