@@ -11,6 +11,7 @@ import 'create_drop_screen.dart';
 import 'go_live_checklist.dart';
 import '../../core/validation/drop_rules.dart';
 import '../../core/validation/free_shipping_rules.dart';
+import '../../core/services/app_log.dart';
 
 /// LiveDrop Seller Mobile App — Drops List & Drop Lifecycle Management Screen
 class DropsListScreen extends StatefulWidget {
@@ -145,7 +146,8 @@ class _DropsListScreenState extends State<DropsListScreen> {
     List<SellerProduct> products = const [];
     try {
       products = await widget.repository.getProducts(drop.id);
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('drops_list_screen:148', e, st);
       // Unknown product count: the checklist then blocks with "0 pieces".
     }
     if (!mounted) return false;

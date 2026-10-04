@@ -11,6 +11,9 @@ import 'package:path_provider/path_provider.dart';
 /// - Selection click for toggles, switches, and sliders
 /// - Medium impact for camera shutter intake and card flips
 /// - Heavy / Success impact for order fulfillment dispatch and payment verification
+// Haptics are best-effort: a phone without a vibration motor or with haptics
+// disabled must not produce error reports, so failures here are ignored on
+// purpose (SA-OBS-001 review).
 class BoutiqueHaptics {
   BoutiqueHaptics._();
 

@@ -5,6 +5,7 @@ import '../../core/errors/exceptions.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/validation/product_rules.dart';
 import '../../domain/models/models.dart';
+import '../../core/services/app_log.dart';
 
 /// LiveDrop Seller Mobile App — Application Data Access Repository
 ///
@@ -292,6 +293,40 @@ class SellerRepository {
         final error = map['error'] as String? ?? 'UNKNOWN_ERROR';
         throw LiveDropException(map['message'] as String? ?? error, code: error);
       }
+    } on PostgrestException catch (e) {
+      throw liveDropExceptionFrom(e);
+    }
+  }
+
+  /// Stores this phone's push token with the seller's account (SA-NOT-001).
+  Future<void> registerPushToken(String token, {String platform = 'android'}) async {
+    _requireSellerId();
+    await _rpcOk('register_push_token', {'p_token': token, 'p_platform': platform});
+  }
+
+  /// This phone stops receiving the seller's alerts (on sign-out).
+  Future<void> unregisterPushToken(String token) async {
+    _requireSellerId();
+    await _rpcOk('unregister_push_token', {'p_token': token});
+  }
+
+  /// Which alerts the seller wants (SA-NOT-001). Null leaves a choice unchanged.
+  Future<void> setNotificationPrefs({bool? newOrders, bool? paymentClaims}) async {
+    _requireSellerId();
+    await _rpcOk('set_notification_prefs', {'p_new_orders': newOrders, 'p_payment_claims': paymentClaims});
+  }
+
+  Future<Map<String, dynamic>> _rpcOk(String name, Map<String, dynamic> params) async {
+    try {
+      final response = await _client.rpc<dynamic>(name, params: params);
+      final map = response is String
+          ? jsonDecode(response) as Map<String, dynamic>
+          : (response as Map).cast<String, dynamic>();
+      if (map['success'] != true) {
+        final error = map['error'] as String? ?? 'UNKNOWN_ERROR';
+        throw LiveDropException(map['message'] as String? ?? error, code: error);
+      }
+      return map;
     } on PostgrestException catch (e) {
       throw liveDropExceptionFrom(e);
     }
@@ -1129,7 +1164,8 @@ class SellerRepository {
 
       items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       return items.take(limit).toList();
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('seller_repository:1132', e, st);
       return [];
     }
   }

@@ -75,6 +75,19 @@ jobs:
             exit 1
           fi
 
+      # Firebase config (SA-OBS-001/SA-NOT-001). Gitignored; without the secret the app builds
+      # without crash reporting and push.
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "google-services.json written"
+          else
+            echo "::notice::GOOGLE_SERVICES_JSON not set: building without Firebase"
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 

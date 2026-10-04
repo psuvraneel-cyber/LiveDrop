@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
 import '../../core/theme/brand_emblem.dart';
+import '../../core/services/app_log.dart';
 
 /// Minimum seller password length (SA-AUTH-003). The same value is set in
 /// Supabase Auth, `supabase/config.toml` and the website's reset page.
@@ -148,7 +149,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
             'return_address': _addressController.text.trim(),
             'default_shipping_fee_paisa': 8000,
           });
-        } catch (_) {}
+        } catch (e, st) {
+          AppLog.error('seller_registration_screen:151', e, st);
+        }
 
         if (mounted) {
           setState(() => _isLoading = false);
@@ -251,7 +254,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('seller_registration_screen:254', e, st);
       if (mounted) {
         setState(() {
           _errorMessage = 'An unexpected error occurred. Please try again.';

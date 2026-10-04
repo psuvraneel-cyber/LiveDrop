@@ -17,6 +17,8 @@ import '../../domain/models/models.dart';
 import '../auth/confirm_password_dialog.dart';
 import '../payment_settings_screen.dart';
 import '../../core/validation/free_shipping_rules.dart';
+import '../../core/services/app_log.dart';
+import '../common/load_error_banner.dart';
 
 /// Screen 11: Luxury Boutique Settings & Preferences Screen
 /// Fully interactive operational control center for boutique owners.
@@ -32,6 +34,7 @@ class SellerSettingsScreen extends StatefulWidget {
 class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
   SellerProfile? _profile;
   bool _isLoading = true;
+  Object? _loadError;
 
   // Local device preferences (sound, notifications)
   bool _soundEnabled = BoutiqueHaptics.enabled;
@@ -49,11 +52,16 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
         setState(() {
           _profile = profile;
           _isLoading = false;
+          _loadError = null;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('seller_settings_screen:54', e, st);
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _loadError = e;
+        });
       }
     }
   }
@@ -598,6 +606,26 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
     );
   }
 
+  /// Saves one push preference and reloads the profile (SA-NOT-001).
+  Future<bool> _saveNotificationPref({bool? newOrders, bool? paymentClaims}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.repository.setNotificationPrefs(newOrders: newOrders, paymentClaims: paymentClaims);
+      final updated = await widget.repository.getProfile();
+      if (mounted) setState(() => _profile = updated);
+      return true;
+    } catch (e, st) {
+      AppLog.error('settings:notificationPrefs', e, st);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e is LiveDropException ? e.message : 'Could not save your notification choice. Try again.'),
+          backgroundColor: AppColors.crimson,
+        ),
+      );
+      return false;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // 4. Notifications Sheet
   // ---------------------------------------------------------------------------
@@ -631,15 +659,34 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // No push notifications exist yet (SA-NOT-001, needs a
-              // Firebase project), so no switch pretends to control them
-              // (SA-UX-002).
+              // Real preferences, stored with the seller's account and applied by the
+              // database when it queues a message (SA-NOT-001, migration 041).
+              _buildNotificationSwitch(
+                title: 'New orders',
+                subtitle: 'When a buyer reserves pieces from your drop',
+                value: _profile?.notifyNewOrders ?? true,
+                onChanged: (v) async {
+                  BoutiqueHaptics.selection();
+                  final ok = await _saveNotificationPref(newOrders: v);
+                  if (ok) setSheetState(() {});
+                },
+              ),
+              const Divider(color: AppColors.cardBorder, height: 16),
+              _buildNotificationSwitch(
+                title: 'Payments to check',
+                subtitle: 'When a buyer sends a UTR, including late payments',
+                value: _profile?.notifyPaymentClaims ?? true,
+                onChanged: (v) async {
+                  BoutiqueHaptics.selection();
+                  final ok = await _saveNotificationPref(paymentClaims: v);
+                  if (ok) setSheetState(() {});
+                },
+              ),
+              const SizedBox(height: 8),
               const Text(
-                'Push notifications are not available yet.\n\n'
-                'Until then, keep LiveDrop open during a live: new orders and payment claims appear '
-                'on their own, and the Payments tab shows a badge for claims waiting for you.',
-                key: Key('notifications-not-available'),
-                style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+                "If nothing arrives, allow notifications for LiveDrop Seller in your phone's settings.",
+                key: Key('notifications-permission-hint'),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
               const SizedBox(height: 20),
               BounceableButton(
@@ -826,6 +873,8 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 children: [
+                  if (_loadError != null)
+                    LoadErrorBanner(error: _loadError!, what: 'your boutique settings', onRetry: _loadProfile),
                   // Profile Header Card (Tapping opens Storefront Settings)
                   InkWell(
                     onTap: _openStorefrontSettings,
@@ -934,7 +983,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                         _buildSettingTile(
                           icon: Icons.notifications_none_rounded,
                           title: 'Notifications',
-                          subtitle: 'Push alerts are not available yet',
+                          subtitle: 'New orders, payments to check',
                           onTap: _openNotificationsSettings,
                         ),
                         const Divider(color: AppColors.cardBorder, height: 1),

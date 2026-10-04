@@ -1,0 +1,23 @@
+BEGIN
+ seed 
+------
+ 
+(1 row)
+
+CREATE FUNCTION
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:44: NOTICE:  PASS 23.1 — register=true short=INVALID_TOKEN A sees 1, B sees 0, B unregister leaves it with A
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:44: NOTICE:  PASS 23.2 — token moves to the seller now signed in on that phone
+DO
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:57: NOTICE:  PASS 23.3 — new_order=1 payment_claim=1 messages with buyer phone/address/name=0
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:57: NOTICE:  INFO 23.3 messages: New order #LD-G0L834 | ₹1580 reserved. Waiting for the buyer's payment. || Payment to check for #LD-G0L834 | ₹1580 claimed. Check your bank app, then verify or reject.
+DO
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:72: NOTICE:  PASS 23.4 — new-order alerts off -> new_order messages 1 -> 1; claim alerts still true
+DO
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:92: NOTICE:  PASS 23.5 — reaper move: 2 -> 2 messages; late claim messages=1
+DO
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:122: NOTICE:  PASS 23.6 — seller call=permission denied; batch=6 messages; tokens on first=2; dead token removed
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:122: NOTICE:  PASS 23.7 — second claim right away returns 0 messages
+DO
+psql:audit/seller-app/tests/sql/23_push_notifications.sql:136: NOTICE:  PASS 23.8 — outbox/tokens/config locked down; RLS on; token RPCs for sellers only
+DO
+ROLLBACK

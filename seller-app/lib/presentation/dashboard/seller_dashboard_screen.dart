@@ -8,8 +8,10 @@ import '../../core/utils/url_launcher_helper.dart';
 import '../../data/realtime/seller_live_store.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../common/load_error_banner.dart';
 import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
+import '../../core/services/app_log.dart';
 
 /// Screen 2: Luxury Boutique Live Dashboard Screen
 class SellerDashboardScreen extends StatefulWidget {
@@ -44,6 +46,7 @@ class SellerDashboardScreen extends StatefulWidget {
 class _SellerDashboardScreenState extends State<SellerDashboardScreen>
     with SellerLiveRefreshMixin<SellerDashboardScreen> {
   bool _isLoading = true;
+  Object? _loadError;
   SellerProfile? _profile;
   SellerDrop? _activeDrop;
   List<SellerProduct> _activeDropProducts = [];
@@ -89,18 +92,24 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen>
       if (active != null) {
         try {
           products = await widget.repository.getProducts(active.id);
-        } catch (_) {}
+        } catch (e, st) {
+          AppLog.error('seller_dashboard_screen:92', e, st);
+        }
       }
 
       List<SellerOrder> orders = [];
       try {
         orders = await widget.repository.getAllOrders(dropId: active?.id);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLog.error('seller_dashboard_screen:98', e, st);
+      }
 
       List<SellerActivityItem> activities = [];
       try {
         activities = await widget.repository.getRecentActivity(dropId: active?.id);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLog.error('seller_dashboard_screen:103', e, st);
+      }
 
       int pendingCount = 0;
       int overdueCount = 0;
@@ -109,7 +118,9 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen>
         final now = DateTime.now();
         pendingCount = verifications.length;
         overdueCount = verifications.where((v) => v.isOverdue(now)).length;
-      } catch (_) {}
+      } catch (e, st) {
+        AppLog.error('seller_dashboard_screen:112', e, st);
+      }
 
       int refundsCount = 0;
       int refundsPaisa = 0;
@@ -117,7 +128,9 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen>
         final refunds = await widget.repository.getRefundsOwed();
         refundsCount = refunds.length;
         refundsPaisa = refunds.fold<int>(0, (sum, r) => sum + r.refundAmountPaisa);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLog.error('seller_dashboard_screen:120', e, st);
+      }
 
       if (mounted && sequence == _loadSequence) {
         setState(() {
@@ -131,11 +144,16 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen>
           _totalOrdersCount = orders.length;
           _recentActivities = activities;
           _isLoading = false;
+          _loadError = null;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('seller_dashboard_screen:136', e, st);
       if (mounted && sequence == _loadSequence) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _loadError = e;
+        });
       }
     }
   }
@@ -329,6 +347,8 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen>
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             children: [
+              if (_loadError != null)
+                LoadErrorBanner(error: _loadError!, what: 'your dashboard', onRetry: _loadDashboardData),
               // Top Greeting & Avatar Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

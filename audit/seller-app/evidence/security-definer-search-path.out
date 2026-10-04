@@ -1,10 +1,13 @@
              proname              | secdef |     search_path_config      
 ----------------------------------+--------+-----------------------------
  admin_approve_seller             | t      | search_path=public, pg_temp
+ claim_push_batch                 | t      | search_path=public, pg_temp
  close_drop                       | t      | search_path=public, pg_temp
  close_drop_safely                | t      | search_path=public, pg_temp
  close_live_drops_on_suspension   | t      | search_path=public, pg_temp
+ complete_push                    | t      | search_path=public, pg_temp
  create_order_with_reservation    | t      | search_path=public, pg_temp
+ enqueue_seller_push              | t      | search_path=public, pg_temp
  force_release_hold               | t      | search_path=public, pg_temp
  get_order_by_token               | t      | search_path=public, pg_temp
  get_order_by_token               | t      | search_path=public, pg_temp
@@ -16,17 +19,23 @@
  mark_order_ready_to_ship         | t      | search_path=public, pg_temp
  mark_order_shipped               | t      | search_path=public, pg_temp
  mark_product_sold_offline        | t      | search_path=public, pg_temp
+ ping_push_dispatch               | t      | search_path=public, pg_temp
  prevent_finalized_order_deletion | t      | search_path=public, pg_temp
+ push_on_new_order                | t      | search_path=public, pg_temp
+ push_on_payment_claim            | t      | search_path=public, pg_temp
  record_refund                    | t      | search_path=public, pg_temp
  record_verified_payment          | t      | search_path=public, pg_temp
+ register_push_token              | t      | search_path=public, pg_temp
  reject_manual_upi_payment        | t      | search_path=public, pg_temp
  release_expired_holds            | t      | search_path=public, pg_temp
  release_stale_hold               | t      | search_path=public, pg_temp
  resolve_free_shipping_threshold  | t      | search_path=public, pg_temp
+ set_notification_prefs           | t      | search_path=public, pg_temp
  submit_buyer_payment_claim       | t      | search_path=public, pg_temp
  submit_buyer_payment_claim       | t      | search_path=public, pg_temp
  undo_mark_product_sold_offline   | t      | search_path=public, pg_temp
+ unregister_push_token            | t      | search_path=public, pg_temp
  update_product                   | t      | search_path=public, pg_temp
  verify_manual_upi_payment        | t      | search_path=public, pg_temp
-(28 rows)
+(37 rows)
 

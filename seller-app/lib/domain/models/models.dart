@@ -199,6 +199,10 @@ class SellerProfile {
   final int advanceAmountPaisa;
   final int holdDurationDays;
   final bool upiEnabled;
+
+  /// Push preferences (SA-NOT-001, migration 041).
+  final bool notifyNewOrders;
+  final bool notifyPaymentClaims;
   final String? upiVpa;
   final String? upiDisplayName;
   final String? paymentInstructions;
@@ -218,6 +222,8 @@ class SellerProfile {
     required this.advanceAmountPaisa,
     required this.holdDurationDays,
     this.upiEnabled = true,
+    this.notifyNewOrders = true,
+    this.notifyPaymentClaims = true,
     this.upiVpa,
     this.upiDisplayName,
     this.paymentInstructions,
@@ -239,6 +245,8 @@ class SellerProfile {
       advanceAmountPaisa: json['advance_amount_paisa'] as int? ?? 25000,
       holdDurationDays: json['hold_duration_days'] as int? ?? 30,
       upiEnabled: json['upi_enabled'] as bool? ?? true,
+      notifyNewOrders: json['notify_new_orders'] as bool? ?? true,
+      notifyPaymentClaims: json['notify_payment_claims'] as bool? ?? true,
       upiVpa: json['upi_vpa'] as String? ?? json['upi_id'] as String?,
       upiDisplayName: json['upi_display_name'] as String?,
       paymentInstructions: json['payment_instructions'] as String?,

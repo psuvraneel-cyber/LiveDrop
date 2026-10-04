@@ -14,6 +14,7 @@ import '../../core/validation/product_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import 'intake_draft_fields.dart';
+import '../../core/services/app_log.dart';
 
 /// Screen 4: Luxury Boutique Camera Intake Screen
 /// Features 1:1 viewfinder bracket guides, zoom pill, gold shutter ring, and rapid intake bottom sheet.
@@ -94,7 +95,9 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
           (d) => d.id == widget.dropId,
           orElse: () => drops.first,
         );
-      } catch (_) {}
+      } catch (e, st) {
+        AppLog.error('camera_intake_screen:97', e, st);
+      }
     }
 
     await _loadExistingProducts();
@@ -114,7 +117,9 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
           _computeNextCode(products);
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLog.error('camera_intake_screen:117', e, st);
+    }
   }
 
   void _computeNextCode(List<SellerProduct> products) {
@@ -223,7 +228,9 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
     if (_cameraController != null && _cameraController!.value.isInitialized) {
       try {
         await _cameraController!.setZoomLevel(zoom);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLog.error('camera_intake_screen:226', e, st);
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import '../../core/validation/drop_rules.dart';
 import '../../core/validation/free_shipping_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../../core/services/app_log.dart';
 
 /// LiveDrop Seller Mobile App — Create / Edit Drop Screen
 class CreateDropScreen extends StatefulWidget {
@@ -71,7 +72,8 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
     try {
       final loaded = await widget.repository.getProfile();
       if (mounted) setState(() => _profile = loaded);
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('create_drop_screen:74', e, st);
       // The help text falls back to a neutral wording without the shop value.
     }
   }

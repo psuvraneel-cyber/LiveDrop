@@ -51,7 +51,7 @@ DO
 psql:audit/seller-app/tests/sql/13_payments.sql:365: NOTICE:  PASS 13.10d column defaults: drops=none profiles=none
 DO
 UPDATE 3
-psql:audit/seller-app/tests/sql/13_payments.sql:377: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-016NBB-FUL-6E2B (internal reference, not a bank UTR)
+psql:audit/seller-app/tests/sql/13_payments.sql:377: NOTICE:  INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-NQUKV5-FUL-4C3A (internal reference, not a bank UTR)
 DO
 UPDATE 3
 psql:audit/seller-app/tests/sql/13_payments.sql:391: NOTICE:  INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)

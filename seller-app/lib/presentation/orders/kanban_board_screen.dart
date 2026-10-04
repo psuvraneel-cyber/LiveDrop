@@ -8,6 +8,7 @@ import '../common/live_refresh.dart';
 import '../common/skeleton_loaders.dart';
 import 'order_actions.dart';
 import 'order_card.dart';
+import '../../core/services/app_log.dart';
 
 /// Asks the Orders board to show one pipeline tab. The home shell uses it so
 /// the dashboard "Shipping" shortcut opens the Ready-to-ship list instead of
@@ -150,7 +151,8 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
           _allOrders = orders;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('kanban_board_screen:153', e, st);
       // Keep the orders already on screen; the next live update or a pull
       // to refresh will try again.
     }

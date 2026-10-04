@@ -13,6 +13,7 @@ import '../data/repositories/seller_repository.dart';
 import '../domain/models/models.dart';
 import 'common/live_refresh.dart';
 import 'common/skeleton_loaders.dart';
+import '../core/services/app_log.dart';
 
 /// Screen 7: Luxury Boutique Payment Verification Screen
 ///
@@ -84,7 +85,8 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
     List<OwedRefund>? refunds;
     try {
       refunds = await widget.repository.getRefundsOwed();
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('pending_verifications_screen:87', e, st);
       refunds = null; // the claims queue must still load (older server, offline…)
     }
 

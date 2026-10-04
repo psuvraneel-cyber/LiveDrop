@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/brand_emblem.dart';
+import '../../core/services/app_log.dart';
 
 /// Hardware-accelerated Animated Splash Screen.
 /// Performs parallel Supabase session validation while executing a 1.5s orchestrated
@@ -59,7 +60,8 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
       } else {
         _isAuthenticated = false;
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLog.error('animated_splash_screen:62', e, st);
       _isAuthenticated = false;
     }
     _authResolved = true;
