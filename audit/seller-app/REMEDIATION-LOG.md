@@ -124,3 +124,21 @@ Totals:
 - `flutter analyze` clean. `flutter test`: 188 pass, 2 fail, and those 2 fail only on Windows (temp-folder lock in `inventory_queue_status_test.dart`, unrelated).
 - Audit Flutter suite 26/26.
 - buyer-web: all tests pass.
+
+## P1 round 4b (2026-10-04): payments, orders, labels, placeholder controls (app only, no migration)
+
+| Finding | Status | What changed | Proof | Owner actions |
+|---|---|---|---|---|
+| SA-PAY-009 | Fixed | The claim card shows: payment type ("Full / Advance / Balance payment of ₹total"), piece codes and photo, buyer phone, time left with what happens after it, the late-claim consequence (piece still free: verifying confirms the order again; piece sold: verifying records a refund owed), and "Buyer claimed at" instead of a mislabelled "Paid on". The confirm dialog names the type, pieces and UTR. The fake screenshot is removed. The claim query embeds buyer phone, order status, total, token and pieces | Audit T09, T12, T13 inverted; `payments_orders_labels_test.dart` | Ship a new app build |
+| SA-PAY-010 | Fixed | Reject offers "Ask buyer to fix (keep piece)" (`releaseHold: false`) and "Reject & release piece". Late claims only offer reject. After a keep-hold reject, "Message buyer" sends the buyer their order link to resubmit the UTR | Audit T11 inverted; widget tests | Ship a new app build |
+| SA-PAY-013 | Fixed | `PaymentReminder`: the amount actually due (advance, full or balance) and the buyer's own order link; never the raw UPI ID. Orders now load `order_token` | Unit tests for the advance / full / balance / no-token messages | Ship a new app build |
+| SA-ORD-004 | Fixed | Kanban "Closed" tab (cancelled / expired), with the reason on each card (refund owed, refunded, advance kept, released). Closed orders no longer appear under "Paid" | Audit T20 fully fixed; widget test (refund-owed card) | Ship a new app build |
+| SA-ORD-005 | Fixed | `OrderActions` derives buttons the way the server allows: pending → pay link and Release (no claim); advance paid → "Ask for balance"; paid → "Mark packed"; packed → Dispatch and label; shipped → reprint. The order details primary button follows the same rules | Audit T03, T21 inverted; table-driven unit test | Ship a new app build |
+| SA-SHIP-002 | Fixed | A label can be generated only for a fully paid order (`LABEL_NOT_ALLOWED` otherwise), so PREPAID is never printed with a balance due. The barcode is drawn only for a real AWB. The fake "Routing" line is removed. Times are local (round 3) | Unit tests (blocked reasons, generation refused, barcode only with AWB) | Ship a new app build |
+| SA-UX-002 | Fixed | Removed or made real: Remarks field (removed), screenshot (removed), notification switches (honest "not available yet" until SA-NOT-001), haptics switch (really turns vibration off, remembered on the phone), "Clear image memory" (really clears it; the intake queue is untouched), "Remember me" (removed; the session is always kept), "Active Verified Boutique" (now from the profile), duplicate "Save PDF" button (merged), fake profile `+91 9999999999` in Orders (removed), support phone from `AdminConfig` | Audit T10 inverted; haptics unit test | Ship a new app build |
+
+Totals:
+- `flutter analyze` clean.
+- `flutter test`: 210 pass, 2 fail, and those 2 fail only on Windows (temp-folder lock in `inventory_queue_status_test.dart`).
+- Audit Flutter suite 26/26.
+- No database change.

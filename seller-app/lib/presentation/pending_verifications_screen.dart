@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../core/config/env_config.dart';
 import '../core/errors/seller_error_messages.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
@@ -47,7 +48,6 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
   bool _refundsUnavailable = false;
   final Set<String> _processingIds = {};
   final Set<String> _refundProcessingIds = {};
-  final Map<String, TextEditingController> _remarksControllers = {};
   final ScrollController _scrollController = ScrollController();
   String? _highlightedRefundOrderId;
   int _loadSequence = 0;
@@ -68,9 +68,6 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
 
   @override
   void dispose() {
-    for (final c in _remarksControllers.values) {
-      c.dispose();
-    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -94,11 +91,6 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
     try {
       final attempts = await widget.repository.getPendingVerifications();
       if (!mounted || sequence != _loadSequence) return;
-      for (final a in attempts) {
-        if (!_remarksControllers.containsKey(a.id)) {
-          _remarksControllers[a.id] = TextEditingController();
-        }
-      }
 
       setState(() {
         _pendingAttempts = _sortClaims(attempts, DateTime.now());
@@ -151,6 +143,33 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
     return '${hours}h ${minutes.toString().padLeft(2, '0')}m';
   }
 
+  /// What verifying a late claim will do (SA-PAY-009).
+  String _lateClaimConsequence(PaymentAttempt attempt) {
+    final amount = _formatPaisa(attempt.expectedAmountPaisa);
+    switch (attempt.piecesStillAvailable) {
+      case true:
+        return 'Late payment: the hold had expired and the order was cancelled, but the piece is still '
+            'available. Verifying confirms the order again for this buyer.';
+      case false:
+        return 'Late payment: the hold had expired and the piece has since been sold. Verifying records '
+            'the payment and you will owe the buyer a refund of $amount.';
+      default:
+        return 'Late payment: the hold had expired. If the piece was sold to someone else meanwhile, '
+            'verifying records a refund of $amount that you owe the buyer.';
+    }
+  }
+
+  Widget _pieceThumbnail(PaymentAttempt attempt) {
+    const fallback = Icon(Icons.checkroom_rounded, color: AppColors.goldPrimary, size: 26);
+    final url = attempt.pieces.where((p) => (p.imageUrl ?? '').isNotEmpty).map((p) => p.imageUrl!).firstOrNull;
+    if (url == null) return fallback;
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stack) => fallback,
+    );
+  }
+
   Future<void> _verifyPayment(PaymentAttempt attempt) async {
     final amount = _formatPaisa(attempt.expectedAmountPaisa);
     final confirmed = await showDialog<bool>(
@@ -167,7 +186,10 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Confirm that $amount was received in your boutique UPI account for order #${attempt.orderCode ?? "Order"}?',
+              'Confirm that $amount (${attempt.paymentTypeLabel.toLowerCase()}) reached your UPI account '
+              'for order #${attempt.orderCode ?? "Order"}'
+              '${attempt.pieces.isEmpty ? '' : ' (${attempt.pieces.map((p) => p.code).join(', ')})'}?\n\n'
+              'Check your bank app for UTR ${attempt.buyerSubmittedUtr ?? attempt.transactionReference} first.',
               style: const TextStyle(color: AppColors.textSecondary),
             ),
             if (attempt.isLateClaim) ...[
@@ -329,8 +351,10 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
   Future<void> _rejectPayment(PaymentAttempt attempt) async {
     String selectedReason = 'payment_not_found';
     final customReasonController = TextEditingController();
+    // A late claim's order is already cancelled: there is no hold to keep.
+    final canKeepHold = !attempt.isLateClaim && attempt.orderStatus != 'cancelled' && attempt.orderStatus != 'expired';
 
-    final confirmed = await showDialog<bool>(
+    final decision = await showDialog<_RejectDecision>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
@@ -348,6 +372,15 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                 'Please select the reason why this payment claim cannot be verified:',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
+              if (canKeepHold) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Ask buyer to fix: the piece stays reserved until the current deadline and the buyer can send '
+                  'the correct UTR from their order page (for example after a typo).\n'
+                  'Reject & release: the order is cancelled and the piece goes back on sale now.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                ),
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: selectedReason,
@@ -390,25 +423,35 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
               ],
             ],
           ),
+          actionsOverflowDirection: VerticalDirection.up,
+          actionsOverflowButtonSpacing: 8,
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
             ),
+            if (canKeepHold)
+              OutlinedButton(
+                key: const Key('reject-keep-hold'),
+                onPressed: () => Navigator.of(ctx).pop(_RejectDecision.keepHold),
+                child: const Text('Ask buyer to fix (keep piece)'),
+              ),
             ElevatedButton(
+              key: const Key('reject-release'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.crimson,
                 foregroundColor: Colors.white,
               ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Reject Claim'),
+              onPressed: () => Navigator.of(ctx).pop(_RejectDecision.release),
+              child: Text(canKeepHold ? 'Reject & release piece' : 'Reject claim'),
             ),
           ],
         ),
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (decision == null || !mounted) return;
+    final releaseHold = decision == _RejectDecision.release;
 
     final finalReason = selectedReason == 'other' && customReasonController.text.trim().isNotEmpty
         ? customReasonController.text.trim()
@@ -417,12 +460,29 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
     setState(() => _processingIds.add(attempt.id));
 
     try {
-      await widget.repository.rejectManualUpiPayment(attempt.id, finalReason);
+      final result = await widget.repository.rejectManualUpiPayment(
+        attempt.id,
+        finalReason,
+        releaseHold: releaseHold,
+      );
+      final released = result['hold_released'] == true;
       if (mounted) {
+        final token = attempt.orderToken;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment claim for #${attempt.orderCode ?? "Order"} rejected.'),
+            content: Text(
+              released
+                  ? 'Claim for #${attempt.orderCode ?? "Order"} rejected; the piece is back on sale.'
+                  : 'Claim for #${attempt.orderCode ?? "Order"} rejected; the piece stays reserved for the buyer.',
+            ),
             backgroundColor: AppColors.amber,
+            action: !released && token != null && attempt.buyerPhone != null
+                ? SnackBarAction(
+                    label: 'Message buyer',
+                    textColor: Colors.black,
+                    onPressed: () => _askBuyerToFix(attempt, token),
+                  )
+                : null,
           ),
         );
       }
@@ -441,6 +501,16 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
         setState(() => _processingIds.remove(attempt.id));
       }
     }
+  }
+
+  Future<void> _askBuyerToFix(PaymentAttempt attempt, String token) async {
+    await UrlLauncherHelper.launchWhatsApp(
+      context: context,
+      phone: PhoneUtils.whatsAppDigits(attempt.buyerPhone!),
+      message: 'Hi ${attempt.buyerName ?? ''}, we could not find your payment for order '
+          '#${attempt.orderCode ?? ''} with the UTR you sent. Please check the UTR in your UPI app and '
+          'send the correct one here: ${EnvConfig.getOrderUrl(attempt.orderId, token)}',
+    );
   }
 
   Future<void> _contactBuyerAboutRefund(OwedRefund refund) async {
@@ -496,56 +566,6 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
         setState(() => _refundProcessingIds.remove(refund.orderId));
       }
     }
-  }
-
-  void _showScreenshotModal() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: AppColors.obsidianSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.cardBorder),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Payment Screenshot', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                height: 280,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.obsidianElevated,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.receipt_long_rounded, size: 48, color: AppColors.goldPrimary),
-                      SizedBox(height: 8),
-                      Text('Google Pay / PhonePe UPI Receipt', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -777,7 +797,6 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
   Widget _buildClaimCard(PaymentAttempt attempt) {
     final now = DateTime.now();
     final isProcessing = _processingIds.contains(attempt.id);
-    final remarksCtrl = _remarksControllers[attempt.id] ?? TextEditingController();
     final isOverdue = attempt.isOverdue(now);
     final deadline = attempt.verificationDeadline;
 
@@ -801,11 +820,7 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                     width: 52,
                     height: 52,
                     color: AppColors.obsidianElevated,
-                    child: const Icon(
-                      Icons.checkroom_rounded,
-                      color: AppColors.goldPrimary,
-                      size: 26,
-                    ),
+                    child: _pieceThumbnail(attempt),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -823,12 +838,25 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        attempt.buyerName ?? 'Customer',
+                        [
+                          attempt.buyerName ?? 'Customer',
+                          if (attempt.buyerPhone != null) attempt.buyerPhone!,
+                        ].join(' · '),
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                       ),
+                      if (attempt.pieces.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          attempt.pieces.map((p) => p.code).join(', '),
+                          key: ValueKey('claim-pieces-${attempt.id}'),
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                        ),
+                      ],
                       const SizedBox(height: 2),
                       Text(
-                        '${_formatPaisa(attempt.expectedAmountPaisa)} Advance Payment',
+                        attempt.orderTotalPaisa != null && attempt.orderTotalPaisa != attempt.expectedAmountPaisa
+                            ? '${_formatPaisa(attempt.expectedAmountPaisa)} ${attempt.paymentTypeLabel} of ${_formatPaisa(attempt.orderTotalPaisa!)}'
+                            : '${_formatPaisa(attempt.expectedAmountPaisa)} ${attempt.paymentTypeLabel}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.goldPrimary,
@@ -881,8 +909,17 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
             ] else if (deadline != null) ...[
               const SizedBox(height: 10),
               Text(
-                'Verify within ${_formatRemaining(deadline.difference(now))}',
+                'Verify within ${_formatRemaining(deadline.difference(now))}. '
+                'After that the piece goes back on sale and this becomes a late claim.',
                 style: const TextStyle(fontSize: 12, color: AppColors.amber, fontWeight: FontWeight.w600),
+              ),
+            ],
+            if (attempt.isLateClaim) ...[
+              const SizedBox(height: 10),
+              Text(
+                _lateClaimConsequence(attempt),
+                key: ValueKey('claim-consequence-${attempt.id}'),
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.35),
               ),
             ],
             const SizedBox(height: 16),
@@ -973,35 +1010,13 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text('Paid on', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                          const Text('Buyer claimed at', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                           const SizedBox(height: 2),
                           Text(
-                            attempt.buyerClaimedAt != null
-                                ? attempt.buyerClaimedAt!.toLocal().toString().substring(0, 16)
-                                : attempt.createdAt.toLocal().toString().substring(0, 16),
+                            DateFormat('d MMM, hh:mm a').format((attempt.buyerClaimedAt ?? attempt.createdAt).toLocal()),
                             style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Screenshot Tile
-                  Row(
-                    children: [
-                      const Text('Screenshot: ', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                      InkWell(
-                        onTap: _showScreenshotModal,
-                        child: const Row(
-                          children: [
-                            Icon(Icons.image_outlined, size: 14, color: AppColors.goldPrimary),
-                            SizedBox(width: 4),
-                            Text(
-                              'Tap to view',
-                              style: TextStyle(fontSize: 12, color: AppColors.goldPrimary, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -1010,17 +1025,6 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
             ),
             const SizedBox(height: 14),
 
-            // Remarks (Optional)
-            TextField(
-              controller: remarksCtrl,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-              decoration: const InputDecoration(
-                labelText: 'Remarks (optional)',
-                hintText: 'Add a note...',
-                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              ),
-            ),
-            const SizedBox(height: 16),
 
             // Dual Action Buttons: Reject (Red Outline) | Verify Payment (Gold Gradient)
             Row(
@@ -1051,6 +1055,8 @@ class _PendingVerificationsScreenState extends State<PendingVerificationsScreen>
     );
   }
 }
+
+enum _RejectDecision { keepHold, release }
 
 class _RefundEntry {
   final String reference;

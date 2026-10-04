@@ -9,8 +9,8 @@ import 'package:seller_app/presentation/pending_verifications_screen.dart';
 import 'audit_fakes.dart';
 
 void main() {
-  testWidgets('SA-AUD-T20 (refund part fixed): a verified late payment that needs a refund is listed under '
-      'Payments → Refunds owed; cancelled/expired orders still have no Kanban tab (SA-ORD-004, open)',
+  testWidgets('SA-AUD-T20 (fixed): a verified late payment that needs a refund is listed under '
+      'Payments → Refunds owed, and cancelled/expired orders are under the Kanban "Closed" tab (SA-ORD-004)',
       (tester) async {
     final refundOwed = auditOrder(
       id: 'o-refund', code: 'LD-REFUND', status: OrderStatus.cancelled,
@@ -19,10 +19,10 @@ void main() {
     final expiredAdvance = auditOrder(id: 'o-exp', code: 'LD-EXPIRD', status: OrderStatus.expired);
     final repo = AuditRepo(orders: [refundOwed, expiredAdvance], refunds: [auditRefund()]);
 
-    // Open part (SA-ORD-004): the Kanban still has no tab for cancelled/expired orders.
+    // SA-ORD-004 (fixed): cancelled/expired orders have their own tab, not mixed into Paid.
     await tester.pumpWidget(auditApp(KanbanBoardScreen(repository: repo)));
     await tester.pumpAndSettle();
-    for (final tab in ['Pending (0)', 'Paid (0)', 'Ready (0)', 'Shipped (0)']) {
+    for (final tab in ['Pending (0)', 'Paid (0)', 'Ready (0)', 'Shipped (0)', 'Closed (2)']) {
       expect(find.text(tab), findsOneWidget);
     }
 
@@ -38,7 +38,8 @@ void main() {
     expect(find.text('Mark refunded'), findsOneWidget);
   });
 
-  testWidgets('SA-AUD-T21: advance-paid (confirmed) orders show "Dispatch" although the DB refuses to ship them',
+  // SA-ORD-005 / SA-SHIP-002 fixed: inverted. An advance-paid order offers "Ask for balance", no Dispatch, no label.
+  testWidgets('SA-AUD-T21: advance-paid (confirmed) orders show no Dispatch and no label, only "Ask for balance"',
       (tester) async {
     final advancePaid = SellerOrder(
       id: 'o-adv', dropId: 'drop-1', orderCode: 'LD-ADV001', buyerName: 'Meera Pal', buyerPhone: '9830044444',
@@ -53,7 +54,8 @@ void main() {
     )))));
     await tester.pump();
     expect(find.text('Advance Paid'), findsOneWidget);
-    expect(find.text('Dispatch'), findsOneWidget);
-    expect(find.text('4×6 Label'), findsOneWidget); // label prints "PREPAID - DO NOT COLLECT CASH" with ₹2,250 still due
+    expect(find.text('Dispatch'), findsNothing);
+    expect(find.text('4×6 Label'), findsNothing);
+    expect(find.text('Ask for balance'), findsOneWidget);
   });
 }
