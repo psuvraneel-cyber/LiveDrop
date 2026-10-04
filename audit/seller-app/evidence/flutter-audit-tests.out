@@ -12,7 +12,7 @@ AUDIT T23 make=AuditCam gpsLatitude=22.5726 size=1200x1200 45281B mime=image/jpe
 00:01 +4: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:01 +5: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:02 +5: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T14 (fixed): default queue location is the app support directory, not the OS temp/cache directory
-AUDIT T14 default baseDir=C:\Users\Sauvraneel Paul\AppData\Local\Temp\audit_app_support_3517b5ce/livedrop_intake_queue systemTemp=C:\Users\Sauvraneel Paul\AppData\Local\Temp migrates from=C:\Users\Sauvraneel Paul\AppData\Local\Temp/livedrop_intake_queue
+AUDIT T14 default baseDir=<TEMP>\audit_app_support_3517b5ce/livedrop_intake_queue systemTemp=<TEMP> migrates from=<TEMP>/livedrop_intake_queue
 00:02 +6: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:02 +7: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:02 +7: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T16 (fixed): a timeout after the server committed is recognised on retry — 23505 for a product carrying our own uploaded photo marks the piece completed (lost-response idempotency)
@@ -31,7 +31,7 @@ AUDIT T18 second item status after the run finished: IntakeQueueStatus.completed
 AUDIT T25 statusAfterFirstRun=IntakeQueueStatus.completed final=IntakeQueueStatus.completed lastError=null serverProducts=1 createCalls=1
 00:02 +12: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
 00:02 +12: seller-app/test/audit/audit_offline_queue_test.dart: SA-AUD-T19 (fixed): a corrupt manifest is moved aside and the queue is restored from queue.json.bak
-[OfflineIntakeQueue] Unreadable manifest moved to C:\Users\Sauvraneel Paul\AppData\Local\Temp\audit_queue_1c03d45e/queue.json.corrupt-1791116989563
+[OfflineIntakeQueue] Unreadable manifest moved to <TEMP>\audit_queue_1c03d45e/queue.json.corrupt-1791116989563
 [OfflineIntakeQueue] Restored 1 item(s) from queue.json.bak
 AUDIT T19 reloaded items=[#A01] quarantined=[queue.json.corrupt-1791116989563]
 00:02 +13: seller-app/test/audit/audit_image_perf_test.dart: SA-AUD-T24: processIntakeImage 4000x3000
