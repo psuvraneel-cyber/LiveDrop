@@ -7,7 +7,8 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 import 'audit_fakes.dart';
 
 void main() {
-  testWidgets('SA-AUD-T01: buyer name with two consecutive spaces crashes the order screen (RangeError in _getInitials)',
+  // SA-ORD-003 fixed: inverted — the screen renders and shows the initials.
+  testWidgets('SA-AUD-T01: buyer name with two consecutive spaces renders (no RangeError in _getInitials)',
       (tester) async {
     final order = auditOrder(buyerName: 'Priya  Sharma');
     await tester.pumpWidget(auditApp(OrderDetailsScreen(
@@ -20,10 +21,12 @@ void main() {
     // Evidence line for the audit log.
     // ignore: avoid_print
     print('AUDIT T01 exception: ${error.runtimeType}: $error');
-    expect(error, isA<RangeError>());
+    expect(error, isNull);
+    expect(find.text('PS'), findsOneWidget);
   });
 
-  testWidgets('SA-AUD-T02: WhatsApp contact drops the +91 country code for mobile numbers starting with 91',
+  // SA-ORD-002 fixed: inverted — a 10-digit mobile starting with 91 still gets the +91 prefix.
+  testWidgets('SA-AUD-T02: WhatsApp contact keeps +91 for mobile numbers starting with 91',
       (tester) async {
     final launcher = RecordingLauncher();
     final previous = UrlLauncherPlatform.instance;
@@ -43,8 +46,7 @@ void main() {
     // ignore: avoid_print
     print('AUDIT T02 launched: ${launcher.launched}');
     expect(launcher.launched, isNotEmpty);
-    expect(launcher.launched.first, contains('phone=9123456789&'));
-    expect(launcher.launched.first, isNot(contains('phone=919123456789')));
+    expect(launcher.launched.first, contains('phone=919123456789&'));
   });
 
   testWidgets('SA-AUD-T03: primary button labelled "Mark as Ready" opens the dispatch (ship) dialog, also for shipped orders',

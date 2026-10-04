@@ -1047,18 +1047,20 @@ class SellerRepository {
     _requireSellerId();
 
     try {
-      final now = DateTime.now().toUtc();
+      // Day boundaries follow the seller's local calendar (IST on Indian
+      // devices), not UTC midnight (SA-ORD-001).
+      final now = DateTime.now();
       DateTime startDate;
 
       switch (range) {
         case 'Today':
-          startDate = DateTime.utc(now.year, now.month, now.day);
+          startDate = DateTime(now.year, now.month, now.day);
           break;
         case 'Last 30 days':
           startDate = now.subtract(const Duration(days: 30));
           break;
         case 'This Month':
-          startDate = DateTime.utc(now.year, now.month, 1);
+          startDate = DateTime(now.year, now.month, 1);
           break;
         case 'Last 7 days':
         default:
@@ -1114,8 +1116,8 @@ class SellerRepository {
       const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
       for (int i = 6; i >= 0; i--) {
-        final dayDate = DateTime.utc(now.year, now.month, now.day).subtract(Duration(days: i));
-        final nextDay = dayDate.add(const Duration(days: 1));
+        final dayDate = DateTime(now.year, now.month, now.day - i);
+        final nextDay = DateTime(now.year, now.month, now.day - i + 1);
 
         int dayTotalPaisa = 0;
         for (final order in allOrders) {

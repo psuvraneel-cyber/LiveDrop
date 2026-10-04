@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/utils/phone_utils.dart';
 import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
@@ -37,8 +38,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _launchWhatsApp() async {
-    final phone = _order.buyerPhone.replaceAll(RegExp(r'[^0-9]'), '');
-    final cleanPhone = phone.startsWith('91') ? phone : '91$phone';
+    final cleanPhone = PhoneUtils.whatsAppDigits(_order.buyerPhone);
     await UrlLauncherHelper.launchWhatsApp(
       context: context,
       phone: cleanPhone,
@@ -369,13 +369,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    } else if (name.isNotEmpty) {
-      return name.substring(0, 1).toUpperCase();
-    }
-    return 'B';
-  }
+  String _getInitials(String name) => buyerInitials(name);
+}
+
+/// Up to two initials for the buyer avatar. Any run of whitespace separates
+/// words (names like "Riya  Sen" with a double space must not crash the
+/// screen, SA-ORD-003); an empty name falls back to "B".
+String buyerInitials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return 'B';
+  final first = parts.first.characters.first;
+  if (parts.length == 1) return first.toUpperCase();
+  return '$first${parts[1].characters.first}'.toUpperCase();
 }

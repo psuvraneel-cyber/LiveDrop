@@ -31,7 +31,7 @@ class PdfLabelService {
     final trackingLine = realTracking != null
         ? 'AWB / TRACKING: $realTracking'
         : 'AWB: NOT YET ASSIGNED  •  REF ${order.orderCode}';
-    final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt);
+    final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt.toLocal());
     final totalRupees = (order.totalPaisa / 100).toStringAsFixed(2);
 
     // 4" x 6" label dimensions (288 x 432 pt)
