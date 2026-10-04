@@ -173,7 +173,7 @@ class AuditRepo extends Fake implements SellerRepository {
   Future<List<SellerProduct>> getProducts(String dropId) async => products;
 
   @override
-  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status}) async {
+  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status, int limit = 300}) async {
     calls.add('getAllOrders');
     return orders;
   }

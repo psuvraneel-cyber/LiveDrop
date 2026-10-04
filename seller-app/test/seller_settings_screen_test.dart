@@ -19,7 +19,7 @@ class FakeSettingsSellerRepository extends Fake implements SellerRepository {
   Future<List<SellerProduct>> getProducts(String dropId) async => [];
 
   @override
-  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status}) async => [];
+  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status, int limit = 300}) async => [];
 
   @override
   Future<List<PaymentAttempt>> getPendingVerifications() async => [];

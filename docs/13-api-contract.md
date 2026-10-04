@@ -317,6 +317,12 @@ LiveDrop isolates API interactions into two strict surfaces:
 
 ---
 
+### 3.7c Seller Sales Summary (RPC), new in migration 040 (SA-PERF-001)
+* **Endpoint:** `POST /rest/v1/rpc/seller_sales_summary`
+* **Actor:** Seller (RLS-scoped, `SECURITY INVOKER`); `anon` cannot call it.
+* **Request Body:** `{"p_from": "2026-09-27T00:00:00Z", "p_utc_offset_minutes": 330}`
+* **Response:** `{"total_revenue_paisa": 400000, "items_sold": 2, "active_holds": 1, "top_products": [{"code": "#A02", "title": "...", "sold_count": 1, "revenue_paisa": 250000, "image_url": "..."}], "daily": [{"date": "2026-09-28", "total_paisa": 0}, ...]}`. `daily` has exactly 7 entries, oldest first.
+
 ### 3.8 Force Release Hold (RPC)
 * **Endpoint:** `POST /rest/v1/rpc/force_release_hold`
 * **Actor:** Owning Seller.

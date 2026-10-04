@@ -994,9 +994,14 @@ class SellerRepository {
   }
 
   /// Fetches all orders across all drops or filtered by drop / status.
+  /// Most orders one list asks for (SA-PERF-001). A drop has far fewer; across
+  /// all drops the newest ones are the ones that still need work.
+  static const int ordersPageLimit = 300;
+
   Future<List<SellerOrder>> getAllOrders({
     String? dropId,
     String? status,
+    int limit = ordersPageLimit,
   }) async {
     _requireSellerId();
 
@@ -1053,7 +1058,7 @@ class SellerRepository {
         query = query.eq('status', status);
       }
 
-      final response = await query.order('created_at', ascending: false);
+      final response = await query.order('created_at', ascending: false).limit(limit);
       return (response as List<dynamic>)
           .map((e) => SellerOrder.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -1086,8 +1091,8 @@ class SellerRepository {
         );
       }
 
-      // 2. Fetch latest orders
-      final orders = await getAllOrders(dropId: dropId);
+      // 2. Fetch latest orders (only a few are shown)
+      final orders = await getAllOrders(dropId: dropId, limit: 20);
       for (final order in orders) {
         if (order.status == OrderStatus.shipped) {
           items.add(
@@ -1129,6 +1134,23 @@ class SellerRepository {
     }
   }
 
+  /// `seller_sales_summary` result, or `null` when the function is not
+  /// deployed yet (PostgREST PGRST202 / SQLSTATE 42883).
+  Future<Map<String, dynamic>?> _salesSummary(DateTime from, int utcOffsetMinutes) async {
+    try {
+      final response = await _client.rpc<dynamic>('seller_sales_summary', params: {
+        'p_from': from.toUtc().toIso8601String(),
+        'p_utc_offset_minutes': utcOffsetMinutes,
+      });
+      if (response is Map) return response.cast<String, dynamic>();
+      if (response is String) return jsonDecode(response) as Map<String, dynamic>;
+      return null;
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST202' || e.code == '42883') return null;
+      rethrow;
+    }
+  }
+
   /// Computes real analytics from database orders, products, and payment claims.
   /// Range can be: 'Today', 'Last 7 days', 'Last 30 days', 'This Month'.
   Future<SellerAnalytics> getSellerAnalytics({String? range}) async {
@@ -1156,8 +1178,17 @@ class SellerRepository {
           break;
       }
 
-      final allOrders = await getAllOrders();
       final pendingClaims = await getPendingVerifications();
+
+      // SA-PERF-001: figures come from seller_sales_summary (migration 040),
+      // a few hundred bytes instead of every order. Until 040 is deployed the
+      // previous local computation is used.
+      final summary = await _salesSummary(startDate, now.timeZoneOffset.inMinutes);
+      if (summary != null) {
+        return SellerAnalytics.fromSummary(summary, paymentClaimsCount: pendingClaims.length);
+      }
+
+      final allOrders = await getAllOrders(limit: 2000);
 
       int totalRevenuePaisa = 0;
       int itemsSoldCount = 0;

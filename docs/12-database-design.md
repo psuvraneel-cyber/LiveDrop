@@ -415,3 +415,17 @@ Source: seller-app audit, findings SA-DROP-001, SA-DROP-002, SA-PAY-012, SA-INV-
 * **Trigger `trg_guard_and_log_payee_change`** (BEFORE UPDATE OF `upi_id`, `upi_vpa`, `upi_display_name`, `phone_number` on `profiles`):
   * Logs every change.
   * For the `authenticated` role, it requires a password sign-in in the last 10 minutes (`seconds_since_password_sign_in()`, from the JWT `amr` claim) before `upi_id`, `upi_vpa` or `phone_number` change.
+
+---
+
+## 8. Seller Sales Summary (migration 040, SA-PERF-001)
+
+`seller_sales_summary(p_from timestamptz, p_utc_offset_minutes int DEFAULT 330) RETURNS jsonb`. It is `SECURITY INVOKER`: row-level security limits it to the caller's own orders. EXECUTE is granted to `authenticated` and `service_role` only.
+
+It returns:
+* `total_revenue_paisa` and `items_sold`: paid or shipped orders created at or after `p_from`.
+* `active_holds`: items of pending or confirmed orders.
+* `top_products`: up to 10, by code.
+* `daily`: the last 7 local days, by `COALESCE(paid_at, created_at)`.
+
+It replaces the app downloading every order to compute analytics. Order lists in the app are also capped at the newest 300 orders.

@@ -465,36 +465,58 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
           SellerSettingsScreen(repository: widget.repository),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.obsidianSurface,
-          border: Border(top: BorderSide(color: AppColors.cardBorder, width: 1)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: ListenableBuilder(
-              listenable: _liveStore,
-              builder: (context, _) => Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-                  _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Products'),
-                  _buildNavItem(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
-                  _buildNavItem(
-                    3,
-                    Icons.verified_outlined,
-                    Icons.verified_rounded,
-                    'Payments',
-                    badgeCount: _liveStore.paymentsBadgeCount,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // SA-RT-002: say when live updates are paused instead of silently
+          // showing old data. The store polls and re-subscribes meanwhile.
+          ListenableBuilder(
+            listenable: _liveStore,
+            builder: (context, _) => _liveStore.status == SellerLiveStatus.reconnecting
+                ? Container(
+                    key: const Key('live-updates-paused'),
+                    width: double.infinity,
+                    color: AppColors.amberTint,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: const Text(
+                      'Live updates paused: reconnecting. Lists refresh every few seconds; pull down to refresh now.',
+                      style: TextStyle(color: AppColors.amber, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.obsidianSurface,
+              border: Border(top: BorderSide(color: AppColors.cardBorder, width: 1)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: ListenableBuilder(
+                  listenable: _liveStore,
+                  builder: (context, _) => Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(0, Icons.home_outlined, Icons.home_rounded, 'Home'),
+                      _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2_rounded, 'Products'),
+                      _buildNavItem(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Orders'),
+                      _buildNavItem(
+                        3,
+                        Icons.verified_outlined,
+                        Icons.verified_rounded,
+                        'Payments',
+                        badgeCount: _liveStore.paymentsBadgeCount,
+                      ),
+                      _buildNavItem(4, Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
+                    ],
                   ),
-                  _buildNavItem(4, Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More'),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

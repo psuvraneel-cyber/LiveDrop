@@ -88,7 +88,7 @@ class MockSellerRepository extends Fake implements SellerRepository {
   }
 
   @override
-  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status}) async {
+  Future<List<SellerOrder>> getAllOrders({String? dropId, String? status, int limit = 300}) async {
     return [];
   }
 

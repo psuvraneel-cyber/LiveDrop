@@ -80,7 +80,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
     _tabController = TabController(
       length: 5,
       vsync: this,
-      initialIndex: (requested != null && requested >= 0 && requested < 4) ? requested : 0,
+      initialIndex: (requested != null && requested >= 0 && requested < 5) ? requested : 0,
     );
     widget.tabRequest?.addListener(_onTabRequested);
     _loadInitialData();
@@ -299,6 +299,16 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen>
                 ),
               ),
 
+              // SA-PERF-001: across all drops only the newest orders are loaded.
+              if (_selectedDropId == null && _allOrders.length >= SellerRepository.ordersPageLimit)
+                const Padding(
+                  key: Key('orders-capped-note'),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Text(
+                    'Showing your newest ${SellerRepository.ordersPageLimit} orders. Pick a drop to see older ones.',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                ),
               // Pipeline tabs + Closed (SA-ORD-004); scrollable on phones.
               TabBar(
                 controller: _tabController,
