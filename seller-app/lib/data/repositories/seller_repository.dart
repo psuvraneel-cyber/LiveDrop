@@ -308,11 +308,10 @@ class SellerRepository {
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
     } on AuthException catch (e) {
-      final wrong = e.message.toLowerCase().contains('invalid');
-      throw LiveDropException(
-        wrong ? 'That password is not correct.' : e.message,
-        code: wrong ? 'WRONG_PASSWORD' : 'AUTH_ERROR',
-      );
+      if (e.message.toLowerCase().contains('invalid')) {
+        throw const LiveDropException('That password is not correct.', code: 'WRONG_PASSWORD');
+      }
+      throw LiveDropException(e.message, code: 'AUTH_ERROR');
     }
   }
 

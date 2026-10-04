@@ -1,0 +1,6 @@
+# Reviewed gitleaks false positives (one fingerprint per line: commit:file:rule:line).
+# Add an entry only after checking the finding is not a credential, and say why.
+#
+# cd273ad: `code: wrong ? 'WRONG_PASSWORD' : 'AUTH_ERROR'` is an error code, not a password
+# (livedrop-hardcoded-password matched the ternary). The line was rewritten in the next commit.
+cd273ad82712fdcf573677c5cfacb47b1fe0803d:seller-app/lib/data/repositories/seller_repository.dart:livedrop-hardcoded-password:314
