@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/env_config.dart';
+import 'core/errors/seller_error_messages.dart';
 import 'core/services/supabase_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'core/validation/drop_rules.dart';
 import 'data/realtime/seller_live_store.dart';
 import 'data/repositories/seller_repository.dart';
 import 'domain/models/models.dart';
@@ -198,6 +200,11 @@ class SellerHomeScreen extends StatefulWidget {
 class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   SellerProfile? _profile;
+
+  /// Approval gate state (SA-AUTH-002): the dashboard is shown only for a
+  /// loaded, approved profile. Loading and load errors never fail open.
+  bool _profileLoading = true;
+  Object? _profileError;
   late final OfflineIntakeQueue _sharedIntakeQueue;
   late final bool _ownsIntakeQueue;
   final OrdersTabRequest _ordersTabRequest = OrdersTabRequest();
@@ -241,7 +248,7 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
   Future<void> _syncIntakeQueue() async {
     if (!mounted) return;
     final profile = _profile;
-    if (profile != null && !profile.isApproved) return;
+    if (profile == null || !profile.isApproved) return;
     try {
       await _sharedIntakeQueue.initialize();
       if (!mounted) return;
@@ -265,16 +272,36 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
   }
 
   Future<void> _loadProfile() async {
+    if (mounted && _profile == null) {
+      setState(() {
+        _profileLoading = true;
+        _profileError = null;
+      });
+    }
     try {
       final p = await widget.repository.getProfile();
       if (mounted) {
         setState(() {
           _profile = p;
+          _profileLoading = false;
+          _profileError = null;
         });
       }
-    } catch (_) {
-      // Profile fetch error handled gracefully
+    } catch (e) {
+      debugPrint('[LiveDrop Seller] Profile load failed: $e');
+      if (mounted) {
+        setState(() {
+          _profileLoading = false;
+          // A refresh failure keeps an already loaded profile (and its gate).
+          if (_profile == null) _profileError = e;
+        });
+      }
     }
+  }
+
+  Future<void> _retryProfile() async {
+    await _loadProfile();
+    await _syncIntakeQueue();
   }
 
   void _navigateToTab(int index) {
@@ -284,9 +311,9 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
   void _openAddProduct() async {
     try {
       final drops = await widget.repository.getDrops();
-      final active = drops.where((d) => d.status == DropStatus.live).firstOrNull ??
-          drops.where((d) => d.status == DropStatus.draft).firstOrNull ??
-          drops.firstOrNull;
+      // Never a closed drop (SA-INV-002): without a live or draft drop the
+      // seller creates a new one first.
+      final active = DropRules.intakeTarget(drops);
 
       if (!mounted) return;
 
@@ -356,7 +383,23 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
 
   @override
   Widget build(BuildContext context) {
-    if (_profile != null && !_profile!.isApproved) {
+    final profile = _profile;
+    if (profile == null) {
+      if (_profileLoading) {
+        return const Scaffold(
+          backgroundColor: AppColors.obsidian,
+          body: Center(child: CircularProgressIndicator(color: AppColors.goldPrimary)),
+        );
+      }
+      return _ProfileLoadErrorScreen(
+        error: _profileError,
+        onRetry: _retryProfile,
+        onSignOut: () async {
+          await SupabaseService.instance.signOut();
+        },
+      );
+    }
+    if (!profile.isApproved) {
       return SellerPendingApprovalScreen(
         onRefreshStatus: _loadProfile,
         onSignOut: () async {
@@ -523,6 +566,68 @@ class _SellerHomeScreenState extends State<SellerHomeScreen> with WidgetsBinding
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the seller's profile cannot be loaded (SA-AUTH-002). The app
+/// does not know whether the account is approved, so nothing operational is
+/// offered until the profile loads.
+class _ProfileLoadErrorScreen extends StatelessWidget {
+  final Object? error;
+  final Future<void> Function() onRetry;
+  final Future<void> Function() onSignOut;
+
+  const _ProfileLoadErrorScreen({
+    required this.error,
+    required this.onRetry,
+    required this.onSignOut,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final offline = SellerErrorMessages.isNetworkError(error);
+    return Scaffold(
+      backgroundColor: AppColors.obsidian,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(offline ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+                    color: AppColors.goldPrimary, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Could not load your boutique',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  offline
+                      ? 'No connection to LiveDrop. Check your internet and try again.'
+                      : 'Something went wrong while loading your account. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try again'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onSignOut,
+                  child: const Text('Sign out', style: TextStyle(color: AppColors.textMuted)),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

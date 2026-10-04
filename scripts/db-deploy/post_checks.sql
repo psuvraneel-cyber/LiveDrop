@@ -129,6 +129,27 @@ BEGIN
   END IF;
 END $$;
 
+\echo '== H24: migration 039 (drop lifecycle, payee change guard, offline-sale undo)'
+DO $$
+BEGIN
+  IF to_regprocedure('public.undo_mark_product_sold_offline(uuid)') IS NULL THEN
+    RAISE NOTICE 'migration 039 not applied yet (undo_mark_product_sold_offline missing)';
+    RETURN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_enforce_drop_lifecycle' AND NOT tgisinternal)
+     OR NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_guard_and_log_payee_change' AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'CHECK FAILED (H24): drop lifecycle or payee change trigger missing';
+  END IF;
+  IF has_function_privilege('anon', 'public.undo_mark_product_sold_offline(uuid)', 'EXECUTE')
+     OR has_table_privilege('anon', 'public.payee_change_log', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.payee_change_log', 'INSERT')
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.payee_change_log'::regclass) THEN
+    RAISE EXCEPTION 'CHECK FAILED (H24): 039 privileges are wrong';
+  END IF;
+  RAISE NOTICE 'PASS H24 drop lifecycle, payee change guard and log, offline-sale undo';
+END $$;
+SELECT count(*) AS h24_payee_changes_last_30_days FROM public.payee_change_log WHERE changed_at > now() - interval '30 days';
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

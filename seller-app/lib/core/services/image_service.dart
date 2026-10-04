@@ -68,7 +68,12 @@ ProcessedImage _isolateCropAndCompress(_CropTaskParams params) {
         )
       : cropped;
 
-  // 3. Encode image (JPG or WebP fallback)
+  // 3. Strip metadata before publishing (SA-SEC-004): EXIF carries the phone
+  // make/model and GPS location. Orientation was already applied by decode
+  // (SA-AUD-T22), so the orientation tag is not needed either.
+  resized.exif = img.ExifData();
+
+  // 4. Encode image (JPG or WebP fallback)
   // image package supports encodeJpg and encodePng; encodeJpg gives fast compression
   final compressedBytes = Uint8List.fromList(
     img.encodeJpg(resized, quality: params.quality),

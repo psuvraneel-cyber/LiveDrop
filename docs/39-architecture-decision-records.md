@@ -30,6 +30,7 @@ Architecture Decision Records (ADRs) capture critical technical choices, the rat
 | [ADR-011](file:///c:/LiveDrop/docs/adr/ADR-011-reservation-hold-expiry-inside-the-database.md) | Reservation Hold Expiry Inside the Database (pg_cron + lazy expiry; claimed payments never auto-expire) | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Concurrency & Reservation |
 | [ADR-012](file:///c:/LiveDrop/docs/adr/ADR-012-android-release-signing-and-ci-release-builds.md) | Android Release Signing & CI Release Builds | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Build, Release & Secrets |
 | [ADR-013](file:///c:/LiveDrop/docs/adr/ADR-013-seller-app-level-live-store.md) | Seller App-Level Live Store (one realtime channel, debounced refresh, catch-up) | **Accepted** | 2026-10-03 | Project Owner (seller-app audit remediation) | Realtime & Seller UX |
+| [ADR-014](file:///c:/LiveDrop/docs/adr/ADR-014-undo-offline-sale-within-30-minutes.md) | Undo of an Offline Sale Within 30 Minutes (amends 09 §3.2) | **Accepted** | 2026-10-04 | Project Owner (seller-app audit remediation) | Inventory State Machine |
 
 ---
 

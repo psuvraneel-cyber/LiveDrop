@@ -33,13 +33,15 @@ void main() {
     expect(right.r > 200 && right.g < 80, isTrue, reason: 'band should be on the right after applying orientation');
   });
 
-  test('SA-AUD-T23: camera/gallery EXIF (device, GPS) survives compression and is published with the image', () async {
+  // SA-SEC-004 fixed: inverted — the published image carries no EXIF (no device, no GPS).
+  test('SA-AUD-T23: camera/gallery EXIF (device, GPS) is stripped before the image is published', () async {
     final out = await service.processIntakeImage(_photo(w: 1600, h: 1200, gps: true));
     final decoded = img.decodeJpg(out.bytes)!;
     // ignore: avoid_print
     print('AUDIT T23 make=${decoded.exif.imageIfd.make} gpsLatitude=${decoded.exif.gpsIfd.gpsLatitude} size=${out.width}x${out.height} ${out.sizeInBytes}B mime=${out.mimeType}');
-    expect(decoded.exif.imageIfd.make, 'AuditCam');
-    expect(decoded.exif.gpsIfd.gpsLatitude, isNotNull);
+    expect(decoded.exif.imageIfd.make, isNull);
+    expect(decoded.exif.gpsIfd.gpsLatitude, isNull);
+    expect(decoded.exif.isEmpty, isTrue);
     expect(out.mimeType, 'image/jpeg'); // spec/ADR-005 says WebP < 200 KB
     expect(out.width, 1200);
   });

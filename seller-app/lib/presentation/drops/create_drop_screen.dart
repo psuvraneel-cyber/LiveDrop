@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/errors/exceptions.dart';
+import '../../core/validation/drop_rules.dart';
 import '../../core/validation/free_shipping_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
@@ -33,6 +34,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
   SellerProfile? _profile;
 
   bool get _isEditing => widget.existingDrop != null;
+  bool get _slugEditable => DropRules.slugEditable(widget.existingDrop);
 
   @override
   void initState() {
@@ -214,10 +216,18 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
 
               // Slug Field
               TextFormField(
+                key: const Key('drop-slug-field'),
                 controller: _slugController,
-                style: const TextStyle(color: Colors.white),
+                // The link is locked once the drop has gone live (SA-DROP-002):
+                // links already shared with buyers must keep working.
+                readOnly: !_slugEditable,
+                style: TextStyle(color: _slugEditable ? Colors.white : Colors.grey.shade500),
                 decoration: InputDecoration(
                   labelText: 'Public URL Slug *',
+                  helperText: _slugEditable ? null : 'Locked: this drop has gone live, and shared links must keep working.',
+                  helperMaxLines: 2,
+                  helperStyle: TextStyle(color: Colors.grey.shade500),
+                  suffixIcon: _slugEditable ? null : Icon(Icons.lock_outline_rounded, color: Colors.grey.shade500, size: 18),
                   hintText: 'e.g. summer-vintage-04',
                   prefixText: '/drop/',
                   prefixStyle: const TextStyle(color: Color(0xFFF59E0B)),

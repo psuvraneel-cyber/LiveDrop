@@ -309,6 +309,10 @@ class SellerProduct {
   final String? reservedByOrderId;
   final int version;
 
+  /// When the seller marked the piece sold offline (null otherwise). Such a
+  /// sale can be undone for 30 minutes (ADR-014).
+  final DateTime? soldOfflineAt;
+
   const SellerProduct({
     required this.id,
     required this.dropId,
@@ -322,7 +326,18 @@ class SellerProduct {
     this.reservedAt,
     this.reservedByOrderId,
     required this.version,
+    this.soldOfflineAt,
   });
+
+  /// Window in which an offline sale can be undone (ADR-014).
+  static const Duration offlineSaleUndoWindow = Duration(minutes: 30);
+
+  /// True while "Undo sale" is available for this piece.
+  bool canUndoOfflineSale([DateTime? now]) {
+    final at = soldOfflineAt;
+    if (status != ProductStatus.sold || at == null) return false;
+    return (now ?? DateTime.now()).difference(at) < offlineSaleUndoWindow;
+  }
 
   factory SellerProduct.fromJson(Map<String, dynamic> json) {
     final rawImageUrls = json['image_urls'];
@@ -351,6 +366,7 @@ class SellerProduct {
           : null,
       reservedByOrderId: json['reserved_by_order_id'] as String?,
       version: json['version'] as int? ?? 1,
+      soldOfflineAt: _parseOptionalDate(json['sold_offline_at']),
     );
   }
 
@@ -925,3 +941,44 @@ class SellerActivityItem {
   });
 }
 
+/// One change of the seller's payee details (SA-AUTH-004, `payee_change_log`).
+class PayeeChange {
+  final String field;
+  final String? oldValue;
+  final String? newValue;
+  final DateTime changedAt;
+
+  /// `authenticated` (the seller) or a platform role such as `service_role`.
+  final String changedByRole;
+
+  const PayeeChange({
+    required this.field,
+    required this.oldValue,
+    required this.newValue,
+    required this.changedAt,
+    required this.changedByRole,
+  });
+
+  factory PayeeChange.fromJson(Map<String, dynamic> json) => PayeeChange(
+        field: json['field'] as String,
+        oldValue: json['old_value'] as String?,
+        newValue: json['new_value'] as String?,
+        changedAt: _parseTimestamp(json['changed_at'] as String),
+        changedByRole: json['changed_by_role'] as String? ?? 'authenticated',
+      );
+
+  /// Seller-facing name of the changed detail.
+  String get fieldLabel {
+    switch (field) {
+      case 'upi_id':
+      case 'upi_vpa':
+        return 'UPI ID';
+      case 'upi_display_name':
+        return 'UPI display name';
+      case 'phone_number':
+        return 'Phone number';
+      default:
+        return field;
+    }
+  }
+}

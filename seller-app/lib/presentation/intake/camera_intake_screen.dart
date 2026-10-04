@@ -9,6 +9,7 @@ import '../../core/services/image_service.dart';
 import '../../core/services/offline_intake_queue.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/bounceable_button.dart';
+import '../../core/validation/drop_rules.dart';
 import '../../core/validation/product_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
@@ -380,6 +381,15 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                   : _draftTitleCtrl.text.trim();
 
               final dropId = _resolvedDrop?.id ?? widget.dropId;
+              if (_resolvedDrop != null && !DropRules.acceptsNewPieces(_resolvedDrop)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This drop is closed. Start a new drop to add pieces.'),
+                    backgroundColor: AppColors.crimson,
+                  ),
+                );
+                return;
+              }
               if (dropId == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -756,9 +766,29 @@ class _CameraIntakeScreenState extends State<CameraIntakeScreen>
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 4),
-                      const Text(
-                        'Add Product',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Add Product',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          // Which drop the pieces go to (SA-INV-002).
+                          if (_resolvedDrop != null)
+                            Text(
+                              'Adding to: ${_resolvedDrop!.title} · ${DropRules.statusLabel(_resolvedDrop!.status)}',
+                              key: const Key('intake-target-drop'),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _resolvedDrop!.status == DropStatus.closed
+                                    ? AppColors.crimson
+                                    : AppColors.goldPrimary,
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),

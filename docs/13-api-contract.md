@@ -133,6 +133,7 @@ LiveDrop isolates API interactions into two strict surfaces:
   * `EMPTY_CART`: No valid product IDs provided.
   * `EXCEEDS_CART_LIMIT`: Cart contains more than 10 distinct items.
   * `SELLER_SUSPENDED` (since migration 038, SA-ONB-002): the drop's seller is not approved. No order is created. `initiate_payment_attempt` returns the same code instead of payee details.
+  * `UPI_DISABLED` / `UPI_NOT_CONFIGURED` (since migration 039, SA-PAY-012): the seller has turned UPI payments off, or has no payee UPI ID. Nothing is reserved; the same codes as `initiate_payment_attempt`.
 
 ---
 
@@ -227,6 +228,12 @@ LiveDrop isolates API interactions into two strict surfaces:
   }
   ```
 * **Response (200 OK):** Updated drop record.
+* **Allowed changes (since migration 039, SA-DROP-001/002, docs/09 section 2):**
+  * `draft` to `live` by this update.
+  * `live` to `closed` only through `rpc/close_drop`.
+  * Any other status change, including reopening a closed drop and `live` to `draft`, is refused with HTTP 403, SQLSTATE `42501`, hint `DROP_TRANSITION_FORBIDDEN`.
+  * `slug` can be changed only while the drop is a `draft`; otherwise the update is refused with hint `DROP_SLUG_LOCKED`.
+  * Title, shipping fee, threshold and stream link stay editable.
 
 ---
 
@@ -290,8 +297,23 @@ LiveDrop isolates API interactions into two strict surfaces:
     "p_product_id": "e9314c99-7f55-4089-a2bb-b001d2950df1"
   }
   ```
-* **Success Response (200 OK):** `{"success": true}`
-* **Error Response:** `{"success": false, "error": "ALREADY_SOLD"}`
+* **Success Response (200 OK):** `{"success": true}`. Since migration 039 it also returns `"sold_offline_at"` and `"undo_until"`, which is 30 minutes later.
+* **Error Response:** `{"success": false, "error": "ALREADY_SOLD"}`. Other errors: `PRODUCT_RESERVED`, `PRODUCT_NOT_FOUND_OR_UNAUTHORIZED`, `UNAUTHORIZED`, and (since 039) `DROP_CLOSED`.
+
+### 3.7a Undo an Offline Sale (RPC), new in migration 039 (ADR-014, SA-INV-001)
+* **Endpoint:** `POST /rest/v1/rpc/undo_mark_product_sold_offline`
+* **Actor:** Owning Seller.
+* **Request Body:** `{"p_product_id": "<uuid>"}`
+* **Success Response:** `{"success": true, "idempotent": false, "status": "available"}`. A repeated call on an available piece returns `idempotent: true`.
+* **Errors:**
+  * `NOT_SOLD_OFFLINE`: the piece was not marked sold offline.
+  * `UNDO_WINDOW_EXPIRED`: more than 30 minutes have passed.
+  * `PRODUCT_HAS_ORDER`: an order that is not cancelled or expired contains the piece.
+  * `DROP_CLOSED`, `PRODUCT_NOT_FOUND_OR_UNAUTHORIZED`, `UNAUTHORIZED`.
+
+### 3.7b Payee Details and Change Log, new in migration 039 (SA-AUTH-004)
+* A seller's `PATCH /rest/v1/profiles` that changes `upi_id`, `upi_vpa` or `phone_number` is refused with HTTP 403, SQLSTATE `42501`, hint `REAUTH_REQUIRED`, unless the seller signed in with their password in the last 10 minutes. The check uses the `amr` claim of the access token. The app re-authenticates with `signInWithPassword` before saving.
+* Every change of `upi_id`, `upi_vpa`, `upi_display_name` or `phone_number`, by anyone, is recorded in `payee_change_log`. The seller can read their own rows (`GET /rest/v1/payee_change_log`); nobody can change or delete them through the API.
 
 ---
 

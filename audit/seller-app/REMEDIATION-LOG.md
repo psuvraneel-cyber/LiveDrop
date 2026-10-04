@@ -96,3 +96,31 @@ Totals after this round:
 - 038 re-applied twice cleanly. The refused-policy path was simulated (WARNING, no rollback of the rest).
 - buyer-web: 688/688 tests, tsc clean, lint clean.
 - No Dart code changed this round.
+
+## P1 round 4a (2026-10-04): migration 039, account safety, drops and inventory
+
+Owner decisions:
+- Undo an offline sale within 30 minutes (ADR-014).
+- Drop status changes exactly as docs/09 says.
+- Passwords of at least 10 characters.
+- Email confirmation for new sellers.
+
+| Finding | Status | What changed | Proof | Owner actions |
+|---|---|---|---|---|
+| SA-AUTH-002 | Fixed | `main.dart`: the shell waits for the profile; a load error shows "Could not load your boutique" with Try again / Sign out. The dashboard shows only for a loaded, approved profile, and the intake queue never syncs without one | Audit T07 inverted (gate stays closed) | Ship a new app build |
+| SA-AUTH-003 | Fixed in repo; owner action required | Minimum 10 characters in the app (registration), on the website reset page and in `config.toml`; `enable_confirmations = true`. The login screen explains an unconfirmed email | buyer-web `seller-reset-password.test.tsx` (10 characters) | Supabase → Auth → Providers → Email: Minimum password length 10, turn on **Confirm email** |
+| SA-AUTH-004 | Fixed (deploy pending) | 039: `upi_id`, `upi_vpa` and `phone_number` changes need a password sign-in in the last 10 minutes (JWT `amr`, hint `REAUTH_REQUIRED`); every payee change goes to `payee_change_log`. App: password dialog showing the new UPI ID, live-drop warning, recent changes list; the phone edit needs the password too | SQL 21.30–21.34, 21.41; `account_drops_inventory_test.dart` (password before save, wrong password saves nothing, unchanged UPI ID asks nothing) | Run Database Deploy (apply); ship a new app build. After deploy, change the UPI ID once in the app to confirm the password step works on hosted |
+| SA-SEC-004 | Fixed | `image_service.dart` clears EXIF before encoding (orientation is already applied by decode) | Audit T23 inverted: no Make, no GPS, empty EXIF | Ship a new app build. Photos already uploaded keep their EXIF |
+| SA-DROP-001 | Fixed (deploy pending) | 039 trigger: only draft→live and live→closed. App: "Re-open Draft" replaced by "New drop"; close dialog explains what happens | SQL 12.5, 12.4b (now PASS), 21.1–21.2; widget test (closed drop shows "New drop") | Run Database Deploy (apply) |
+| SA-DROP-002 | Fixed (deploy pending) | 039 trigger: slug locked once the drop leaves draft. App: read-only link field with a lock note | SQL 12.4c (PASS), 21.3–21.4; widget test (read-only field) | Run Database Deploy (apply) |
+| SA-DROP-004 | Fixed | Go-live checklist. It blocks with no piece on sale, unfinished uploads (ADR-006), UPI off or no UPI ID, or another live drop. A missing stream link is only a warning. Also shows a copy-link button | `account_drops_inventory_test.dart` (readiness rules; Go Live is blocked with nothing on sale) | Ship a new app build |
+| SA-INV-001 | Fixed (deploy pending) | 039: `sold_offline_at`, `undo_mark_product_sold_offline` (ADR-014; docs/09 amended). App: no Mark Sold on reserved pieces (with the reason shown), confirm dialog, "Undo" on the snackbar and button for 30 minutes, friendly errors | SQL 21.20–21.27; widget tests (reserved, confirm then undo, no undo after 30 min) | Run Database Deploy (apply) |
+| SA-INV-002 | Fixed | `DropRules.intakeTarget` (live, else draft, never closed) in the shell and inventory. Camera intake is disabled on closed drops and shows "Adding to: <drop> · LIVE/DRAFT". Saving into a closed drop is refused | `account_drops_inventory_test.dart` (DropRules; closed drop has no camera intake) | Ship a new app build |
+| SA-PAY-012 | Fixed (deploy pending) | 039: checkout returns `UPI_DISABLED` / `UPI_NOT_CONFIGURED` before reserving. Payment settings warns while a drop is live; the go-live checklist blocks with UPI off | SQL 13.13 (PASS), 21.10–21.11 | Run Database Deploy (apply) |
+
+Totals:
+- DB harness (39 migrations): 0 FAIL. Remaining FINDINGs: 12.3 and 13.9, both P2.
+- Suite 21: 21/21. 039 re-applied twice cleanly; post-checks H24 PASS.
+- `flutter analyze` clean. `flutter test`: 188 pass, 2 fail, and those 2 fail only on Windows (temp-folder lock in `inventory_queue_status_test.dart`, unrelated).
+- Audit Flutter suite 26/26.
+- buyer-web: all tests pass.

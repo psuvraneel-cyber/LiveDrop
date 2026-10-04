@@ -10,6 +10,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/bounceable_button.dart';
 import '../../core/theme/brand_emblem.dart';
 
+/// Minimum seller password length (SA-AUTH-003). The same value is set in
+/// Supabase Auth, `supabase/config.toml` and the website's reset page.
+const int minSellerPasswordLength = 10;
+
 class SellerRegistrationScreen extends StatefulWidget {
   final VoidCallback onRegistrationSuccess;
 
@@ -402,7 +406,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
           ),
           validator: (value) {
             if (value == null || value.isEmpty) return 'Password is required';
-            if (value.length < 8) return 'Password must be at least 8 characters';
+            if (value.length < minSellerPasswordLength) {
+              return 'Password must be at least $minSellerPasswordLength characters';
+            }
             return null;
           },
         ),

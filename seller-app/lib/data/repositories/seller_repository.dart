@@ -13,6 +13,22 @@ import '../../domain/models/models.dart';
 ///
 /// Under no circumstances may `release_expired_holds()` be exposed here;
 /// that routine is strictly reserved for service_role background execution.
+/// Error codes that database triggers put in the HINT field (migration 039),
+/// because a trigger cannot return a JSON error like an RPC does.
+const Set<String> _triggerHintCodes = {
+  'DROP_TRANSITION_FORBIDDEN',
+  'DROP_SLUG_LOCKED',
+  'REAUTH_REQUIRED',
+};
+
+/// Converts a PostgREST error into a [LiveDropException], preferring the
+/// machine-readable code a trigger put in the hint.
+LiveDropException liveDropExceptionFrom(PostgrestException e) {
+  final hint = e.hint;
+  final code = hint != null && _triggerHintCodes.contains(hint) ? hint : (e.code ?? 'POSTGREST_ERROR');
+  return LiveDropException(e.message, code: code);
+}
+
 class SellerRepository {
   final SupabaseClient _client;
 
@@ -92,7 +108,7 @@ class SellerRepository {
 
       return SellerProfile.fromJson(response);
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -111,7 +127,7 @@ class SellerRepository {
           .map((e) => SellerDrop.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -130,7 +146,7 @@ class SellerRepository {
           .map((e) => SellerProduct.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -183,7 +199,7 @@ class SellerRepository {
           .map((e) => SellerOrder.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -231,7 +247,7 @@ class SellerRepository {
 
       return true;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -256,7 +272,64 @@ class SellerRepository {
 
       return true;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
+    }
+  }
+
+  /// Puts a piece the seller marked sold offline back on sale, within 30
+  /// minutes (ADR-014, `undo_mark_product_sold_offline`).
+  Future<void> undoMarkProductSoldOffline(String productId) async {
+    _requireSellerId();
+
+    try {
+      final response = await _client.rpc<dynamic>(
+        'undo_mark_product_sold_offline',
+        params: {'p_product_id': productId},
+      );
+      final map = response as Map<String, dynamic>;
+      if (map['success'] != true) {
+        final error = map['error'] as String? ?? 'UNKNOWN_ERROR';
+        throw LiveDropException(map['message'] as String? ?? error, code: error);
+      }
+    } on PostgrestException catch (e) {
+      throw liveDropExceptionFrom(e);
+    }
+  }
+
+  /// Confirms the signed-in seller's password by signing in again. The new
+  /// session carries a fresh password time, which the database requires
+  /// before the payee UPI ID or phone number can change (SA-AUTH-004).
+  Future<void> reauthenticate(String password) async {
+    _requireSellerId();
+    final email = _client.auth.currentUser?.email;
+    if (email == null || email.isEmpty) {
+      throw const LiveDropException('Sign in again to continue.', code: 'UNAUTHORIZED');
+    }
+    try {
+      await _client.auth.signInWithPassword(email: email, password: password);
+    } on AuthException catch (e) {
+      if (e.message.toLowerCase().contains('invalid')) {
+        throw const LiveDropException('That password is not correct.', code: 'WRONG_PASSWORD');
+      }
+      throw LiveDropException(e.message, code: 'AUTH_ERROR');
+    }
+  }
+
+  /// The seller's recent payee detail changes (UPI ID, display name, phone),
+  /// newest first (SA-AUTH-004, table `payee_change_log`).
+  Future<List<PayeeChange>> getPayeeChangeLog({int limit = 10}) async {
+    _requireSellerId();
+    try {
+      final response = await _client
+          .from('payee_change_log')
+          .select('field, old_value, new_value, changed_at, changed_by_role')
+          .order('changed_at', ascending: false)
+          .limit(limit);
+      return (response as List<dynamic>)
+          .map((row) => PayeeChange.fromJson(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -331,7 +404,7 @@ class SellerRepository {
 
       return SellerProfile.fromJson(response);
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -356,7 +429,7 @@ class SellerRepository {
           })
           .eq('id', sellerId);
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -397,7 +470,7 @@ class SellerRepository {
           .map((e) => PaymentAttempt.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -436,7 +509,7 @@ class SellerRepository {
           .map((e) => PaymentAttempt.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -472,7 +545,7 @@ class SellerRepository {
 
       return map;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -507,7 +580,7 @@ class SellerRepository {
 
       return map;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -536,7 +609,7 @@ class SellerRepository {
 
       return map;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -569,7 +642,7 @@ class SellerRepository {
 
       return map;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -589,7 +662,7 @@ class SellerRepository {
           .map((e) => OwedRefund.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -631,7 +704,7 @@ class SellerRepository {
 
       return map;
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -653,7 +726,7 @@ class SellerRepository {
 
       return response == null ? null : SellerProduct.fromJson(response);
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -694,7 +767,7 @@ class SellerRepository {
           code: 'SLUG_TAKEN',
         );
       }
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -735,7 +808,7 @@ class SellerRepository {
           code: 'SLUG_TAKEN',
         );
       }
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -782,7 +855,7 @@ class SellerRepository {
           code: 'MULTIPLE_LIVE_DROPS',
         );
       }
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -832,7 +905,7 @@ class SellerRepository {
           code: 'DUPLICATE_PRODUCT_CODE',
         );
       }
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -872,7 +945,7 @@ class SellerRepository {
       final productJson = (result['product'] as Map).cast<String, dynamic>();
       return SellerProduct.fromJson(productJson);
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -970,7 +1043,7 @@ class SellerRepository {
           .map((e) => SellerOrder.fromJson(e as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 
@@ -1166,7 +1239,7 @@ class SellerRepository {
         topProducts: topProductsList.take(5).toList(),
       );
     } on PostgrestException catch (e) {
-      throw LiveDropException(e.message, code: e.code ?? 'POSTGREST_ERROR');
+      throw liveDropExceptionFrom(e);
     }
   }
 }

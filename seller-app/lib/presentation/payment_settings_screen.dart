@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/bounceable_button.dart';
 import '../core/theme/boutique_haptics.dart';
+import '../core/errors/exceptions.dart';
 import '../data/repositories/seller_repository.dart';
+import '../domain/models/models.dart';
+import 'auth/confirm_password_dialog.dart';
 
 /// LiveDrop Seller Mobile App — Direct UPI Payment Settings Screen (TASK-2.4B)
 ///
@@ -29,6 +35,11 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
   bool _isSaving = false;
   bool _upiEnabled = true;
   String? _errorMessage;
+
+  /// UPI ID as loaded; a different value needs the password (SA-AUTH-004).
+  String _savedVpa = '';
+  bool _dropIsLive = false;
+  List<PayeeChange> _recentChanges = const [];
 
   static final _vpaRegex = RegExp(r'^[a-zA-Z0-9.\-_]{2,255}@[a-zA-Z]{2,64}$');
 
@@ -61,6 +72,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
         setState(() {
           _upiEnabled = profile.upiEnabled;
           _upiVpaController.text = profile.upiVpa ?? profile.upiId;
+          _savedVpa = _upiVpaController.text.trim();
           _upiDisplayNameController.text = profile.upiDisplayName ?? profile.storeName;
           _instructionsController.text = profile.paymentInstructions ?? '';
           _isLoading = false;
@@ -69,11 +81,42 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
     } catch (err) {
       if (mounted) {
         setState(() {
-          _errorMessage = err.toString();
+          _errorMessage = err is LiveDropException ? err.message : 'Could not load your payment settings.';
           _isLoading = false;
         });
       }
     }
+    await _loadSafetyContext();
+  }
+
+  /// Live-drop warning and recent payee changes. Failures only hide them.
+  Future<void> _loadSafetyContext() async {
+    try {
+      final drops = await widget.repository.getDrops();
+      final changes = await widget.repository.getPayeeChangeLog(limit: 5);
+      if (!mounted) return;
+      setState(() {
+        _dropIsLive = drops.any((d) => d.status == DropStatus.live);
+        _recentChanges = changes;
+      });
+    } catch (e) {
+      debugPrint('[PaymentSettings] Safety context unavailable: $e');
+    }
+  }
+
+  /// A new UPI ID decides where every buyer's money goes: confirm it and the
+  /// seller's password first (SA-AUTH-004).
+  Future<bool> _confirmPayeeChange(String newVpa) {
+    final liveNote = _dropIsLive
+        ? '\n\nA drop is live right now. Buyers who open a payment from now on will pay the new UPI ID.'
+        : '';
+    return showConfirmPasswordDialog(
+      context,
+      title: 'Change your UPI ID?',
+      message: 'Buyers will pay to:\n$newVpa\n\nCheck every character. Money sent to a wrong UPI ID '
+          'cannot be recovered by LiveDrop.$liveNote',
+      reauthenticate: widget.repository.reauthenticate,
+    );
   }
 
   Future<void> _saveSettings() async {
@@ -82,22 +125,21 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
       return;
     }
 
+    final newVpa = _upiVpaController.text.trim();
+    if (newVpa != _savedVpa) {
+      final confirmed = await _confirmPayeeChange(newVpa);
+      if (!confirmed || !mounted) return;
+    }
+
     setState(() {
       _isSaving = true;
       _errorMessage = null;
     });
 
     try {
-      await widget.repository.updateUpiSettings(
-        upiEnabled: _upiEnabled,
-        upiVpa: _upiVpaController.text.trim(),
-        upiDisplayName: _upiDisplayNameController.text.trim().isEmpty
-            ? null
-            : _upiDisplayNameController.text.trim(),
-        paymentInstructions: _instructionsController.text.trim().isEmpty
-            ? null
-            : _instructionsController.text.trim(),
-      );
+      await _saveUpi();
+      _savedVpa = newVpa;
+      unawaited(_loadSafetyContext());
 
       BoutiqueHaptics.success();
 
@@ -113,7 +155,11 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
       BoutiqueHaptics.heavy();
       if (mounted) {
         setState(() {
-          _errorMessage = err.toString();
+          _errorMessage = err is LiveDropException && err.code == 'REAUTH_REQUIRED'
+              ? 'For your safety, confirm your password again to change the UPI ID.'
+              : err is LiveDropException
+                  ? err.message
+                  : 'Could not save your payment settings. Try again.';
         });
       }
     } finally {
@@ -123,6 +169,19 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
         });
       }
     }
+  }
+
+  Future<void> _saveUpi() async {
+    await widget.repository.updateUpiSettings(
+      upiEnabled: _upiEnabled,
+      upiVpa: _upiVpaController.text.trim(),
+      upiDisplayName: _upiDisplayNameController.text.trim().isEmpty
+          ? null
+          : _upiDisplayNameController.text.trim(),
+      paymentInstructions: _instructionsController.text.trim().isEmpty
+          ? null
+          : _instructionsController.text.trim(),
+    );
   }
 
   @override
@@ -366,6 +425,24 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                       const SizedBox(height: 20),
                     ],
 
+                    if (_dropIsLive) ...[
+                      Container(
+                        key: const Key('payment-settings-live-warning'),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.amberTint,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.amber),
+                        ),
+                        child: const Text(
+                          'A drop is live. Turning UPI off stops new orders immediately, and a new UPI ID '
+                          'applies to every payment buyers start from now on.',
+                          style: TextStyle(color: AppColors.amber, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
                     // Save Button
                     BounceableButton(
                       variant: ButtonVariant.goldGradient,
@@ -375,6 +452,28 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                       text: 'Save Payment Settings',
                       icon: Icons.save_outlined,
                     ),
+                    if (_recentChanges.isNotEmpty) ...[
+                      const SizedBox(height: 28),
+                      const Text(
+                        'Recent changes to your payment details',
+                        style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final change in _recentChanges)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            '${DateFormat('d MMM, hh:mm a').format(change.changedAt.toLocal())} \u00b7 '
+                            '${change.fieldLabel}: ${change.oldValue ?? '-'} \u2192 ${change.newValue ?? '-'}'
+                            '${change.changedByRole == 'authenticated' ? '' : ' (by LiveDrop support)'}',
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          ),
+                        ),
+                      const Text(
+                        'If you did not make a change listed here, change your password and contact LiveDrop support.',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      ),
+                    ],
                     const SizedBox(height: 32),
                   ],
                 ),

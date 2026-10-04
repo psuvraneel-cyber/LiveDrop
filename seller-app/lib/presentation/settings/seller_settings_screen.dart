@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/config/admin_config.dart';
+import '../../core/errors/exceptions.dart';
 import '../../core/config/env_config.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../core/theme/boutique_haptics.dart';
 import '../../core/utils/url_launcher_helper.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
+import '../auth/confirm_password_dialog.dart';
 import '../payment_settings_screen.dart';
 import '../../core/validation/free_shipping_rules.dart';
 
@@ -269,6 +271,19 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                       ? null
                       : () async {
                           final messenger = ScaffoldMessenger.of(context);
+                          // Buyers contact this number: a change needs the
+                          // seller's password (SA-AUTH-004).
+                          final newPhone = phoneCtrl.text.trim();
+                          if (newPhone.isNotEmpty && newPhone != (_profile?.phoneNumber ?? '')) {
+                            final confirmed = await showConfirmPasswordDialog(
+                              sheetContext,
+                              title: 'Change your phone number?',
+                              message: 'Buyers will contact you on $newPhone. '
+                                  'Enter your password to confirm.',
+                              reauthenticate: widget.repository.reauthenticate,
+                            );
+                            if (!confirmed) return;
+                          }
                           setModalState(() => isSaving = true);
                           try {
                             final updated = await widget.repository.updateProfile(
@@ -294,7 +309,7 @@ class _SellerSettingsScreenState extends State<SellerSettingsScreen> {
                             if (mounted) {
                               messenger.showSnackBar(
                                 SnackBar(
-                                  content: Text('Failed to update: $e'),
+                                  content: Text(e is LiveDropException ? e.message : 'Could not save your settings. Try again.'),
                                   backgroundColor: AppColors.crimson,
                                 ),
                               );

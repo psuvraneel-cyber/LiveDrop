@@ -1,6 +1,8 @@
 == Recreating database livedrop_audit
-NOTICE:  database "livedrop_audit" does not exist, skipping
 == Applying Supabase shim
+psql:audit/seller-app/tests/sql/00_supabase_shim.sql:38: NOTICE:  role "authenticator" has already been granted membership in role "anon" by role "postgres"
+psql:audit/seller-app/tests/sql/00_supabase_shim.sql:38: NOTICE:  role "authenticator" has already been granted membership in role "authenticated" by role "postgres"
+psql:audit/seller-app/tests/sql/00_supabase_shim.sql:38: NOTICE:  role "authenticator" has already been granted membership in role "service_role" by role "postgres"
 psql:audit/seller-app/tests/sql/00_supabase_shim.sql:140: WARNING:  wal_level is insufficient to publish logical changes
 HINT:  Set wal_level to "logical" before creating subscriptions.
 PASS  001_create_profiles.sql
@@ -41,6 +43,7 @@ PASS  035_payment_claim_safety_and_refunds.sql
 PASS  036_schedule_reaper_in_database.sql
 PASS  037_claim_hold_and_shipping_quote.sql
 PASS  038_storage_suspension_and_utr_guards.sql
+PASS  039_drop_lifecycle_payee_and_offline_sale_guards.sql
 Migration apply exit status: 0
 == Installing audit helpers (schema audit)
 == Running 10_exposure_and_view_dml
@@ -83,11 +86,11 @@ Migration apply exit status: 0
    INFO 12.2c direct DELETE available product -> OK rows=1
    FINDING 12.3 seller can INSERT product already sold (OK rows=1) / reserved with no order (OK rows=1)
    INFO 12.4a live -> closed direct UPDATE -> ERR 42501 Direct transition to closed is prohibited. Call close_drop(drop_id) RPC.
-   INFO 12.4c slug change on LIVE drop -> OK rows=1
+   PASS 12.4c slug change on LIVE drop -> ERR 42501 The drop link cannot be changed once the drop has gone live.
+   PASS 12.4c2 slug change on DRAFT drop (control) -> OK rows=1
    INFO 12.4d second live drop for same seller -> ERR 23505 duplicate key value violates unique constraint "idx_drops_one_live_per_seller"
-   INFO 12.5 close_drop=true then closed->draft=OK rows=1 then draft->live=OK rows=1
-   INFO 12.4b live -> draft direct UPDATE (unpublish without releasing holds) -> OK rows=1
-   INFO 12.4b   draft -> live again -> OK rows=1
+   PASS 12.5 close_drop=true then closed->draft=ERR 42501 A drop cannot move from closed to draft. Closed drops cannot then closed->live=ERR 42501 A drop cannot move from closed to live. Closed drops cannot 
+   PASS 12.4b live -> draft direct UPDATE (unpublish without releasing holds) -> ERR 42501 A drop cannot move from live to draft. Closed drops cannot be reopened; start a new drop instead.
    PASS 12.6 unapproved seller: create draft=OK add product=OK go live=ERR 42501 Seller account is pending platform verification. Unapproved sellers cannot publish live drops.
    PASS 12.7 after admin_approve_seller(B,false)=true: catalog rows visible=0 checkout=DROP_NOT_LIVE (drop status=closed)
    PASS 12.8a checkout on draft drop -> DROP_NOT_LIVE
@@ -117,24 +120,24 @@ Migration apply exit status: 0
    PASS 13.10b drop threshold=100000 subtotal=150000 -> shipping charged=0 (drop banner promised free shipping)
    PASS 13.10c drop 299900 vs shop 100000, subtotal 250000 -> shipping 8000 (resolved 299900) | drop NULL, shop 100000, subtotal 150000 -> shipping 0 | drop NULL, shop NULL, subtotal 450000 -> shipping 8000 (resolved NULL) | anon EXECUTE=t
    PASS 13.10d column defaults: drops=none profiles=none
-   INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-YAZTTA-FUL-10AB (internal reference, not a bank UTR)
+   INFO 13.11 verify of unclaimed attempt -> success=true ledger reference=LD-5TL4RK-FUL-B25A (internal reference, not a bank UTR)
    INFO 13.12 re-claim with a different UTR -> success=true stored UTR now=222222222222 (no history of the first UTR)
-   INFO 13.13 upi_enabled=false: checkout success=true (piece reserved) but initiate_payment_attempt -> UPI_DISABLED
+   PASS 13.13 upi_enabled=false: checkout -> UPI_DISABLED piece=available | initiate_payment_attempt -> not attempted
    PASS 13.14a claim during a live -> hold in 00:30:00 / window in 00:30:00 | re-claim with another UTR -> success=true window unchanged=t
    PASS 13.14b claim when the drop is not live -> hold in 1 day / window in 1 day
 == Running 15_perf_seller_queries
-   INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 187 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
-   INFO 15.2 getPendingVerifications(): 0 rows, 6.8 ms
-   INFO 15.3 getProducts(liveDrop): 3 rows, 0.5 ms
+   INFO 15.1 getAllOrders(): 2000 orders, ~2819 KB JSON, 178 ms (called by Dashboard x2, Kanban, Analytics, Shipping shortcut, every realtime event)
+   INFO 15.2 getPendingVerifications(): 0 rows, 8.6 ms
+   INFO 15.3 getProducts(liveDrop): 3 rows, 0.6 ms
 == Running 16_release_and_close_with_claims
    INFO 16.1a buyer claimed payment: attempt=awaiting_seller_verification (order still pending, shown with a Release button)
    PASS 16.1b force_release_hold with a claim in flight -> PAYMENT_CLAIM_PENDING | after release: order=pending piece=reserved held by order=t attempt=awaiting_seller_verification rows unchanged=t in seller queue=1 | verify afterwards -> success=true (order=paid)
    PASS 16.1c force_release_hold without a claim -> release=true order=cancelled piece=available attempt=expired
    PASS 16.2 close_drop with a claim in flight -> close=true order=pending piece=reserved attempt=awaiting_seller_verification
 == Running 17_ledger_deletion
-   PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 81d13a60-1f2c-4817-92b2-c98e191af62e with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
-   PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order 7fd639a2-485b-4b00-9db5-596cc87f6c85 with status "expired" | verified ledger rows before=1 after=1
-   PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order 184abba5-eb2b-47eb-b56e-ee83d872e563 with status "paid"
+   PASS 17.1 seller DELETE of a refund-owed order (refund_required=true) -> ERR P0001 Cannot delete order 1c9b2755-a636-4cb2-bf26-df1a9f7ebd2e with refund status "required": the refund obligation and its pa | verified ledger rows before=1 after=1
+   PASS 17.2 seller DELETE of an expired advance-paid order (status=expired payment=advance_paid advance=25000) -> ERR P0001 Cannot delete finalized order e87229e6-da63-4b64-8325-0bb7db663202 with status "expired" | verified ledger rows before=1 after=1
+   PASS 17.3 seller DELETE of a paid order -> ERR P0001 Cannot delete finalized order 15c5d4f1-5906-499f-a525-59a38d06b50f with status "paid"
 == Running 18_storage_enumeration
    PASS 18.1 anon can list 0 object(s) in product-images, incl. draft-drop and unapproved-seller paths: <NULL>
    PASS 18.1b seller B lists 0 object(s) in the bucket (own folder only)
@@ -151,7 +154,7 @@ Migration apply exit status: 0
    PASS 19.5b verify replay -> success=true idempotent=true refund_required=true keys complete=t | ledger rows before=1 after=1
    PASS 19.6 late advance, piece resold -> success=true | order=cancelled/advance_paid total=240000 total_paid=25000 advance_paid=25000 balance_due=215000 refund=required/25000 ledger=25000 | other buyer keeps piece=t
    PASS 19.7 seller direct UPDATE of refund fields -> clear=ERR 42501 Direct | mark refunded=ERR 42501 Direct | amount=ERR 42501 Direct | control (shipping_address)=OK rows=1 | stored refund=required/25000/null
-   PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order 5c66d91c-163e-421e-9f40-5f8e808d5515 wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order d6d8a1cc-8e3f-43ca-b2b9-37c3191de5e2 bec (rows kept=1) | control without payments -> OK rows=1
+   PASS 19.8 seller DELETE: refund-owed order -> ERR P0001 Cannot delete order 32f6d0e8-e948-49ca-9787-ee5fad2c9759 wit (ledger 128000 -> 128000) | cancelled order with a ledger row -> ERR P0001 Cannot delete order 6e4a1110-68bc-4cd1-9f9b-6d9b83a90994 bec (rows kept=1) | control without payments -> OK rows=1
    PASS 19.9a anon cannot execute record_refund -> EXECUTE granted=f call=permission denied
    PASS 19.9b other seller -> ORDER_NOT_FOUND_OR_UNAUTHORIZED
    PASS 19.9c invalid references "ab" / "REF;DROP TABLE" -> INVALID_REFUND_REFERENCE / INVALID_REFUND_REFERENCE
@@ -159,7 +162,7 @@ Migration apply exit status: 0
    PASS 19.9e happy path -> success=true idempotent=false status=refunded amount=128000 reference="UPI-REF 9876/01" refunded_at set=t | stored by seller A=t note appended=t
    PASS 19.9f replay with the same reference -> success=true idempotent=true | different reference -> NO_REFUND_DUE
    PASS 19.9g trusted backend (service_role) -> success=true | order status=refunded recorded_by=null
-   PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order 5c66d91c-163e-421e-9f40-5f8e808d5515 with refund s
+   PASS 19.9h seller DELETE of a refunded order -> ERR P0001 Cannot delete order 32f6d0e8-e948-49ca-9787-ee5fad2c9759 with refund s
    PASS 19.10a release with a claim in flight -> PAYMENT_CLAIM_PENDING attempt=t utr=819000000010 message=t | order=pending attempt=awaiting_seller_verification piece=reserved held=t rows unchanged=t
    PASS 19.10b release without a claim -> success=true released=1 expired attempts=1 | order=cancelled attempt=expired piece=available
    PASS 19.10c release while a late claim (late_claim_pending_review) is pending on a pending order -> PAYMENT_CLAIM_PENDING (order=pending)
@@ -171,11 +174,11 @@ Migration apply exit status: 0
    PASS 19.16 late balance (claim=late_claim_pending_review) on an expired advance order, piece free -> success=true | order=paid/paid total_paid=240000 ledger=240000 piece=sold
    PASS 19.17 refund constraints: amount above total paid -> rejected | refunded without reference -> rejected | amount with status none -> rejected
    PASS 19.18 pg_cron not available here: 036 applied as a no-op (extension installed=f, cron schema=f)
-   PASS 19.19 SECURITY DEFINER functions with pinned search_path: 26 of 26 (unpinned: none)
+   PASS 19.19 SECURITY DEFINER functions with pinned search_path: 28 of 28 (unpinned: none)
    PASS 19.20a no view in public grants anything but SELECT to anon/authenticated (2 views; offenders: none)
    PASS 19.20b no table in public grants TRUNCATE/REFERENCES/TRIGGER to anon/authenticated (offenders: none)
    PASS 19.20c new tables/views get no anon INSERT/UPDATE/DELETE/TRUNCATE and no authenticated TRUNCATE by default (offenders: none)
-   PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T18:22:40.352825+05:30) | re-claim keeps the window=t
+   PASS 19.22a claim during a live -> hold in 00:30:00 window in 00:30:00 (claim response window=2026-10-04T19:13:17.452309+05:30) | re-claim keeps the window=t
    PASS 19.22b claim on a drop that is not live -> hold in 1 day window in 1 day
    PASS 19.22c lapsed ADVANCE claim after reaper -> cancelled/late_claim_pending_review/available (seller queue rows=1) | verify -> success=true late=true | order=confirmed/advance_paid advance_paid=25000 ledger=25000 piece=reserved held=t
    PASS 19.22d lapsed FULL claim, piece resold -> other checkout=true | verify -> success=true refund_required=true | order=cancelled/paid refund=required/128000 ledger=128000 | other buyer keeps piece=t
@@ -205,11 +208,33 @@ Migration apply exit status: 0
    PASS 20.32 — upload and overwrite policies require an approved seller
    PASS 20.33 — unique index on the normalised verified reference exists
    PASS 20.34 — suspension trigger installed on profiles
+== Running 21_p1_round4
+   PASS 21.1 — draft -> closed refused (close guard from 024 or lifecycle guard): ERR 42501 -
+   PASS 21.2 — draft slug edit=OK rows=1, draft -> live=OK rows=1, close_drop=true
+   PASS 21.3 — slug edit on a closed drop refused: ERR 42501 DROP_SLUG_LOCKED
+   PASS 21.4 — title edit on a closed drop still allowed: OK rows=1
+   PASS 21.10 — UPI off -> UPI_DISABLED; no payee UPI ID -> UPI_NOT_CONFIGURED; piece stayed available
+   PASS 21.11 — control: checkout with UPI on -> true
+   PASS 21.20 — mark sold offline -> true status=sold sold_offline_at set=t
+   PASS 21.21 — other seller undo -> PRODUCT_NOT_FOUND_OR_UNAUTHORIZED
+   PASS 21.22 — undo within 30 min -> true, piece=available, second undo idempotent=true
+   PASS 21.23 — undo after 31 min -> UNDO_WINDOW_EXPIRED
+   PASS 21.24 — undo on an order-sold piece -> NOT_SOLD_OFFLINE
+   PASS 21.25 — direct UPDATE back to available -> ERR 42501 -
+   PASS 21.26 — mark sold on a reserved piece -> PRODUCT_RESERVED
+   PASS 21.27 — undo while a live order references the piece -> PRODUCT_HAS_ORDER
+   PASS 21.30 — no amr -> ERR 42501 REAUTH_REQUIRED | password 1 h ago -> ERR 42501 REAUTH_REQUIRED | OTP only -> ERR 42501 REAUTH_REQUIRED
+   PASS 21.31 — fresh password -> OK rows=1 | store name with old token -> OK rows=1
+   PASS 21.32 — seller A sees 2 log rows (vpa + display name), seller B sees 0, seller delete -> ERR 42501 -
+   PASS 21.33 — log row records old/new value, who and which role
+   PASS 21.34 — service_role change -> OK rows=1, logged
+   PASS 21.40 — undo_mark_product_sold_offline: sellers only
+   PASS 21.41 — payee_change_log: RLS on, sellers read only, anon nothing
 == Catalog inventory
 == Running 14_concurrency.sh
         39 false
          1 true
-   PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/fb7b0846-db3a-48f4-90cd-80040a48da59)
+   PASS 14.1 exactly one order holds the piece (order_items=1, product=reserved/021e75e3-d1b0-4d9a-a8b1-d05ce2b90a31)
    PASS 14.2 late claim recorded as refund-required on cancelled order X; order Y keeps the piece (no overwrite)
    PASS 14.2b exactly one live paid order owns #A02 (Y); X's money is tracked as a refund
    PASS 14.3 no deadlock; reaper left the claimed order alone and the seller's verification succeeded

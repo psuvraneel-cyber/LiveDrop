@@ -1,0 +1,9 @@
+# Reviewed gitleaks false positives (one fingerprint per line: commit:file:rule:line).
+# Add an entry only after checking the finding is not a credential, and say why.
+# Do not quote the flagged text in these comments: the scan reads this file too.
+#
+# cd273ad, seller_repository.dart:314 - an error-code ternary in reauthenticate()
+# (wrong-password code vs. generic auth error code), not a credential. Rewritten in 325e919.
+cd273ad82712fdcf573677c5cfacb47b1fe0803d:seller-app/lib/data/repositories/seller_repository.dart:livedrop-hardcoded-password:314
+# 325e919, .gitleaksignore:4 - the first version of this file quoted that same line in a comment.
+325e9197cc47f90fa31d9bd2274ec5e49b7bce2a:.gitleaksignore:livedrop-hardcoded-password:4

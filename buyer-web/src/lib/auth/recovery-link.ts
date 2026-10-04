@@ -63,7 +63,7 @@ export function parseRecoveryLink(search: string, hash: string): RecoveryLink {
   return { kind: 'none' };
 }
 
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 10;
 /** Supabase Auth (bcrypt) ignores bytes beyond 72; refuse instead of silently truncating. */
 export const MAX_PASSWORD_LENGTH = 72;
 

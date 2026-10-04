@@ -8,6 +8,8 @@ import '../../domain/models/models.dart';
 import '../../core/services/offline_intake_queue.dart';
 import '../intake/camera_intake_screen.dart';
 import 'create_drop_screen.dart';
+import 'go_live_checklist.dart';
+import '../../core/validation/drop_rules.dart';
 import '../../core/validation/free_shipping_rules.dart';
 
 /// LiveDrop Seller Mobile App — Drops List & Drop Lifecycle Management Screen
@@ -65,47 +67,50 @@ class _DropsListScreenState extends State<DropsListScreen> {
     }
   }
 
+  /// Status actions follow docs/09 §2 (enforced by migration 039):
+  /// draft -> live after the go-live checklist (SA-DROP-004), live -> closed
+  /// with a confirmation. A closed drop is never reopened (SA-DROP-001).
   Future<void> _toggleDropStatus(SellerDrop drop, DropStatus targetStatus) async {
-    final actionName = targetStatus == DropStatus.live
-        ? 'GO LIVE'
-        : targetStatus == DropStatus.closed
-            ? 'CLOSE DROP'
-            : 'SET TO DRAFT';
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
-        title: Text(
-          '$actionName: ${drop.title}?',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          targetStatus == DropStatus.live
-              ? 'This drop will immediately become visible to buyers on your storefront.\n\nNote: In accordance with LiveDrop rules, any other live drop must be closed first.'
-              : 'Closing this drop will stop new buyer reservations. Existing orders can still be packed and dispatched.',
-          style: TextStyle(color: Colors.grey.shade300),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: targetStatus == DropStatus.live
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
+    bool confirmed;
+    if (targetStatus == DropStatus.live) {
+      confirmed = await _confirmGoLive(drop);
+    } else if (targetStatus == DropStatus.closed) {
+      confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: const Color(0xFF1E1E24),
+              title: Text(
+                'Close "${drop.title}"?',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              content: Text(
+                'Buyers can no longer reserve pieces from this drop. Pieces held without a payment go back '
+                'on sale; orders that are paid or waiting for your payment check stay, and you can still '
+                'pack and ship them.\n\nA closed drop cannot be reopened. For your next live, start a new drop.',
+                style: TextStyle(color: Colors.grey.shade300),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Close drop'),
+                ),
+              ],
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(actionName),
-          ),
-        ],
-      ),
-    );
+          ) ==
+          true;
+    } else {
+      return;
+    }
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     try {
       final updated = await widget.repository.updateDropStatus(
@@ -134,6 +139,24 @@ class _DropsListScreenState extends State<DropsListScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _confirmGoLive(SellerDrop drop) async {
+    List<SellerProduct> products = const [];
+    try {
+      products = await widget.repository.getProducts(drop.id);
+    } catch (_) {
+      // Unknown product count: the checklist then blocks with "0 pieces".
+    }
+    if (!mounted) return false;
+    final readiness = GoLiveReadiness.evaluate(
+      drop: drop,
+      products: products,
+      queuedItems: widget.intakeQueue?.items ?? const [],
+      profile: _profile,
+      allDrops: _drops,
+    );
+    return showGoLiveChecklist(context, drop, readiness);
   }
 
   void _openCreateDropScreen([SellerDrop? existingDrop]) async {
@@ -521,7 +544,8 @@ class _DropsListScreenState extends State<DropsListScreen> {
                       'Camera Intake',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    onPressed: () => _openCameraIntake(drop),
+                    // A closed drop takes no new pieces (SA-INV-002).
+                    onPressed: DropRules.acceptsNewPieces(drop) ? () => _openCameraIntake(drop) : null,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -566,9 +590,10 @@ class _DropsListScreenState extends State<DropsListScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    icon: const Icon(Icons.replay, size: 16),
-                    label: const Text('Re-open Draft', style: TextStyle(fontSize: 12)),
-                    onPressed: () => _toggleDropStatus(drop, DropStatus.draft),
+                    // Closed drops are never reopened (SA-DROP-001): start a new one.
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('New drop', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _openCreateDropScreen(),
                   ),
               ],
             ),
