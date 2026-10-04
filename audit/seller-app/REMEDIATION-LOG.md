@@ -157,3 +157,14 @@ Totals:
 - Post-checks H21–H25 PASS. 040 re-applied twice cleanly.
 - `flutter analyze` clean. `flutter test`: 212 pass, 2 fail, and those 2 fail only on Windows.
 - Audit Flutter suite 26/26.
+
+## Live verification, rounds 2–4c (2026-10-04)
+
+| Item | Evidence |
+|---|---|
+| Migrations 038, 039 | Database Deploy run 37206628912 (apply): H21 storage policies (public listing removed, uploads need an approved seller), H22 suspension trigger + normalised-UTR index, H24 drop lifecycle + payee guard/log + offline-sale undo, all PASS. The 038 repair closed 1 live drop of an unapproved seller |
+| Migration 040 | Database Deploy run 37207948510 (apply): H25 `seller_sales_summary` sellers only, PASS; 034–040 recorded in `supabase_migrations.schema_migrations` |
+| CI on `main` code | PR #21: Seller App CI (analyze, `flutter test`, audit Flutter 26/26) and `db-tests.yml` (all migrations + SQL suites on PostgreSQL 16) passed |
+| SA-AUTH-001 / SA-AUTH-003 hosted settings | Set by the owner in Supabase Auth: custom SMTP, rate limit, reset template + redirect URL, minimum password length 10, Confirm email on (owner-reported; not readable from the repo) |
+| App-side fixes | Not yet verified on a device; they need a new app build (see HANDOFF "Waiting on the owner") |
+

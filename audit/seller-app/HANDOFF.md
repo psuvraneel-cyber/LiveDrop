@@ -1,4 +1,4 @@
-# Seller-app remediation — handoff (2026-10-04, updated after P1 round 4c)
+# Seller-app remediation — handoff (2026-10-04, updated after the 038–040 deploy)
 
 Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and the proof) and
 `FINDINGS.json` (all 95 audit findings with remediation and regression tests).
@@ -41,16 +41,32 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - Distribution is through the **Google Play Store** with Play App Signing. CI signs with the upload key (secrets `ANDROID_*`, var `ANDROID_RELEASE_CERT_SHA256`).
 - Improvements and the redesign only start **after all P0/P1 blockers are fixed**.
 
+## Live state (checked 2026-10-04)
+- All code from rounds 1–4c is on `main` (PRs #14–#18, #21; #19/#20 were merged into stacked branches and brought to `main` by #21).
+- Database Deploy run 37207948510 (apply) put migrations 034–040 live and recorded them in the migration history. Post-checks H21, H22, H24 and H25 passed.
+  - 038's one-time repair closed 1 live drop of a seller who was not approved.
+- Supabase Auth, set by the owner on 2026-10-04:
+  - custom SMTP (Gmail);
+  - email rate limit;
+  - Reset Password template (`token_hash` link to `/seller/reset-password`) and redirect URL;
+  - minimum password length 10;
+  - **Confirm email** on.
+
 ## Waiting on the owner
-1. Run **Actions → Database Deploy** in `apply` mode after each database PR is merged (037, 038, 039). Check H21, H22 and H24 in the log.
-   - If check H21 fails, the deploy role could not change the storage policies. Run section 1 of `038_storage_suspension_and_utr_guards.sql` in the Supabase SQL editor, then re-run apply.
-   - If 038 logged that it skipped the normalised-UTR index, review H22 and re-run apply.
-2. Done 2026-10-04: custom SMTP, rate limit, reset template and redirect URL were set by the owner. Still to do (SA-AUTH-003), under Supabase → Auth → Providers → Email: set the minimum password length to 10 and turn on **Confirm email**.
+1. Build the seller app from `main` and install it. Most fixes from rounds 3–4c are in the app. On the phone, check:
+   - change the UPI ID (password prompt; if it always says "confirm your password again", the hosted JWT has no `amr` password entry: tell the next session);
+   - Mark Sold, then Undo;
+   - reject a claim with "Ask buyer to fix";
+   - print a label for a fully paid order;
+   - a closed drop offers "New drop";
+   - password reset email end to end.
+2. Check which seller's live drop 038 closed (SA-ONB-002 repair) and whether that seller should be approved.
 3. SA-SEC-002:
    - Review the Auth logs since 2026-09-26.
    - Check whose token is in commit `0dd7c3f` (`scratch/test-jwt.mjs`).
    - Enable GitHub Push protection.
 4. Review the shop and drop free-shipping thresholds in the app (old rows were silently 200000).
+5. Create a Firebase project (Crashlytics + Cloud Messaging) for SA-OBS-001 / SA-NOT-001: add Android app `store.livedrop.seller_app` and provide `google-services.json`.
 
 ## Next blockers (P1), in agreed order
 - **Needs an owner account first:**
