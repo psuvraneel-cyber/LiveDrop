@@ -180,3 +180,29 @@ Totals:
 - `flutter analyze` clean. `flutter test`: 218 pass, 2 fail, and those 2 fail only on Windows.
 - Audit Flutter suite 26/26. Deno tests 3/3.
 
+## Live verification, round 5 (2026-10-05)
+- Database Deploy run 37226127405 (apply, 034–041): post-checks H21, H22, H24, H25 and H26 passed. H26 reported `pg_net=t cron job=t`.
+- The owner set the Supabase Edge Function secret `FCM_SERVICE_ACCOUNT`.
+- The owner added the GitHub secrets `GOOGLE_SERVICES_JSON` and `SUPABASE_ACCESS_TOKEN`. The token is scoped to the LiveDrop Staging project with Edge Functions read-write and Project Settings read, and expires 2026-10-12.
+- **Still open:** run **Deploy Edge Functions**, then do a test order on a phone running the app.
+
+## P1 round 6 (2026-10-05): operator console, backups, app links (migration 042, ADR-016)
+
+| Finding | Status | What changed | Proof | Owner actions |
+|---|---|---|---|---|
+| SA-OPS-002 | Fixed in repo | Website `/admin`: approve or suspend sellers (a reason is required to suspend; suspension closes live drops), list refunds owed, find an order, record a refund. Built on admin-only RPCs (042) that need a password sign-in within 10 minutes, with every action logged in `admin_actions`. No service-role key | SQL 24.1–24.6; `admin-console.test.tsx` (6) | After Database Deploy for 042, add yourself in the SQL editor: `INSERT INTO public.platform_admins (user_id, note) SELECT id, 'owner' FROM auth.users WHERE email = '<your e-mail>';` |
+| SA-ONB-001 | Fixed in repo | The console shows each seller's onboarding-fee UTR (from sign-up), whether their email is confirmed, and pending, approved or suspended status, with the last suspension reason | SQL 24.2, 24.4 | — |
+| SA-OPS-004 | Fixed in repo; owner setup required | `db-backup.yml`, nightly at 02:00 IST: encrypted `pg_dump` of `public` and of the auth accounts, plus a restore test that rebuilds from migrations and matches every row count; 30-day private artifact. The same restore test runs in `db-tests.yml` on every database PR. Restore guide: docs/40 | Local restore test: 13 tables, 15 rows, all counts match | Add the GitHub secret `BACKUP_PASSPHRASE` (keep it in your password manager), then run **Database Backup** once |
+| SA-AND-003 | Fixed in repo | `livedrop-seller://open/<section>` opens the app on that tab (`AppLinkService`, `app_links`). The password-reset success page has an "Open the LiveDrop Seller app" button. Verified https App Links are left for after the Play release (they need the Play signing fingerprint) | `app_links_test.dart` (2); reset page test | — |
+| SA-DB-001 | Closed | The Database Deploy post-checks (H21–H27) verify the hosted schema against the repo on every apply. Run 37226127405 passed | Run 37226127405 | — |
+
+Also in this round:
+- The audit harness now reports psql `ERROR`s from the suites, so CI fails on them. Previously a suite that errored part-way was silent.
+- Test 22.4 seeded its "today" order an hour back, so it failed between 00:00 and 01:00 IST. It now uses one minute.
+
+Totals:
+- DB harness (42 migrations): 166 PASS, 0 FAIL. Remaining FINDINGs: 12.3 and 13.9 (P2).
+- Post-check H27 PASS locally.
+- buyer-web: `tsc` and `eslint` clean; vitest 52 files, 694 tests pass (plus the 6 new admin tests and the updated reset test).
+- Seller app: `flutter analyze` clean. `flutter test`: 220 pass, plus the same 2 inventory_queue_status tests that fail only on Windows.
+

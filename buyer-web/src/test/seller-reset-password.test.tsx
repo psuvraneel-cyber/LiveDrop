@@ -13,6 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   SellerPasswordResetView,
   RESET_SUCCESS_MESSAGE,
+  OPEN_SELLER_APP_URL,
   INVALID_LINK_MESSAGE,
   CODE_LINK_MESSAGE,
   MISSING_LINK_MESSAGE,
@@ -176,6 +177,7 @@ describe('SellerPasswordResetView', () => {
     fillAndSubmit(TEST_NEW_PASSWORD, TEST_NEW_PASSWORD);
 
     expect(await screen.findByTestId('reset-success')).toHaveTextContent(RESET_SUCCESS_MESSAGE);
+    expect(screen.getByTestId('reset-open-app')).toHaveAttribute('href', OPEN_SELLER_APP_URL);
     expect(RESET_SUCCESS_MESSAGE).toBe('Password updated. Open the LiveDrop Seller app and log in with your new password.');
     expect(auth.updateUser).toHaveBeenCalledWith({ password: TEST_NEW_PASSWORD });
     await waitFor(() => expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' }));

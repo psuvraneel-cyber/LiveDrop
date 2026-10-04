@@ -34,8 +34,8 @@ END $$;
 DO $$
 DECLARE s jsonb; s_b jsonb; days jsonb; today_total bigint; anon_err text;
 BEGIN
-  -- seller A: two paid orders this week, one shipped last month, one pending hold
-  PERFORM pg_temp.order_with_item(audit.drop_a_live(), audit.p_a1(), 'paid',    150000, 150000, now() - interval '1 hour', now() - interval '1 hour');
+  -- seller A: two paid orders this week (one a minute ago, so it is "today" at any hour), one shipped last month, one pending hold
+  PERFORM pg_temp.order_with_item(audit.drop_a_live(), audit.p_a1(), 'paid',    150000, 150000, now() - interval '1 minute', now() - interval '1 minute');
   PERFORM pg_temp.order_with_item(audit.drop_a_live(), audit.p_a2(), 'shipped', 250000, 250000, now() - interval '2 days', now() - interval '2 days');
   PERFORM pg_temp.order_with_item(audit.drop_a_live(), audit.p_a3(), 'shipped',  50000,  50000, now() - interval '40 days', now() - interval '40 days');
   PERFORM pg_temp.order_with_item(audit.drop_a_live(), audit.p_a3(), 'pending',  50000,      0, now() - interval '5 minutes');
