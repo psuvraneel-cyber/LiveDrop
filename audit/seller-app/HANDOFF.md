@@ -42,6 +42,7 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - The project "LiveDrop Staging" is used as **production**. A separate free staging project is recommended but not yet created.
 - Distribution is through the **Google Play Store** with Play App Signing. CI signs with the upload key (secrets `ANDROID_*`, var `ANDROID_RELEASE_CERT_SHA256`).
 - Improvements and the redesign only start **after all P0/P1 blockers are fixed**.
+- The seller's UPI ID stays **hidden from buyers** (REQ-BLK-1R, reconfirmed 2026-10-05): no manual "pay to UPI ID" fallback on the payment page.
 - Operations (ADR-016): a small **admin page** on the website (not SQL), and a **free nightly backup job** (not Supabase Pro).
 
 ## Live state (checked 2026-10-04)

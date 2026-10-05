@@ -293,12 +293,12 @@ END $$;
 
 UPDATE products SET status='available', reserved_by_order_id=NULL, reserved_at=NULL WHERE drop_id = audit.drop_a_live();
 
--- 13.9 UPI deep link built from seller-controlled display name
+-- 13.9 UPI deep link built from seller-controlled display name: no raw '#', stray '%' or '&' (SA-PAY-015, fixed in 043)
 DO $$
 DECLARE u text;
 BEGIN
   u := generate_upi_payment_uri('aarohi@okaxis', 'Aarohi #1 Boutique & Co 100%', 150000, 'LD-ABC123-FUL-1A2B', 'LiveDrop LD-ABC123');
-  RAISE NOTICE '% 13.9 generate_upi_payment_uri -> %', CASE WHEN u LIKE '%#1%' OR u LIKE '%100%%' THEN 'FINDING' ELSE 'PASS' END, u;
+  RAISE NOTICE '% 13.9 generate_upi_payment_uri -> %', CASE WHEN position('#' IN u) > 0 OR u ~ '%(?![0-9A-F]{2})' OR position('&Co' IN u) > 0 THEN 'FINDING' ELSE 'PASS' END, u;
 END $$;
 
 -- 13.10 free-shipping threshold: drop threshold, else shop threshold, else none (SA-PAY-008, migration 037)

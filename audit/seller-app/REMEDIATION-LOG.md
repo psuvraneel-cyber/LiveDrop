@@ -221,3 +221,14 @@ Totals:
   - Checkout now sends the mode that matches the drop's setting, falling back to the seller's setting (`confirmationModeFor`, the same rule as the server).
   - The data layer retries once with `full_payment` on `ADVANCE_CONFIRMATION_DISABLED` or `ADVANCE_EXCEEDS_TOTAL`. That first request creates no order, and the retry reuses the same idempotency key.
 - **Tests:** `checkout-confirmation-mode.test.ts` (4); buyer-web 698/698.
+
+## Fix (2026-10-05): UPI apps declined LiveDrop payment links (migration 043, SA-PAY-015)
+- **Found by:** the owner's end-to-end test. A ₹1 advance paid through the link or QR failed on two phones with "exceeded your account limit"; no money was debited.
+- **Cause:** `generate_upi_payment_uri` put `tr=<reference>` in the link. `tr` is a merchant field in the UPI deep-link spec, and payer apps and banks decline merchant-style requests to personal UPI IDs, often showing a limit message.
+- **Fix (043):**
+  - The link is now the plain P2P form `pa, pn, am, cu, tn`.
+  - The note carries the order code; the seller still verifies by UTR.
+  - Name and note keep only letters, digits, spaces and dots, which also fixes SA-PAY-015 (`#`, `%`, `&` in store names). SQL 13.9 now passes, and 12.3 is the only remaining known FINDING.
+- **Tests:** suite 25 (4/4); harness 43 migrations, 171 PASS, 0 FAIL; post-check H28.
+- **Not verifiable without a real payment:** retest after Database Deploy. If an app still declines, the remaining causes are outside LiveDrop (see the owner note in PR).
+- **Owner decision (2026-10-05):** no "pay to UPI ID" fallback. The seller's UPI ID stays hidden from buyers (REQ-BLK-1R). If apps still decline personal UPI IDs, sellers switch to a business UPI ID.
