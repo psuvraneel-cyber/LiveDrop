@@ -47,6 +47,7 @@ import { EmptyCheckoutState } from '../../components/checkout/EmptyCheckoutState
 import { CheckoutForm } from '../../components/checkout/CheckoutForm';
 import { CheckoutReview } from '../../components/checkout/CheckoutReview';
 import { useDropShippingRules } from '../../lib/checkout/use-drop-shipping-rules';
+import { confirmationModeFor } from '../../lib/checkout/confirmation-mode';
 import { CheckoutSuccessView } from '../../components/checkout/CheckoutSuccessView';
 import { CartItem } from '../../types/cart';
 
@@ -252,6 +253,8 @@ function CheckoutPageContent() {
       p_buyer_phone: validation.sanitized.buyer_phone,
       p_shipping_address: validation.sanitized.shipping_address,
       p_pincode: validation.sanitized.pincode,
+      // Matches the seller's advance setting; unknown -> the data layer falls back if needed.
+      p_confirmation_mode: confirmationModeFor(shippingRulesDrop) ?? undefined,
       p_idempotency_key: idempotencyKey,
     };
 
