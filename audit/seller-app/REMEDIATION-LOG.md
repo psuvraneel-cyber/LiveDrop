@@ -214,6 +214,14 @@ Totals:
   - The release job now requires the `GOOGLE_SERVICES_JSON` secret and writes the file.
   - The build fails if the compiled release resources lack `google_app_id`.
 
+## Fix (2026-10-05): checkout blocked when the seller has advance payments off
+- **Found by:** the owner's end-to-end test. "Place Order & Hold Items" did nothing useful for a drop whose seller had advance confirmation off.
+- **Cause:** buyer-web always sent `p_confirmation_mode = 'advance'`, so `create_order_with_reservation` answered `ADVANCE_CONFIRMATION_DISABLED`.
+- **Fix:**
+  - Checkout now sends the mode that matches the drop's setting, falling back to the seller's setting (`confirmationModeFor`, the same rule as the server).
+  - The data layer retries once with `full_payment` on `ADVANCE_CONFIRMATION_DISABLED` or `ADVANCE_EXCEEDS_TOTAL`. That first request creates no order, and the retry reuses the same idempotency key.
+- **Tests:** `checkout-confirmation-mode.test.ts` (4); buyer-web 698/698.
+
 ## Fix (2026-10-05): UPI apps declined LiveDrop payment links (migration 043, SA-PAY-015)
 - **Found by:** the owner's end-to-end test. A ₹1 advance paid through the link or QR failed on two phones with "exceeded your account limit"; no money was debited.
 - **Cause:** `generate_upi_payment_uri` put `tr=<reference>` in the link. `tr` is a merchant field in the UPI deep-link spec, and payer apps and banks decline merchant-style requests to personal UPI IDs, often showing a limit message.

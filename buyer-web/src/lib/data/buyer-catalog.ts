@@ -29,6 +29,7 @@ import {
   SubmitBuyerPaymentClaimResponse,
 } from '../../types/domain';
 import { classifyRpcError, ErrorCode, InvalidOrderTokenError, LiveDropError, NetworkError } from '../errors';
+import { ADVANCE_FALLBACK_ERRORS } from '../checkout/confirmation-mode';
 
 /**
  * Retrieves an active live drop by its URL slug.
@@ -693,17 +694,28 @@ export async function createOrderWithReservation(
     throw new LiveDropError('Cart cannot be empty.', 'EMPTY_CART');
   }
 
+  const mode = request.p_confirmation_mode || 'advance';
   try {
-    const { data, error } = await client.rpc('create_order_with_reservation', {
-      p_drop_id: request.p_drop_id,
-      p_product_ids: request.p_product_ids,
-      p_buyer_name: request.p_buyer_name,
-      p_buyer_phone: request.p_buyer_phone,
-      p_shipping_address: request.p_shipping_address,
-      p_pincode: request.p_pincode,
-      p_confirmation_mode: request.p_confirmation_mode || 'advance',
-      p_idempotency_key: request.p_idempotency_key || null,
-    });
+    const call = (confirmationMode: string) =>
+      client.rpc('create_order_with_reservation', {
+        p_drop_id: request.p_drop_id,
+        p_product_ids: request.p_product_ids,
+        p_buyer_name: request.p_buyer_name,
+        p_buyer_phone: request.p_buyer_phone,
+        p_shipping_address: request.p_shipping_address,
+        p_pincode: request.p_pincode,
+        p_confirmation_mode: confirmationMode,
+        p_idempotency_key: request.p_idempotency_key || null,
+      });
+
+    let { data, error } = await call(mode);
+
+    // Advance is off for this drop (or larger than the total): no order was created, so place the
+    // same order as a full payment instead of leaving the buyer stuck.
+    const first = data as CreateOrderResponse | null;
+    if (!error && mode === 'advance' && first && first.success !== true && ADVANCE_FALLBACK_ERRORS.has(String(first.error))) {
+      ({ data, error } = await call('full_payment'));
+    }
 
     if (error) {
       throw new LiveDropError(
