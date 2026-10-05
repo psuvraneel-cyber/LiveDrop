@@ -198,6 +198,19 @@ BEGIN
 END $$;
 SELECT count(*) AS h27_platform_admins FROM public.platform_admins;
 
+\echo '== H28: migration 043 (UPI link for personal UPI IDs)'
+DO $$
+DECLARE u text := public.generate_upi_payment_uri('check@okaxis', 'A #1 & Co 100%', 100, 'REF-1', 'LiveDrop LD-ABC123 advance');
+BEGIN
+  IF u LIKE '%&tr=%' THEN
+    RAISE NOTICE 'migration 043 not applied yet (link still carries tr)';
+  ELSIF u <> 'upi://pay?pa=check@okaxis&pn=A%201%20Co%20100&am=1.00&cu=INR&tn=LiveDrop%20LD-ABC123%20advance' THEN
+    RAISE EXCEPTION 'CHECK FAILED (H28): unexpected UPI link %', u;
+  ELSE
+    RAISE NOTICE 'PASS H28 UPI link: plain P2P form, no merchant fields, name sanitised';
+  END IF;
+END $$;
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

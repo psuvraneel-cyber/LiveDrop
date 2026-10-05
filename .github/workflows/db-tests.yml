@@ -56,8 +56,8 @@ jobs:
       PGPORT: "5432"
       PGUSER: postgres
       PGPASSWORD: postgres
-      # Open P2 defects whose suites still print FINDING (SA-INV-003, SA-PAY-015).
-      KNOWN_FINDINGS: "12.3 13.9"
+      # Open P2 defect whose suite still prints FINDING (SA-INV-003).
+      KNOWN_FINDINGS: "12.3"
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

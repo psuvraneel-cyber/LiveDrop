@@ -213,3 +213,14 @@ Totals:
 - Fix:
   - The release job now requires the `GOOGLE_SERVICES_JSON` secret and writes the file.
   - The build fails if the compiled release resources lack `google_app_id`.
+
+## Fix (2026-10-05): UPI apps declined LiveDrop payment links (migration 043, SA-PAY-015)
+- **Found by:** the owner's end-to-end test. A ₹1 advance paid through the link or QR failed on two phones with "exceeded your account limit"; no money was debited.
+- **Cause:** `generate_upi_payment_uri` put `tr=<reference>` in the link. `tr` is a merchant field in the UPI deep-link spec, and payer apps and banks decline merchant-style requests to personal UPI IDs, often showing a limit message.
+- **Fix (043):**
+  - The link is now the plain P2P form `pa, pn, am, cu, tn`.
+  - The note carries the order code; the seller still verifies by UTR.
+  - Name and note keep only letters, digits, spaces and dots, which also fixes SA-PAY-015 (`#`, `%`, `&` in store names). SQL 13.9 now passes, and 12.3 is the only remaining known FINDING.
+- **Tests:** suite 25 (4/4); harness 43 migrations, 171 PASS, 0 FAIL; post-check H28.
+- **Not verifiable without a real payment:** retest after Database Deploy. If an app still declines, the remaining causes are outside LiveDrop (see the owner note in PR).
+- **Not done (owner decision REQ-BLK-1R):** a "pay to UPI ID" fallback would show the seller's UPI ID to buyers, which that decision hides. Awaiting the owner's choice.
