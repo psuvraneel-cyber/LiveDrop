@@ -40,19 +40,35 @@ describe('Tier 1: Screen 09 — Direct UPI Payment View', () => {
     expect(screen.getByText(/Scan with any UPI app to pay exact amount/i)).toBeInTheDocument();
   });
 
-  it('keeps the seller UPI ID private: shows QR and UPI app button but no UPI ID or copy button', async () => {
+  // Owner decision 2026-10-05 (replaces REQ-BLK-1R): UPI apps decline payment links to personal UPI
+  // IDs, so buyers get two buyer-started ways to pay: in the seller's WhatsApp chat, or to the UPI ID.
+  it('offers buyer-started ways to pay: WhatsApp chat and the UPI ID with copy buttons', async () => {
     renderWithProviders(
       <DirectUpiPaymentView
-        order={mockOrderReceiptFull}
+        order={{ ...mockOrderReceiptFull, whatsapp_number: '9876543210' }}
         orderToken="8f7a6c9d-1234-4567-89ab-cdef01234567"
       />
     );
 
     expect(await screen.findByTestId('payment-reference')).toBeInTheDocument();
-    expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('copy-vpa-btn')).not.toBeInTheDocument();
-    expect(screen.queryByText(mockPaymentAttempt.payee_vpa_snapshot)).not.toBeInTheDocument();
+    expect(screen.getByTestId('payee-upi-id')).toHaveTextContent(mockPaymentAttempt.payee_vpa_snapshot);
+    expect(screen.getByTestId('copy-upi-id-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('copy-amount-btn')).toBeInTheDocument();
+    const wa = screen.getByTestId('pay-on-whatsapp-btn');
+    expect(wa.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/919876543210\?text=/);
+    expect(decodeURIComponent(wa.getAttribute('href') || '')).toContain(mockOrderReceiptFull.order_code);
     expect(screen.getByTestId('pay-with-upi-intent-btn')).toBeInTheDocument();
+  });
+
+  it('hides the WhatsApp option when the boutique has no WhatsApp number', async () => {
+    renderWithProviders(
+      <DirectUpiPaymentView
+        order={{ ...mockOrderReceiptFull, whatsapp_number: null }}
+        orderToken="8f7a6c9d-1234-4567-89ab-cdef01234567"
+      />
+    );
+    expect(await screen.findByTestId('payee-upi-id')).toBeInTheDocument();
+    expect(screen.queryByTestId('pay-on-whatsapp-btn')).not.toBeInTheDocument();
   });
 
   it('validates 12-digit numeric UTR constraint and shows alert on invalid input', async () => {

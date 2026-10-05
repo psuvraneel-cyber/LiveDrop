@@ -232,3 +232,23 @@ Totals:
 - **Tests:** suite 25 (4/4); harness 43 migrations, 171 PASS, 0 FAIL; post-check H28.
 - **Not verifiable without a real payment:** retest after Database Deploy. If an app still declines, the remaining causes are outside LiveDrop (see the owner note in PR).
 - **Owner decision (2026-10-05):** no "pay to UPI ID" fallback. The seller's UPI ID stays hidden from buyers (REQ-BLK-1R). If apps still decline personal UPI IDs, sellers switch to a business UPI ID.
+
+## Fix (2026-10-05): buyers can pay a personal UPI ID (migration 044, owner decision)
+- **Diagnosis (on the owner's Mi 10i, over adb, no money moved):**
+  - Google Pay and WhatsApp both open LiveDrop's payment link, then refuse it before any PIN:
+    - Google Pay: "You've exceeded the bank limit for this payment";
+    - WhatsApp: "Your money was not transferred".
+  - The refusal happens with or without the amount and note, and as if opened from Chrome.
+  - A payment the owner started manually in Google Pay to the same UPI ID went through.
+  - Conclusion: UPI apps decline link- or QR-started payments to personal UPI IDs.
+- **Owner decision:**
+  - Keep the personal UPI ID; no merchant account, because of the merchant MDR: 0.4% above ₹2,000 from 2026-10-15, with small merchants under ₹1 lakh a month reportedly exempt.
+  - Offer buyer-started payment methods, and show the UPI ID on the payment page. This revises REQ-BLK-1R.
+- **Fix:**
+  - The payment page now has:
+    - **Option 1, Pay on WhatsApp:** opens the seller's chat with "I'm paying ₹X for LD-XXXXXX"; the buyer taps ₹ and pays.
+    - **Option 2, Pay to the UPI ID:** UPI ID and amount with copy buttons, and the order code for the note.
+    - The QR code and "Pay with UPI App" remain, with a note that some apps decline them.
+  - 044 adds `whatsapp_number` (the public storefront phone) to `get_order_by_token`. A freshly created order fetches its receipt once to get it.
+- **Tests:** SQL 25.5; harness 44 migrations, 172 PASS, 0 FAIL; post-check H29; buyer-web 699/699 (privacy tests updated to the new decision, plus WhatsApp and UPI ID tests).
+

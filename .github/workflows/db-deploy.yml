@@ -1,6 +1,6 @@
 name: Database Deploy
 
-# Applies the seller-app audit migrations (034–043) to the hosted Supabase database and
+# Applies the seller-app audit migrations (034–044) to the hosted Supabase database and
 # runs read-only post-deploy checks. Manual only, main branch only.
 #
 # Required secret : SUPABASE_DB_URL  (Supabase -> Connect -> "Session pooler" connection string)
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "check-only = read-only preflight + checks; apply = apply 034–043 then check"
+        description: "check-only = read-only preflight + checks; apply = apply 034–044 then check"
         type: choice
         options: [check-only, apply]
         default: check-only
@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: ${{ inputs.mode }} migrations 034–043
+    name: ${{ inputs.mode }} migrations 034–044
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: supabase-production
@@ -105,6 +105,10 @@ jobs:
         if: inputs.mode == 'apply'
         run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/043_upi_p2p_payment_link.sql
 
+      - name: Apply 044 (order receipt WhatsApp number; idempotent)
+        if: inputs.mode == 'apply'
+        run: psql "$DATABASE_URL" -X -1 -v ON_ERROR_STOP=1 -f supabase/migrations/044_order_receipt_whatsapp_number.sql
+
       - name: Record migrations in Supabase history (if present)
         if: inputs.mode == 'apply'
         run: |
@@ -122,10 +126,11 @@ jobs:
                                       ('040', 'seller_sales_summary'),
                                       ('041', 'seller_push_notifications'),
                                       ('042', 'platform_admin_console'),
-                                      ('043', 'upi_p2p_payment_link')) AS e(version, name)
+                                      ('043', 'upi_p2p_payment_link'),
+                                      ('044', 'order_receipt_whatsapp_number')) AS e(version, name)
                            ON e.version = m.version
                          WHERE m.name IS DISTINCT FROM e.name) THEN
-                RAISE EXCEPTION 'migration history already has 034-043 rows with different names; resolve manually';
+                RAISE EXCEPTION 'migration history already has 034-044 rows with different names; resolve manually';
               END IF;
               INSERT INTO supabase_migrations.schema_migrations (version, name)
               VALUES ('034', 'lock_down_public_view_privileges'),
@@ -137,9 +142,10 @@ jobs:
                      ('040', 'seller_sales_summary'),
                      ('041', 'seller_push_notifications'),
                      ('042', 'platform_admin_console'),
-                     ('043', 'upi_p2p_payment_link')
+                     ('043', 'upi_p2p_payment_link'),
+                     ('044', 'order_receipt_whatsapp_number')
               ON CONFLICT (version) DO NOTHING;
-              RAISE NOTICE 'recorded 034–043 in supabase_migrations.schema_migrations';
+              RAISE NOTICE 'recorded 034–044 in supabase_migrations.schema_migrations';
             ELSE
               RAISE NOTICE 'no supabase_migrations.schema_migrations table; nothing recorded';
             END IF;

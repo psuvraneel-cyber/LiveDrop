@@ -211,6 +211,16 @@ BEGIN
   END IF;
 END $$;
 
+\echo '== H29: migration 044 (order receipt WhatsApp number)'
+DO $$
+BEGIN
+  IF position('whatsapp_number' IN pg_get_functiondef('public.get_order_by_token(text)'::regprocedure)) = 0 THEN
+    RAISE NOTICE 'migration 044 not applied yet';
+  ELSE
+    RAISE NOTICE 'PASS H29 order receipt includes the seller WhatsApp number';
+  END IF;
+END $$;
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

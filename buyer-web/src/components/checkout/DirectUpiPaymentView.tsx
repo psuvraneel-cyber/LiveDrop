@@ -14,7 +14,7 @@ import {
   getOrderByToken,
 } from '../../lib/data/buyer-catalog';
 import { getBuyerClient } from '../../lib/supabase/client';
-import { buildWhatsAppChatUrl } from '../../lib/utils/whatsapp';
+import { buildWhatsAppChatUrl, buildWhatsAppPaymentUrl } from '../../lib/utils/whatsapp';
 
 export interface DirectUpiPaymentViewProps {
   order: CreateOrderSuccessResponse | OrderReceipt;
@@ -49,6 +49,28 @@ export function DirectUpiPaymentView({
 }: DirectUpiPaymentViewProps) {
   const token = 'order_token' in order ? order.order_token : orderToken || '';
   const orderId = 'order_id' in order ? order.order_id : order.id;
+
+  // Seller's WhatsApp number for "Pay on WhatsApp": in the order receipt (migration 044). A freshly
+  // created order (no receipt yet, so no 'items') fetches its receipt once.
+  const isFreshOrder = !('items' in order);
+  const receiptWhatsapp = 'whatsapp_number' in order ? order.whatsapp_number ?? null : null;
+  const [fetchedWhatsapp, setFetchedWhatsapp] = useState<string | null>(null);
+  const sellerWhatsapp = receiptWhatsapp || fetchedWhatsapp;
+  useEffect(() => {
+    if (!isFreshOrder || receiptWhatsapp || !orderId || !token) return;
+    let active = true;
+    getOrderByToken(getBuyerClient(), orderId, token).then(
+      (receipt) => {
+        if (active) setFetchedWhatsapp(receipt.whatsapp_number ?? null);
+      },
+      () => {
+        // The WhatsApp option stays hidden; paying to the UPI ID still works.
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, [isFreshOrder, receiptWhatsapp, orderId, token]);
 
   const initialPaymentType =
     order.confirmation_mode === 'advance' && order.payment_status === 'unpaid'
@@ -94,7 +116,7 @@ export function DirectUpiPaymentView({
   const [utrError, setUtrError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [copiedField, setCopiedField] = useState<'ref' | 'amount' | null>(null);
+  const [copiedField, setCopiedField] = useState<'ref' | 'amount' | 'vpa' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -352,7 +374,7 @@ export function DirectUpiPaymentView({
   }, [activeAttempt, paymentType, order.payment_status, isPaidInFull, isTerminal, ensurePaymentAttempt]);
 
   // 6. Handle copy to clipboard
-  const handleCopy = (text: string, field: 'ref' | 'amount') => {
+  const handleCopy = (text: string, field: 'ref' | 'amount' | 'vpa') => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedField(field);
@@ -699,6 +721,116 @@ export function DirectUpiPaymentView({
             {/* If claim is NOT submitted yet, show QR & UPI details */}
             {!isClaimUnderReview && (
               <>
+                {/* Ways to pay (owner decision 2026-10-05): UPI apps decline payment links to personal
+                    UPI IDs but accept payments the buyer starts. Both options below are buyer-started. */}
+                <div className="ld-pay-options" data-testid="pay-options" style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
+                  {sellerWhatsapp && (
+                    <div
+                      className="ld-pay-option"
+                      data-testid="pay-option-whatsapp"
+                      style={{ border: '1px solid rgba(37, 211, 102, 0.4)', borderRadius: '12px', padding: '14px' }}
+                    >
+                      <strong style={{ display: 'block', marginBottom: '6px' }}>Option 1: Pay on WhatsApp</strong>
+                      <ol style={{ margin: '0 0 10px', paddingLeft: '18px', fontSize: '13px', display: 'grid', gap: '4px' }}>
+                        <li>Tap the button to open the boutique&apos;s WhatsApp chat.</li>
+                        <li>
+                          Tap <strong>₹</strong> in the chat and pay exactly <strong>{formatPaisaToINR(activeAttempt.expected_amount_paisa)}</strong>.
+                        </li>
+                        <li>Copy the UPI transaction ID from the payment and submit it below.</li>
+                      </ol>
+                      <a
+                        href={
+                          buildWhatsAppPaymentUrl({
+                            phone: sellerWhatsapp,
+                            orderCode: order.order_code,
+                            amountPaisa: activeAttempt.expected_amount_paisa,
+                            paymentType: activeAttempt.payment_type,
+                            storeName: 'store_name' in order ? order.store_name : null,
+                          }) ?? undefined
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ld-btn-whatsapp"
+                        data-testid="pay-on-whatsapp-btn"
+                        onClick={() => setIsUpiAppOpened(true)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          padding: '12px 18px',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          borderRadius: '24px',
+                          fontWeight: 600,
+                          fontSize: '14px',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        Pay {formatPaisaToINR(activeAttempt.expected_amount_paisa)} on WhatsApp
+                      </a>
+                    </div>
+                  )}
+
+                  {activeAttempt.payee_vpa_snapshot && (
+                    <div
+                      className="ld-pay-option"
+                      data-testid="pay-option-upi-id"
+                      style={{ border: '1px solid var(--border-subtle, rgba(255,255,255,0.12))', borderRadius: '12px', padding: '14px' }}
+                    >
+                      <strong style={{ display: 'block', marginBottom: '6px' }}>
+                        Option {sellerWhatsapp ? 2 : 1}: Pay to the UPI ID in any UPI app
+                      </strong>
+                      <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '13px', display: 'grid', gap: '8px' }}>
+                        <li>
+                          Open Google Pay, PhonePe, Paytm or BHIM and choose <strong>Pay UPI ID</strong>.
+                        </li>
+                        <li>
+                          <span>Enter this UPI ID: </span>
+                          <span className="ld-copyable-box" style={{ display: 'inline-flex' }}>
+                            <code className="ld-ref-code" data-testid="payee-upi-id">
+                              {activeAttempt.payee_vpa_snapshot}
+                            </code>
+                            <button
+                              type="button"
+                              className="ld-copy-btn"
+                              data-testid="copy-upi-id-btn"
+                              aria-label="Copy UPI ID"
+                              onClick={() => handleCopy(activeAttempt.payee_vpa_snapshot, 'vpa')}
+                            >
+                              {copiedField === 'vpa' ? 'Copied!' : 'Copy'}
+                            </button>
+                          </span>
+                        </li>
+                        <li>
+                          <span>Pay exactly </span>
+                          <span className="ld-copyable-box" style={{ display: 'inline-flex' }}>
+                            <code className="ld-ref-code">{formatPaisaToINR(activeAttempt.expected_amount_paisa)}</code>
+                            <button
+                              type="button"
+                              className="ld-copy-btn"
+                              data-testid="copy-amount-btn"
+                              aria-label="Copy amount"
+                              onClick={() => handleCopy((activeAttempt.expected_amount_paisa / 100).toFixed(2), 'amount')}
+                            >
+                              {copiedField === 'amount' ? 'Copied!' : 'Copy'}
+                            </button>
+                          </span>
+                          <span>
+                            {' '}
+                            and write <strong>{order.order_code}</strong> in the note.
+                          </span>
+                        </li>
+                        <li>Submit the 12-digit UTR from the payment below.</li>
+                      </ol>
+                    </div>
+                  )}
+
+                  <p className="ld-form-hint" style={{ margin: 0, fontSize: '12px' }}>
+                    The QR code and &quot;Pay with UPI App&quot; button below may be declined by some UPI apps for this
+                    boutique. If that happens, use the {sellerWhatsapp ? 'options' : 'option'} above. No money is taken when
+                    an app declines.
+                  </p>
+                </div>
+
                 {/* QR Code Section */}
                 <div className="ld-qr-block">
                   {qrDataUrl ? (
