@@ -223,4 +223,4 @@ Totals:
   - Name and note keep only letters, digits, spaces and dots, which also fixes SA-PAY-015 (`#`, `%`, `&` in store names). SQL 13.9 now passes, and 12.3 is the only remaining known FINDING.
 - **Tests:** suite 25 (4/4); harness 43 migrations, 171 PASS, 0 FAIL; post-check H28.
 - **Not verifiable without a real payment:** retest after Database Deploy. If an app still declines, the remaining causes are outside LiveDrop (see the owner note in PR).
-- **Not done (owner decision REQ-BLK-1R):** a "pay to UPI ID" fallback would show the seller's UPI ID to buyers, which that decision hides. Awaiting the owner's choice.
+- **Owner decision (2026-10-05):** no "pay to UPI ID" fallback. The seller's UPI ID stays hidden from buyers (REQ-BLK-1R). If apps still decline personal UPI IDs, sellers switch to a business UPI ID.
