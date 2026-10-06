@@ -99,7 +99,7 @@ describe('Tier 1: Screen 11 — Order Tracking & Receipt View', () => {
 
     expect(screen.getByText('Payment Submitted')).toBeInTheDocument();
     expect(screen.getByText('Awaiting Seller Verification')).toBeInTheDocument();
-    expect(screen.getByText('Delivered')).toBeInTheDocument();
+    expect(screen.getByText('Track your parcel')).toBeInTheDocument();
   });
 
   it('displays authoritative database financial breakdown (Subtotal, Delivery, Total)', async () => {

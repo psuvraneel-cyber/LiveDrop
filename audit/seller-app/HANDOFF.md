@@ -82,6 +82,7 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 
 ## Next blockers (P1)
 - Remaining P1 items need a phone or a decision: SA-AND-005 (physical-device validation evidence) and SA-UX-001.
+- **Planned (owner, 2026-10-06):** let sellers mark an order **Delivered** in the seller app. This needs a `delivered` fulfilment state, an RPC and a seller-app button, and should then show as a completed final step on the order page. The order page currently ends with "Track your parcel", linking the courier's tracking page.
 - Follow-ups noted in ADR-016:
   - reserve store slugs that clash with site routes (`admin`, `shop`, `cart`, `checkout`, `order`, `seller`);
   - verified https App Links after the Play release;

@@ -13,6 +13,7 @@ import {
 } from '../../types/domain';
 import { CartItem } from '../../types/cart';
 import { DirectUpiPaymentView } from './DirectUpiPaymentView';
+import { courierTrackingPage } from '../../lib/utils/courier-tracking';
 
 export interface CheckoutSuccessViewProps {
   order: CreateOrderSuccessResponse | OrderReceipt;
@@ -166,6 +167,7 @@ export function CheckoutSuccessView({
   const storeName = 'store_name' in currentOrder ? currentOrder.store_name : null;
   const courierPartner = 'courier_partner' in currentOrder ? currentOrder.courier_partner : null;
   const trackingNumber = 'tracking_number' in currentOrder ? currentOrder.tracking_number : null;
+  const trackingPage = courierTrackingPage(courierPartner);
   const shippedAt = 'shipped_at' in currentOrder ? currentOrder.shipped_at : null;
 
   const advanceRequiredPaisa = currentOrder.advance_required_paisa || 0;
@@ -581,21 +583,37 @@ export function CheckoutSuccessView({
             </div>
           </div>
 
-          {/* Step 5: Out for Delivery */}
-          <div className={`ld-timeline-step ${isTerminal ? 'halted' : 'pending'}`}>
-            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : '○'}</div>
+          {/* Step 5: Track your parcel. LiveDrop gets no courier updates, so "out for delivery" and
+              "delivered" are shown on the courier's own page. */}
+          <div
+            className={`ld-timeline-step ${isTerminal ? 'halted' : fulfilmentStatus === 'shipped' ? 'active' : 'pending'}`}
+            data-testid="timeline-track-parcel"
+          >
+            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : fulfilmentStatus === 'shipped' ? '➜' : '○'}</div>
             <div className="ld-timeline-content">
-              <span className="ld-timeline-step-title">Out for Delivery</span>
-              <span className="ld-timeline-step-desc">Arriving at your delivery address</span>
-            </div>
-          </div>
-
-          {/* Step 6: Delivered */}
-          <div className={`ld-timeline-step ${isTerminal ? 'halted' : 'pending'}`}>
-            <div className="ld-timeline-icon-box">{isTerminal ? '✕' : '○'}</div>
-            <div className="ld-timeline-content">
-              <span className="ld-timeline-step-title">Delivered</span>
-              <span className="ld-timeline-step-desc">Enjoy your handcrafted boutique piece</span>
+              <span className="ld-timeline-step-title">Track your parcel</span>
+              <span className="ld-timeline-step-desc">
+                {isTerminal
+                  ? 'Order closed'
+                  : fulfilmentStatus === 'shipped'
+                    ? `Check delivery progress on ${trackingPage?.name ?? 'the courier’s website'}${trackingNumber ? ' with your tracking number' : ''}.`
+                    : 'Available once the boutique ships your order'}
+              </span>
+              {!isTerminal && fulfilmentStatus === 'shipped' && trackingPage && (
+                <a
+                  href={trackingPage.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ld-copy-btn"
+                  data-testid="track-on-courier-btn"
+                  style={{ display: 'inline-flex', marginTop: '8px', width: 'fit-content' }}
+                  onClick={() => {
+                    if (trackingNumber) handleCopyTracking(trackingNumber);
+                  }}
+                >
+                  Track on {trackingPage.name}{trackingNumber ? ' (copies the tracking number)' : ''}
+                </a>
+              )}
             </div>
           </div>
         </div>
