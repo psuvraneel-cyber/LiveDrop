@@ -10,6 +10,8 @@ import React, { ReactNode } from 'react';
 import { CartProvider } from '../../lib/cart/cart-context';
 import { ProfileProvider } from '../../lib/profile/profile-context';
 import { GlobalAppOverlays } from './GlobalAppOverlays';
+import { SiteAnalytics } from '../analytics/SiteAnalytics';
+import { AnalyticsNotice } from '../analytics/AnalyticsNotice';
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -17,6 +19,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ProfileProvider>
         {children}
         <GlobalAppOverlays />
+        <SiteAnalytics />
+        <AnalyticsNotice />
       </ProfileProvider>
     </CartProvider>
   );

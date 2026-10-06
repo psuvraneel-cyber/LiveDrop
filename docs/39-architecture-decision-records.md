@@ -33,6 +33,7 @@ Architecture Decision Records (ADRs) capture critical technical choices, the rat
 | [ADR-014](file:///c:/LiveDrop/docs/adr/ADR-014-undo-offline-sale-within-30-minutes.md) | Undo of an Offline Sale Within 30 Minutes (amends 09 §3.2) | **Accepted** | 2026-10-04 | Project Owner (seller-app audit remediation) | Inventory State Machine |
 | [ADR-015](file:///c:/LiveDrop/docs/adr/ADR-015-seller-push-notifications-and-crash-reporting.md) | Seller Push Notifications and Crash Reporting (Firebase FCM + Crashlytics, outbox + Edge Function) | **Accepted** | 2026-10-04 | Project Owner (seller-app audit remediation) | Observability & Notifications |
 | [ADR-016](file:///c:/LiveDrop/docs/adr/ADR-016-operator-console-backups-and-app-links.md) | Operator Console, Nightly Backups and Seller-App Links (`/admin` + admin RPCs, encrypted pg_dump with restore test, `livedrop-seller://` scheme) | **Accepted** | 2026-10-05 | Project Owner (seller-app audit remediation) | Operations |
+| [ADR-017](file:///c:/LiveDrop/docs/adr/ADR-017-admin-dashboard-analytics-and-legal-pages.md) | Admin Dashboard, Anonymous Visit Analytics and Legal Pages (Realtime presence, `site_page_views`, admin reports, privacy/terms/refund/grievance pages) | **Accepted** | 2026-10-06 | Project Owner | Operations & Compliance |
 
 ---
 

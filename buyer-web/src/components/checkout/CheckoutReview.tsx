@@ -181,6 +181,14 @@ export function CheckoutReview({
           </span>
         </div>
 
+        {/* Notice at collection (DPDP Act 2023): what the buyer agrees to by placing the order. */}
+        <p className="ld-form-hint" data-testid="checkout-legal-notice" style={{ fontSize: '12px', margin: '0 0 10px' }}>
+          By placing this order you agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a> and{' '}
+          <a href="/refund-policy" target="_blank" rel="noopener noreferrer">Refunds &amp; Returns</a> policy. Your name, number
+          and address are shared with the seller to deliver your order, as explained in the{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+        </p>
+
         {/* Submission CTA */}
         <button
           type="button"

@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { LEGAL_LINKS } from './legal/LegalPage';
+import { LEGAL } from '../lib/legal/legal-config';
 
 export function Footer() {
   return (
@@ -26,13 +28,21 @@ export function Footer() {
           </Link>
         </nav>
 
+        <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px]" aria-label="Legal" data-testid="footer-legal-links">
+          {LEGAL_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="text-[#AAA49A] hover:text-[#D4AF37] transition-colors min-h-[32px] inline-flex items-center">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+
         <div className="space-y-1 pt-1">
           <p className="font-serif text-sm text-[#F4F1EA] tracking-wider">LiveDrop</p>
           <p className="text-[11px] text-[#AAA49A]/80">Haute-couture live commerce for independent Indian fashion boutiques.</p>
         </div>
 
         <p className="font-mono text-[10px] text-white/30 pt-1">
-          © {new Date().getFullYear()} LiveDrop Technologies. All rights reserved.
+          © {new Date().getFullYear()} {LEGAL.operatorName ?? 'LiveDrop'}. All rights reserved.
         </p>
       </div>
     </footer>

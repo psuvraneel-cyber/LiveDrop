@@ -31,6 +31,16 @@ LiveDrop handles personal customer fulfillment data across India. It complies wi
 
 ---
 
+### 2.1 Anonymous visit analytics (ADR-017, 2026-10-06)
+| Data Field | Category | Purpose | Storage | Retention | Access |
+|---|---|---|---|---|---|
+| Random visitor id (`livedrop_visitor_id_v1`) | Pseudonymous identifier, not linked to a person | Count unique visitors | Browser `localStorage`; `site_page_views.visitor_id`; Realtime presence key | 180 days in the database; until cleared in the browser | Admins (counts only) |
+| Page kind, drop slug, source, device class, "this browser ordered before" | Non-personal usage data | Traffic history, live dashboard | `site_page_views`; presence payload (not stored) | 180 days | Admins |
+
+* No IP address, user agent, name, phone or order id is recorded for analytics.
+* Counting is off after the visitor opts out (notice or `/privacy`), with Do Not Track or Global Privacy Control, and on seller and admin pages.
+* Public legal pages: `/privacy`, `/terms`, `/refund-policy`, `/grievance`. Business details are in `buyer-web/src/lib/legal/legal-config.ts`, filled in by the owner.
+
 ## 3. Client-Side `localStorage` Governance
 
 ### 3.1 UX Convenience vs Shared Device Privacy

@@ -445,3 +445,12 @@ It replaces the app downloading every order to compute analytics. Order lists in
   * `admin_seller_status(uuid, boolean)`
   * `admin_order_json(orders)`
 * `record_refund` (from 035) also accepts an admin while `admin_record_refund` is running. It is otherwise unchanged.
+
+## 10. Admin Dashboard Analytics (migration 045, ADR-017)
+
+* `site_page_views (id, visitor_id uuid, page_kind, drop_slug, source, device, returning_buyer, created_at)`. Anonymous page views from the website.
+  * Written only by `log_page_view` (anon/authenticated; validated; repeats of the same visitor, page and drop within 30 s are ignored).
+  * No IP, user agent, name, phone or order id.
+  * RLS on with no client privileges.
+  * Deleted after 180 days by `purge_old_page_views()`, run daily by pg_cron job `livedrop-purge-page-views`.
+* Admin reports, platform admins only and read-only: `admin_traffic(days)`, `admin_live_drops()`, `admin_sales_overview(days)`, `admin_payment_attention()`.
