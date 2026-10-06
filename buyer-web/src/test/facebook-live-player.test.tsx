@@ -11,7 +11,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FacebookLivePlayer, getFacebookEmbedUrl } from '../components/live/FacebookLivePlayer';
+import { FacebookLivePlayer, getFacebookEmbedUrl, isFacebookShareLink } from '../components/live/FacebookLivePlayer';
 
 describe('FacebookLivePlayer Component & URL Helper Tests', () => {
   it('correctly constructs official Facebook video embed plugin URL', () => {
@@ -29,6 +29,16 @@ describe('FacebookLivePlayer Component & URL Helper Tests', () => {
     const embedUrl = getFacebookEmbedUrl(rawUrl, false);
 
     expect(embedUrl).toContain('mute=0');
+  });
+
+  it('does not embed Facebook share links (the player cannot play them) but offers Facebook instead', () => {
+    expect(getFacebookEmbedUrl('https://www.facebook.com/share/v/1Days6zufk/')).toBeNull();
+    expect(getFacebookEmbedUrl('https://fb.watch/abc123/')).toBeNull();
+    expect(isFacebookShareLink('https://m.facebook.com/share/r/xyz/')).toBe(true);
+    expect(isFacebookShareLink('https://www.facebook.com/boutique/videos/10101010/')).toBe(false);
+    render(<FacebookLivePlayer streamUrl="https://www.facebook.com/share/v/1Days6zufk/" dropTitle="Summer" storeName="Suvraneel Boutique" />);
+    expect(screen.queryByTestId('facebook-live-iframe')).not.toBeInTheDocument();
+    expect(screen.getByTestId('watch-on-facebook-btn')).toHaveAttribute('href', 'https://www.facebook.com/share/v/1Days6zufk/');
   });
 
   it('returns null for invalid or non-http URLs', () => {
