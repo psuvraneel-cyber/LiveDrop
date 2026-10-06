@@ -326,6 +326,12 @@ describe('LiveDrop Phase 3: Order Lookup, Receipts & Order Tracking Behavior', (
     expect(screen.getByTestId('tracking-awb-number')).toHaveTextContent('BLUEDART-99228811');
     expect(screen.getByRole('button', { name: /Copy Tracking Number/i })).toBeInTheDocument();
     expect(screen.getByTestId('shipped-at-timestamp')).toBeInTheDocument();
+    // After shipping, the timeline sends the buyer to the courier's own tracking page.
+    const track = screen.getByTestId('track-on-courier-btn');
+    expect(track).toHaveAttribute('href', 'https://www.bluedart.com/tracking');
+    expect(track).toHaveTextContent('Track on Blue Dart');
+    expect(screen.getByTestId('timeline-track-parcel')).toHaveClass('active');
+    expect(screen.queryByText('Out for Delivery')).not.toBeInTheDocument();
   });
 
   // 12. Shipped order without tracking
@@ -548,10 +554,11 @@ describe('LiveDrop Phase 3: Order Lookup, Receipts & Order Tracking Behavior', (
       expect(screen.getByLabelText('Order Status Progression')).toBeInTheDocument();
     });
 
-    // Delivered is pending (circle) and not completed checkmark
-    const deliveredStep = screen.getByText('Delivered').closest('.ld-timeline-step');
-    expect(deliveredStep).toHaveClass('pending');
-    expect(deliveredStep).not.toHaveClass('completed');
+    // Tracking is pending (circle) before shipping, never a completed checkmark
+    const trackStep = screen.getByTestId('timeline-track-parcel');
+    expect(trackStep).toHaveClass('pending');
+    expect(trackStep).not.toHaveClass('completed');
+    expect(screen.queryByTestId('track-on-courier-btn')).not.toBeInTheDocument();
   });
 
   // 20. Mobile and desktop rendering

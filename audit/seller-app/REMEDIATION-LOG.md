@@ -278,3 +278,10 @@ Totals:
   - Fill in `buyer-web/src/lib/legal/legal-config.ts`; `/admin` lists what is missing.
   - Have the legal texts reviewed by a lawyer.
   - Run Database Deploy for 045 and check H30.
+
+## Fix (2026-10-06): order page steps that could never complete
+- The order timeline ended with "Out for Delivery" and "Delivered". LiveDrop records nothing after `shipped`, so these were fixed text and always looked unfinished.
+- They are replaced by **"Track your parcel"**. It is active once shipped, with a "Track on <courier>" button that opens the courier's official tracking page and copies the tracking number. The courier pages were checked, and India Post links its home page, where the tracking box is.
+- Planned: seller-marked "Delivered" (see HANDOFF).
+- Tests: `courier-tracking.test.ts` (2) and updated timeline tests; buyer-web 715/715.
+
