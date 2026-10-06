@@ -78,3 +78,30 @@ export function buildWhatsAppChatUrl(params: WhatsAppOrderMessageParams): string
   // Fallback to generic WhatsApp share URL if no specific seller phone is configured
   return `https://api.whatsapp.com/send?text=${encodedText}`;
 }
+
+export interface WhatsAppPaymentMessageParams {
+  phone?: string | null;
+  orderCode: string;
+  amountPaisa: number;
+  paymentType: 'advance' | 'balance' | 'full';
+  storeName?: string | null;
+}
+
+/**
+ * Opens the seller's WhatsApp chat with a message announcing the payment (owner decision
+ * 2026-10-05). The buyer then pays inside the chat (₹ → amount → PIN): a payment the buyer starts
+ * themselves, which UPI apps accept for personal UPI IDs, unlike payment links. WhatsApp offers no
+ * link that pre-fills the payment amount, so the message states it. Null without a seller number.
+ */
+export function buildWhatsAppPaymentUrl(params: WhatsAppPaymentMessageParams): string | null {
+  const cleanPhone = normalizeWhatsAppPhone(params.phone);
+  if (!cleanPhone) return null;
+  const label =
+    params.paymentType === 'advance' ? 'advance' : params.paymentType === 'balance' ? 'balance' : 'full payment';
+  const text = [
+    `Namaste${params.storeName ? ` ${params.storeName}` : ''}! I'm paying ${formatPaisaToINR(params.amountPaisa)} (${label}) for my LiveDrop order ${params.orderCode}.`,
+    '',
+    'I will send it here with WhatsApp Pay and submit the UPI transaction ID on the order page.',
+  ].join('\n');
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+}

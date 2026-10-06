@@ -34,6 +34,14 @@ BEGIN
     (a->>'success')::boolean AND a->>'upi_uri' LIKE 'upi://pay?pa=%' AND a->>'upi_uri' NOT LIKE '%&tr=%'
     AND a->>'upi_uri' LIKE '%' || (o->>'order_code') || '%',
     a->>'upi_uri');
+
+  -- 25.5 the order receipt carries the seller's WhatsApp number (044) for the pay-on-WhatsApp option
+  PERFORM audit.as_anon();
+  a := get_order_by_token(o->>'order_token');
+  PERFORM audit.as_postgres();
+  RAISE NOTICE '%', audit.check('25.5',
+    (a->>'success')::boolean AND a->'order'->>'whatsapp_number' = (SELECT phone_number FROM profiles WHERE id = audit.seller_a()),
+    format('receipt whatsapp_number=%s', a->'order'->>'whatsapp_number'));
 END $$;
 
 ROLLBACK;

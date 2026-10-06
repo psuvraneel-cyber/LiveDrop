@@ -130,8 +130,8 @@ describe('TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX', () => {
     render(<DirectUpiPaymentView order={baseOrder} orderToken={mockOrderToken} />);
 
     await waitFor(() => {
-      expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
-      expect(screen.queryByText('priya@okaxis')).not.toBeInTheDocument();
+      // UPI ID is shown for buyer-started payment (owner decision 2026-10-05).
+      expect(screen.getByTestId('payee-upi-id')).toHaveTextContent('priya@okaxis');
       expect(screen.getByTestId('payment-expected-amount')).toHaveTextContent('₹250');
       expect(screen.getByTestId('utr-submission-form')).toBeInTheDocument();
       expect(screen.getByTestId('utr-input-field')).toBeInTheDocument();
@@ -309,8 +309,8 @@ describe('TASK-2.4C: Persistent Payment Claims & Resume-Safe Buyer UX', () => {
     render(<DirectUpiPaymentView order={orderWithActiveAttempt} orderToken={mockOrderToken} />);
 
     await waitFor(() => {
-      expect(screen.queryByTestId('payee-vpa')).not.toBeInTheDocument();
-      expect(screen.queryByText('priya@okaxis')).not.toBeInTheDocument();
+      // UPI ID is shown for buyer-started payment (owner decision 2026-10-05).
+      expect(screen.getByTestId('payee-upi-id')).toHaveTextContent('priya@okaxis');
       expect(screen.getByTestId('payment-reference')).toHaveTextContent('LD1001-ADV');
     });
 
