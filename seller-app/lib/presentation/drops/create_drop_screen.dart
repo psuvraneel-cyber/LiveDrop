@@ -5,6 +5,7 @@ import '../../core/validation/free_shipping_rules.dart';
 import '../../data/repositories/seller_repository.dart';
 import '../../domain/models/models.dart';
 import '../../core/services/app_log.dart';
+import '../../core/services/stream_link_resolver.dart';
 
 /// LiveDrop Seller Mobile App — Create / Edit Drop Screen
 class CreateDropScreen extends StatefulWidget {
@@ -12,11 +13,15 @@ class CreateDropScreen extends StatefulWidget {
   final SellerProfile? profile;
   final SellerDrop? existingDrop;
 
+  /// Converts Facebook share links to embeddable video addresses (test seam).
+  final StreamLinkResolver? streamLinkResolver;
+
   const CreateDropScreen({
     super.key,
     required this.repository,
     this.profile,
     this.existingDrop,
+    this.streamLinkResolver,
   });
 
   @override
@@ -109,6 +114,33 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
     super.dispose();
   }
 
+  /// A share link that could not be converted: buyers would see "Video unavailable".
+  Future<bool?> _confirmUnplayableLink() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('This link may not play on your drop page'),
+        content: const Text(
+          'Facebook share links (facebook.com/share/… or fb.watch/…) cannot play on the website. '
+          'Open the link in Chrome, wait for the video to load, then copy the address from the address bar. '
+          'It looks like facebook.com/your-name/videos/123456789.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('stream-link-fix'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Fix the link'),
+          ),
+          TextButton(
+            key: const Key('stream-link-save-anyway'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onTitleChanged(String val) {
     if (_autoSlug && !_isEditing) {
       final generated = val
@@ -134,7 +166,23 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
           FreeShippingRules.parseRupeesInput(_freeShippingThresholdController.text);
 
       final streamUrlText = _streamUrlController.text.trim();
-      final streamUrl = streamUrlText.isNotEmpty ? streamUrlText : null;
+      String? streamUrl = streamUrlText.isNotEmpty ? streamUrlText : null;
+      if (streamUrl != null) {
+        // Facebook's "Copy link" gives share links the website player cannot play.
+        final link = await (widget.streamLinkResolver ?? StreamLinkResolver()).resolve(streamUrl);
+        if (!mounted) return;
+        if (link.failed) {
+          final saveAnyway = await _confirmUnplayableLink();
+          if (!mounted) return;
+          if (saveAnyway != true) {
+            setState(() => _isLoading = false);
+            return;
+          }
+        } else if (link.converted) {
+          _streamUrlController.text = link.url;
+        }
+        streamUrl = link.url;
+      }
 
       SellerDrop savedDrop;
       if (_isEditing) {
@@ -265,7 +313,7 @@ class _CreateDropScreenState extends State<CreateDropScreen> {
                   hintText: 'https://www.facebook.com/.../videos/...',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   labelStyle: TextStyle(color: Colors.grey.shade400),
-                  helperText: 'Paste the public Facebook Live broadcast or video URL',
+                  helperText: 'Paste the public Facebook Live link. Share links are converted when you save.',
                   helperStyle: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                   prefixIcon: const Icon(Icons.live_tv, color: Color(0xFF1877F2)),
                   filled: true,

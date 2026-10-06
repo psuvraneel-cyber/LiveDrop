@@ -252,3 +252,14 @@ Totals:
   - 044 adds `whatsapp_number` (the public storefront phone) to `get_order_by_token`. A freshly created order fetches its receipt once to get it.
 - **Tests:** SQL 25.5; harness 44 migrations, 172 PASS, 0 FAIL; post-check H29; buyer-web 699/699 (privacy tests updated to the new decision, plus WhatsApp and UPI ID tests).
 
+
+## Fix (2026-10-06): Facebook Live video not showing on the drop page
+- **Found by:** the owner's test.
+- **Cause:** the drop's stream link was a Facebook **share link** (`facebook.com/share/v/…`), which the Facebook app's "Copy link" produces. Facebook's embed player cannot play share links and shows "Video unavailable". The full video address (`facebook.com/<page>/videos/<id>/`) plays fine; both were checked in a browser on the live drop.
+- **Fix:**
+  - **Seller app:** `StreamLinkResolver` follows the share link's redirect once when a drop is saved and stores the full address. If that fails, the seller is told how to copy the full link, and can still save.
+  - **Website:** share links are not embedded. The page shows "Watch the live on Facebook" instead of a broken player.
+- **Tests:**
+  - `stream_link_resolver_test.dart` (5); a live check converted the owner's real share link.
+  - `facebook-live-player.test.tsx`: new share-link test; buyer-web 700/700.
+  - `flutter test`: 225 pass, plus the 2 Windows-only failures.

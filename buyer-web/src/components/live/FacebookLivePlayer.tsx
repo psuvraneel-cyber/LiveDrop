@@ -10,12 +10,22 @@ export interface FacebookLivePlayerProps {
 }
 
 /**
+ * Facebook share links (facebook.com/share/v/…, fb.watch/…), which the Facebook app's "Copy link"
+ * produces, cannot be played by the embed player ("Video unavailable"). The seller app converts them
+ * to the full video address when a drop is saved; links saved before that are opened on Facebook.
+ */
+export function isFacebookShareLink(url: string): boolean {
+  return /^https?:\/\/((www|m|web)\.)?(facebook\.com\/share\/(v|r|p)\/|fb\.watch\/)/i.test(url.trim());
+}
+
+/**
  * Validates and encodes a Facebook Live URL for official iframe embedding.
  */
 export function getFacebookEmbedUrl(url: string, muted: boolean = true): string | null {
   if (!url || typeof url !== 'string') return null;
   const trimmed = url.trim();
   if (!/^https?:\/\//i.test(trimmed)) return null;
+  if (isFacebookShareLink(trimmed)) return null;
 
   const encodedHref = encodeURIComponent(trimmed);
   const muteParam = muted ? '1' : '0';
@@ -118,6 +128,17 @@ export function FacebookLivePlayer({
             <p className="text-xs text-[#FBFBFB]/70 font-sans leading-relaxed">
               Broadcast will stream live from {storeName}. Reserve spotlighted pieces below in real-time.
             </p>
+            {streamUrl && /^https?:\/\//i.test(streamUrl.trim()) && (
+              <a
+                href={streamUrl.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="watch-on-facebook-btn"
+                className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-full bg-[#1877F2] text-white text-xs font-semibold"
+              >
+                Watch the live on Facebook
+              </a>
+            )}
           </div>
         </div>
       )}
