@@ -263,3 +263,18 @@ Totals:
   - `stream_link_resolver_test.dart` (5); a live check converted the owner's real share link.
   - `facebook-live-player.test.tsx`: new share-link test; buyer-web 700/700.
   - `flutter test`: 225 pass, plus the 2 Windows-only failures.
+
+## Feature (2026-10-06): admin dashboard, anonymous visit analytics, legal pages (migration 045, ADR-017)
+- **Owner request:** live visitors and how many have bought before, live drops, sales, payments needing attention, traffic history, and the legal side.
+- **Built:**
+  - `/admin` has new **Live, Sales, Payments and Traffic** tabs, beside Sellers and Refunds.
+  - Live visitor counts come from anonymous Realtime presence.
+  - History comes from `site_page_views`: random visitor id, page kind, drop, source, device and returning-buyer flag. No IP and no personal data; kept 180 days.
+  - Reports are admin-only RPCs.
+  - Legal pages `/privacy`, `/terms`, `/refund-policy` and `/grievance`, linked from the footer and from a notice at checkout.
+  - A one-time visit-counting notice with opt-out; Do Not Track and Global Privacy Control are respected.
+- **Tests:** SQL suite 26 (5/5); harness 45 migrations, 177 PASS, 0 FAIL; post-check H30; buyer-web 713/713.
+- **Owner actions:**
+  - Fill in `buyer-web/src/lib/legal/legal-config.ts`; `/admin` lists what is missing.
+  - Have the legal texts reviewed by a lawyer.
+  - Run Database Deploy for 045 and check H30.

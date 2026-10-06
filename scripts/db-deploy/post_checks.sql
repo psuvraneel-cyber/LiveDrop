@@ -221,6 +221,23 @@ BEGIN
   END IF;
 END $$;
 
+\echo '== H30: migration 045 (admin dashboard analytics)'
+DO $$
+BEGIN
+  IF to_regclass('public.site_page_views') IS NULL THEN
+    RAISE NOTICE 'migration 045 not applied yet';
+  ELSIF has_table_privilege('anon', 'public.site_page_views', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.site_page_views', 'SELECT')
+     OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.site_page_views'::regclass)
+     OR NOT has_function_privilege('anon', 'public.log_page_view(uuid,text,text,text,text,boolean)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.admin_traffic(integer)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'CHECK FAILED (H30): analytics privileges are wrong';
+  ELSE
+    RAISE NOTICE 'PASS H30 analytics: page views private with RLS, logging anon-only via RPC, reports admin-only';
+  END IF;
+END $$;
+SELECT count(*) AS h30_page_views_last_24h FROM public.site_page_views WHERE created_at > NOW() - INTERVAL '24 hours';
+
 \echo '== H7: realtime publication (expected: orders, payment_attempts, products)'
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' ORDER BY 1;
 

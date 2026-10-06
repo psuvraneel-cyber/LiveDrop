@@ -488,5 +488,18 @@ Writes also return `REAUTH_REQUIRED` unless the caller signed in with a password
 
 `order` = `{id, order_code, status, store_name, total_paisa, total_paid_paisa, refund_status, refund_amount_paisa, refund_reason, refund_required_at, refund_reference, refunded_at, created_at}`.
 
+### 3.18 Analytics and Admin Dashboard (RPCs) — new in migration 045
+| RPC | Who | Returns |
+|---|---|---|
+| `log_page_view(p_visitor_id uuid, p_page_kind, p_drop_slug, p_source, p_device, p_returning_buyer)` | anon, authenticated | `{success, deduplicated}`, or `{success:false, error:'INVALID_INPUT'}`. `page_kind` is one of home, shop, store, drop, cart, checkout, order, legal, other. `source` is one of whatsapp, facebook, instagram, google, direct, other. `device` is one of mobile, tablet, desktop |
+| `admin_traffic(p_days = 7)` | admins | `{totals{visitors, page_views, returning_buyer_visitors}, daily[], by_source[], by_device[], by_page[], top_drops[]}` (IST days, 1–180) |
+| `admin_live_drops()` | admins | `{drops:[{id, title, slug, live_started_at, store_name, store_slug, available, held, sold, orders_last_hour, verified_paisa_last_hour, payments_waiting}]}` |
+| `admin_sales_overview(p_days = 7)` | admins | `{orders, paid_orders, cancelled_orders, verified_paisa, refunds_owed_paisa, visitors, conversion_pct, daily[], top_sellers[], top_products[]}` |
+| `admin_payment_attention()` | admins | `{waiting[] (with minutes_waiting), refunds_owed[], recently_rejected[]}`. No buyer contact details |
+
+Non-admin callers of the `admin_*` functions get `{success:false, error:'UNAUTHORIZED'}`.
+
+Live visitors use the Realtime presence channel `livedrop-site-presence`. The payload is `{page, drop, returning, activeOrder, source, device, at}`, keyed by the anonymous visitor id.
+
 ### 3.16 Internal Functions (not part of the client API)
 `release_stale_hold(p_order_id uuid) RETURNS boolean`, `apply_upi_payment_transition(...)`, `upi_verification_response(...)` and (since 038) `close_drop_safely(p_drop_id uuid) RETURNS int` are `SECURITY DEFINER` helpers with EXECUTE revoked from `PUBLIC`, `anon`, `authenticated` and `service_role`; a client call returns `permission denied`. `release_expired_holds()` is called by pg_cron (migration 036) and by the backup GitHub Actions reaper (`scripts/run-reaper.mjs`, service role).

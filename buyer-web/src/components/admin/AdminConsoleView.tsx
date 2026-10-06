@@ -25,6 +25,10 @@ import {
   type AdminSeller,
   type SellerFilter,
 } from '../../lib/admin/console';
+import { LivePanel, PaymentsPanel, SalesPanel, TrafficPanel } from './AdminDashboardPanels';
+import { missingLegalFields } from '../../lib/legal/legal-config';
+
+const missingLegal = missingLegalFields();
 
 export const NOT_ADMIN_MESSAGE = 'This account is not a LiveDrop administrator.';
 const SETUP_MESSAGE = 'The admin console is not available right now. Please try again later.';
@@ -34,7 +38,16 @@ export interface AdminConsoleViewProps {
   clientFactory?: () => SupabaseClient;
 }
 
-type Tab = 'sellers' | 'refunds';
+type Tab = 'live' | 'sales' | 'payments' | 'traffic' | 'sellers' | 'refunds';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'live', label: 'Live' },
+  { id: 'sales', label: 'Sales' },
+  { id: 'payments', label: 'Payments' },
+  { id: 'traffic', label: 'Traffic' },
+  { id: 'sellers', label: 'Sellers' },
+  { id: 'refunds', label: 'Refunds' },
+];
 
 function messageOf(err: unknown): string {
   return err instanceof AdminError ? err.message : 'Something went wrong. Please try again.';
@@ -54,7 +67,7 @@ export function AdminConsoleView({ clientFactory = createAdminClient }: AdminCon
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('sellers');
+  const [tab, setTab] = useState<Tab>('live');
 
   // Writes after 10 minutes need the password again; the action waits here meanwhile.
   const [reauthAction, setReauthAction] = useState<(() => Promise<void>) | null>(null);
@@ -184,11 +197,20 @@ export function AdminConsoleView({ clientFactory = createAdminClient }: AdminCon
         <Button variant="outline" size="sm" onClick={handleSignOut} data-testid="admin-sign-out">Sign out</Button>
       </header>
 
-      <nav role="tablist" aria-label="Admin sections" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        {(['sellers', 'refunds'] as Tab[]).map((t) => (
-          <Button key={t} role="tab" aria-selected={tab === t} variant={tab === t ? 'gold' : 'outline'} size="sm"
-            onClick={() => setTab(t)} data-testid={`admin-tab-${t}`}>
-            {t === 'sellers' ? 'Sellers' : 'Refunds'}
+      {missingLegal.length > 0 && (
+        <p className="ld-field-error" role="note" data-testid="admin-legal-missing" style={{ marginBottom: '12px' }}>
+          <span>
+            Legal pages are missing: {missingLegal.join(', ')}. Fill them in buyer-web/src/lib/legal/legal-config.ts before
+            real customers use the site.
+          </span>
+        </p>
+      )}
+
+      <nav role="tablist" aria-label="Admin sections" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+        {TABS.map((t) => (
+          <Button key={t.id} role="tab" aria-selected={tab === t.id} variant={tab === t.id ? 'gold' : 'outline'} size="sm"
+            onClick={() => setTab(t.id)} data-testid={`admin-tab-${t.id}`}>
+            {t.label}
           </Button>
         ))}
       </nav>
@@ -212,9 +234,12 @@ export function AdminConsoleView({ clientFactory = createAdminClient }: AdminCon
         </form>
       )}
 
-      {tab === 'sellers'
-        ? <SellersPanel client={session.client} runWrite={runWrite} onNotice={setNotice} onError={setError} />
-        : <RefundsPanel client={session.client} runWrite={runWrite} onNotice={setNotice} onError={setError} />}
+      {tab === 'live' && <LivePanel client={session.client} onError={setError} />}
+      {tab === 'sales' && <SalesPanel client={session.client} onError={setError} />}
+      {tab === 'payments' && <PaymentsPanel client={session.client} onError={setError} />}
+      {tab === 'traffic' && <TrafficPanel client={session.client} onError={setError} />}
+      {tab === 'sellers' && <SellersPanel client={session.client} runWrite={runWrite} onNotice={setNotice} onError={setError} />}
+      {tab === 'refunds' && <RefundsPanel client={session.client} runWrite={runWrite} onNotice={setNotice} onError={setError} />}
     </main>
   );
 }

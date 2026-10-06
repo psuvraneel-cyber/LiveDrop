@@ -43,6 +43,7 @@ Read this first in a new session, then `REMEDIATION-LOG.md` (what is fixed and t
 - Distribution is through the **Google Play Store** with Play App Signing. CI signs with the upload key (secrets `ANDROID_*`, var `ANDROID_RELEASE_CERT_SHA256`).
 - Improvements and the redesign only start **after all P0/P1 blockers are fixed**.
 - Payments with a **personal UPI ID** (owner decision 2026-10-05, revises REQ-BLK-1R): UPI apps (Google Pay, WhatsApp) decline payments that a link or QR starts towards a personal UPI ID, but accept payments the buyer starts. The payment page therefore offers **Pay on WhatsApp** (seller's chat, buyer taps ₹) and **Pay to the UPI ID** (shown with copy buttons, order-token holders only). The storefront still hides the UPI ID. The seller keeps a personal UPI ID to avoid the merchant MDR (0.4% above ₹2,000 from 2026-10-15).
+- Admin dashboard and legal pages (ADR-017, 2026-10-06): anonymous visit analytics, with "buyer" meaning this browser ordered before. Legal business details are owner inputs in `buyer-web/src/lib/legal/legal-config.ts`.
 - Operations (ADR-016): a small **admin page** on the website (not SQL), and a **free nightly backup job** (not Supabase Pro).
 
 ## Live state (checked 2026-10-04)

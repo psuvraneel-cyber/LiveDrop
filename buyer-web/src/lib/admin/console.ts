@@ -126,3 +126,113 @@ export async function recordRefund(
   });
   return (r.message as string) ?? '';
 }
+
+// ---------------------------------------------------------------------------
+// Dashboard (migration 045, ADR-017)
+// ---------------------------------------------------------------------------
+
+export interface LiveDropRow {
+  id: string;
+  title: string;
+  slug: string;
+  live_started_at: string | null;
+  store_name: string;
+  store_slug: string;
+  available: number;
+  held: number;
+  sold: number;
+  orders_last_hour: number;
+  verified_paisa_last_hour: number;
+  payments_waiting: number;
+}
+
+export interface SalesOverview {
+  days: number;
+  orders: number;
+  paid_orders: number;
+  cancelled_orders: number;
+  verified_paisa: number;
+  refunds_owed_paisa: number;
+  visitors: number;
+  conversion_pct: number | null;
+  daily: { date: string; orders: number; verified_paisa: number }[];
+  top_sellers: { store_name: string; store_slug: string; orders: number; verified_paisa: number }[];
+  top_products: { code: string; title: string | null; store_name: string; sold: number; revenue_paisa: number }[];
+}
+
+export interface PaymentAttention {
+  waiting: {
+    order_code: string;
+    store_name: string;
+    payment_type: string;
+    expected_amount_paisa: number;
+    status: string;
+    claimed_at: string;
+    minutes_waiting: number;
+  }[];
+  refunds_owed: { order_code: string; store_name: string; refund_amount_paisa: number; refund_reason: string | null; refund_required_at: string | null }[];
+  recently_rejected: { order_code: string; store_name: string; expected_amount_paisa: number; rejection_reason: string | null; updated_at: string }[];
+}
+
+export interface TrafficReport {
+  days: number;
+  totals: { visitors: number; page_views: number; returning_buyer_visitors: number };
+  daily: { date: string; visitors: number; page_views: number }[];
+  by_source: { source: string; visitors: number }[];
+  by_device: { device: string; visitors: number }[];
+  by_page: { page: string; views: number }[];
+  top_drops: { drop_slug: string; visitors: number }[];
+}
+
+export async function liveDrops(client: SupabaseClient): Promise<LiveDropRow[]> {
+  const r = await call(client, 'admin_live_drops');
+  return (r.drops as LiveDropRow[]) ?? [];
+}
+
+export async function salesOverview(client: SupabaseClient, days: number): Promise<SalesOverview> {
+  return (await call(client, 'admin_sales_overview', { p_days: days })) as unknown as SalesOverview;
+}
+
+export async function paymentAttention(client: SupabaseClient): Promise<PaymentAttention> {
+  return (await call(client, 'admin_payment_attention')) as unknown as PaymentAttention;
+}
+
+export async function traffic(client: SupabaseClient, days: number): Promise<TrafficReport> {
+  return (await call(client, 'admin_traffic', { p_days: days })) as unknown as TrafficReport;
+}
+
+/** Live visitors from the website's presence channel, summarised. */
+export interface LiveVisitors {
+  total: number;
+  returningBuyers: number;
+  withActiveOrder: number;
+  byPage: Record<string, number>;
+  byDrop: Record<string, number>;
+  bySource: Record<string, number>;
+}
+
+interface PresenceMeta {
+  page?: string;
+  drop?: string | null;
+  returning?: boolean;
+  activeOrder?: boolean;
+  source?: string;
+}
+
+/** One entry per visitor (presence key); a visitor with several tabs counts once, on their latest page. */
+export function summarisePresence(state: Record<string, PresenceMeta[]>): LiveVisitors {
+  const summary: LiveVisitors = { total: 0, returningBuyers: 0, withActiveOrder: 0, byPage: {}, byDrop: {}, bySource: {} };
+  for (const metas of Object.values(state)) {
+    const meta = metas[metas.length - 1];
+    if (!meta) continue;
+    summary.total += 1;
+    if (meta.returning) summary.returningBuyers += 1;
+    if (meta.activeOrder) summary.withActiveOrder += 1;
+    const page = meta.page ?? 'other';
+    summary.byPage[page] = (summary.byPage[page] ?? 0) + 1;
+    if (meta.drop) summary.byDrop[meta.drop] = (summary.byDrop[meta.drop] ?? 0) + 1;
+    const source = meta.source ?? 'other';
+    summary.bySource[source] = (summary.bySource[source] ?? 0) + 1;
+  }
+  return summary;
+}
