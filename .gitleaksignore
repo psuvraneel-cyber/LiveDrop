@@ -7,3 +7,6 @@
 cd273ad82712fdcf573677c5cfacb47b1fe0803d:seller-app/lib/data/repositories/seller_repository.dart:livedrop-hardcoded-password:314
 # 325e919, .gitleaksignore:4 - the first version of this file quoted that same line in a comment.
 325e9197cc47f90fa31d9bd2274ec5e49b7bce2a:.gitleaksignore:livedrop-hardcoded-password:4
+# aac56f4, screen-09-payment.test.tsx:67 - the dummy order token (a fixed test UUID) passed to a test
+# render, not a credential. The test now reads it from the shared fixture.
+aac56f4eff18ff96bc1b85aef07b3bab1171f36b:buyer-web/src/test/e2e/screen-09-payment.test.tsx:generic-api-key:67

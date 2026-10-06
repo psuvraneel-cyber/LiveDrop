@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { DirectUpiPaymentView } from '../../components/checkout/DirectUpiPaymentView';
 import * as buyerCatalog from '../../lib/data/buyer-catalog';
-import { mockOrderReceiptFull, mockPaymentAttempt } from './fixtures/mock-catalog-data';
+import { mockCreateOrderResponse, mockOrderReceiptFull, mockPaymentAttempt } from './fixtures/mock-catalog-data';
 import { renderWithProviders } from './fixtures/test-providers';
 
 describe('Tier 1: Screen 09 — Direct UPI Payment View', () => {
@@ -46,7 +46,7 @@ describe('Tier 1: Screen 09 — Direct UPI Payment View', () => {
     renderWithProviders(
       <DirectUpiPaymentView
         order={{ ...mockOrderReceiptFull, whatsapp_number: '9876543210' }}
-        orderToken="8f7a6c9d-1234-4567-89ab-cdef01234567"
+        orderToken={mockCreateOrderResponse.order_token}
       />
     );
 
@@ -64,7 +64,7 @@ describe('Tier 1: Screen 09 — Direct UPI Payment View', () => {
     renderWithProviders(
       <DirectUpiPaymentView
         order={{ ...mockOrderReceiptFull, whatsapp_number: null }}
-        orderToken="8f7a6c9d-1234-4567-89ab-cdef01234567"
+        orderToken={mockCreateOrderResponse.order_token}
       />
     );
     expect(await screen.findByTestId('payee-upi-id')).toBeInTheDocument();
